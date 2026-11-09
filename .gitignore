@@ -1,0 +1,18 @@
+.venv/
+data/raw/
+data/interim/
+.env
+cache/
+__pycache__/
+*.pyc
+.DS_Store
+
+# answer key for the hand-labelled validation sample: never publish
+docs/validation_key*.csv
+# site data: how the site gets its data is not decided yet
+data/export/
+# hand-review list of sensitive topics / low-reach persons: keep private
+docs/review_sensitive.csv
+# hand-review working files that may name private individuals: local only (see docs/REVIEW_FILES.md)
+docs/validation_sample*.csv
+docs/link_review.csv

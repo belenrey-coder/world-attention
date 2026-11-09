@@ -1,0 +1,3 @@
+# Hand corrections to the weather category (pipeline/04_moments.py). is_weather: 1 = weather, 0 = not weather.
+# topic_id values are in data/interim/topic_meta.parquet. Families of errors belong in NOT_WEATHER_RE instead.
+topic_id,is_weather,note

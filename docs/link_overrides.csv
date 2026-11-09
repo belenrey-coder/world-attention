@@ -1,0 +1,7 @@
+# Manual links, applied after the automatic ones. parent_topic_id empty = never link this child.
+# child_topic_id and parent_topic_id are topic_id values from docs/link_review.csv or data/interim/topic_meta.parquet.
+child_topic_id,parent_topic_id,note
+Pope dead,Pope Francis,"papst tot (DE): related searches split between Francis and Leo XIV; it trended Feb and 21 Apr 2025, so Francis"
+Liga 1 Peru standings,,"Peruvian Liga 1, not Spanish La Liga"
+latina en vivo,,"Latina is a Peruvian TV channel, not the Italian city"
+Siemens Energy,,separate listed company
