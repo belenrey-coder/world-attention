@@ -12,7 +12,9 @@ docs/validation_key*.csv
 # site data: how the site gets its data is not decided yet
 data/export/
 # hand-review list of sensitive topics / low-reach persons: keep private
-docs/review_sensitive.csv
+docs/review_sensitive*.csv
 # hand-review working files that may name private individuals: local only (see docs/REVIEW_FILES.md)
 docs/validation_sample*.csv
 docs/link_review.csv
+# hand decisions on sensitive topics (keep/hide), read by 05_export: local only
+pipeline/sensitive_decisions.csv

@@ -39,8 +39,8 @@ Note: “pope francis” also trended on 2025-04-20 (his Easter appearance, and 
 
 - Distinct raw strings (`query_raw`): **923,336**
 - Distinct normalized strings (`query_norm`): **895,618** (normalization merged 27,718)
-- Topics: **798,354**; largest group 64 strings (fuzzy/semantic merges capped at 50 strings)
-- Multi-string topics: 50,625; strings in them: 158,358
+- Topics: **780,560**; largest group 64 strings (fuzzy/semantic merges capped at 50 strings)
+- Multi-string topics: 54,528; strings in them: 178,956
 
 Each union reduces the number of groups by one. Layers run in the order shown (after normalization: Wikidata, Claude, typo, semantic); a pair already joined by an earlier layer counts for that layer.
 
@@ -48,9 +48,9 @@ Each union reduces the number of groups by one. Layers run in the order shown (a
 |---|---|---|---|---|
 | normalization (exact query_norm) | 27718 |  |  |  |
 | wikidata | 5528 | 0 | 0 | 0 |
-| claude | 31989 | 4 | 0 | 0 |
-| typo | 20418 | 2 | 639 | 10 |
-| semantic | 39336 | 104 | 18468 | 45 |
+| claude | 31962 | 4 | 0 | 0 |
+| typo | 17153 | 4 | 604 | 61 |
+| semantic | 24994 | 106 | 11003 | 172 |
 
 Typo edges before the union-find: 34,478; dropped because a string has <= 8 characters and similarity < 0.96: 2,656; dropped because both strings have confident (>= 0.5) Claude names that differ: 2,032; kept: 29,790.
 
@@ -110,25 +110,25 @@ Typo edges before the union-find: 34,478; dropped because a string has <= 8 char
 | topic_id | topic_name | rows | strings | phrasings (most common first) |
 |---|---|---|---|---|
 | Weather | Weather | 27628 | 1 | weather |
-| Q7156 | FC Barcelona | 26765 | 26 | barcelona; barca; fc barcelona; fcb; برشلونة; barcelona fc; fc barcelone; barcelona hoy |
-| Q8682 | Real Madrid CF | 26661 | 38 | real madrid; real madrid vs; real madrid cf; real madrid club de futbol; ريال مدريد; real madrid fc; real vs; real madrid hoy |
-| UEFA Champions League | UEFA Champions League | 22708 | 51 | champions league; uefa champions league; champions; liga de campeones de la uefa; ucl; cl; ligue des champions; sampiyonlar ligi |
+| Q7156 | FC Barcelona | 26770 | 27 | barcelona; barca; fc barcelona; fcb; برشلونة; barcelona fc; fc barcelone; barcelona hoy |
+| Q8682 | Real Madrid CF | 26761 | 45 | real madrid; real madrid vs; real madrid cf; real madrid club de futbol; ريال مدريد; real madrid fc; real vs; real madrid hoy |
+| UEFA Champions League | UEFA Champions League | 22748 | 51 | champions league; uefa champions league; champions; liga de campeones de la uefa; ucl; cl; ligue des champions; sampiyonlar ligi |
 | Weather tomorrow | Weather tomorrow | 17998 | 23 | الطقس غدا; thoi tiet ngay mai; погода завтра; tiempo de manana; 내일 날씨; कल का मौसम; tiempo manana; wetter morgen |
-| Weather forecast | Weather forecast | 17241 | 21 | weather tomorrow; weather forecast; 天氣; pronostico del tiempo; du bao thoi tiet; 天氣預報; прогноз погоды; el clima |
+| Weather forecast | Weather forecast | 17376 | 22 | weather tomorrow; weather forecast; 天氣; pronostico del tiempo; du bao thoi tiet; tomorrow weather; 天氣預報; прогноз погоды |
 | La Liga | La Liga | 15304 | 12 | la liga; laliga; liga; لا ليغا; liga bbva; ла лига; liga espanola; liga santander |
 | Q483020 | Paris Saint-Germain FC | 13831 | 6 | psg; paris saint germain football club; псж; paris saint; paris saint germain fc; paris saint germain f c |
 | Weather [hava durumu] | Weather | 13656 | 13 | hava durumu; thoi tiet; weer; cuaca; வானிலை; מזג אוויר; طقس; het weer |
 | Q85518537 | Carlos Alcaraz | 12563 | 14 | carlos alcaraz; alcaraz; alcaraz oggi; карлос алькарас; 卡洛斯 艾卡拉茲; алькарас; carlos alcaraz net worth; الكاراز |
 | Q9448 | Premier League | 12389 | 28 | premier league; pl; premier; プレミアリーグ; liga inglesa; 英超; الدوري الانجليزي الممتاز; ngoai hang anh |
 | Q54812588 | Jannik Sinner | 12279 | 21 | jannik sinner; sinner; янник синнер; sinner oggi; sinner tennis player; sinner tennis; sinner vs; sinner hoy |
-| Liverpool FC | Liverpool FC | 11359 | 16 | liverpool; liverpool fc; liverpool vs; liverpool f c; ليفربول; liverpool football club; lfc; fc liverpool |
+| Liverpool FC | Liverpool FC | 11364 | 17 | liverpool; liverpool fc; liverpool vs; liverpool f c; ليفربول; liverpool football club; lfc; fc liverpool |
 | Formula One | Formula One | 10457 | 1 | f1 |
 | NBA | NBA | 9723 | 3 | nba; нба; latest nba |
 | Q18656 | Manchester United | 8875 | 28 | manchester united; man utd; mu; man united; man u; manu; manchester united f c; manchester united vs |
 | Q5812 | Novak Djokovic | 8107 | 7 | novak djokovic; djokovic; новак джокович; джокович; novak dokovic; djokovic oggi; نوفاك دجوكوفيتش |
 | Q9617 | Arsenal FC | 7826 | 11 | arsenal; arsenal fc; arsenal f c; arsenal football club; арсенал; arsenal news; 阿仙奴; fc arsenal |
-| Q22686 | Donald Trump | 7437 | 37 | trump; donald trump; donald trump usa; трамп; 川普; ترامب; usa donald trump; president trump |
-| Q9616 | Chelsea FC | 7017 | 18 | chelsea; chelsea vs; chelsea fc; chelsea f c; تشيلسي; chelsea football club; челси; chelsea match today |
+| Q22686 | Donald Trump | 7440 | 38 | trump; donald trump; donald trump usa; трамп; 川普; ترامب; usa donald trump; president trump |
+| Q50602 | Manchester City | 7029 | 19 | manchester city; man city; city; manchester city vs; manchester city football club; مانشستر سيتي; manchester city f c; 曼城 |
 
 ## 10 merges that look questionable
 
@@ -145,41 +145,41 @@ Selected automatically: the lowest-similarity semantic merges, and typo/semantic
 | semantic (added words) | 0.961 | national women s day | women s day | International Women's Day | 84 |
 | typo | 92.0 | 8 март | 8 марта | International Women's Day | 84 |
 | typo | 92.0 | 8 mars | 8 marts | International Women's Day | 84 |
-| typo | 92.0 | moto gp | motogp | MotoGP | 56 |
+| typo | 92.0 | start of ramadan 2026 | start ramadan 2026 | Ramadan 2026 | 84 |
 
 ## Moments
 
-- National trend rows: 3,456,593; topics: 703,222; sessions: 3,159,356; moments: **2,058,304** (a country's session ends after 24 h without the topic; a moment is a burst of session starts with gaps ≤ 6 h)
-- Moments lasting ≥ 7 days: 142
-- Topics with more than one moment: 237,222
-- Moments reaching ≥ 2 countries: 223,797; ≥ 10: 27,376
-- Global moments (>= 15 countries started by 60 min after the 3rd): **8,460** (top 300 in `docs/GLOBAL_MOMENTS.md`); excluding matches and clubs: 1,928
+- National trend rows: 3,456,593; topics: 690,302; sessions: 3,140,544; moments: **2,040,257** (a country's session ends after 24 h without the topic; a moment is a burst of session starts with gaps ≤ 6 h)
+- Moments lasting ≥ 7 days: 152
+- Topics with more than one moment: 232,969
+- Moments reaching ≥ 2 countries: 220,371; ≥ 10: 27,143
+- Global moments (>= 15 countries started by 60 min after the 3rd): **8,303** (top 300 in `docs/GLOBAL_MOMENTS.md`); excluding matches and clubs: 1,932
 
 ## 20 biggest global moments
 
 | topic_name | type | start_utc | reach_60 | reach | minutes_to_half |
 |---|---|---|---|---|---|
+| Barcelona vs Deportivo Alavés | sports_match | 2025-11-29 12:30 | 119 | 120 | 110 |
 | ChatGPT | product | 2025-01-23 11:40 | 118 | 121 | 10 |
 | Nottingham Forest vs Manchester City | sports_match | 2025-12-27 07:20 | 117 | 120 | 260 |
 | Hong Kong vs Manchester United | sports_match | 2025-05-30 09:20 | 116 | 118 | 110 |
 | ChatGPT | product | 2024-12-11 23:20 | 116 | 116 | 20 |
-| Barcelona vs Deportivo Alavés | sports_match | 2025-11-29 12:30 | 115 | 116 | 110 |
+| Real Madrid vs Rayo Vallecano | sports_match | 2025-11-09 12:40 | 114 | 117 | 110 |
 | ASEAN All-Stars vs Manchester United | sports_match | 2025-05-28 04:20 | 113 | 113 | 460 |
 | Atlético Madrid vs Barcelona | sports_match | 2025-04-02 17:10 | 112 | 122 | 90 |
 | Preston North End vs Liverpool | sports_match | 2025-07-13 12:10 | 112 | 118 | 70 |
 | Diogo Jota | person | 2025-07-03 07:20 | 111 | 120 | 60 |
 | Real Madrid vs Rayo Vallecano | sports_match | 2025-03-09 09:30 | 111 | 119 | 290 |
-| Real Madrid CF | team | 2026-02-25 19:50 | 111 | 114 | 30 |
-| Manchester City vs Everton | sports_match | 2024-12-26 08:50 | 111 | 113 | 170 |
+| Daegu FC vs FC Barcelona | sports_match | 2025-08-04 10:10 | 111 | 118 | 20 |
+| Everton vs Manchester City | sports_match | 2024-12-26 08:50 | 111 | 113 | 170 |
 | Mansfield Town vs Arsenal | sports_match | 2026-03-07 06:50 | 110 | 114 | 290 |
+| Real Madrid CF | team | 2026-02-25 19:50 | 110 | 113 | 30 |
 | Atlético Madrid vs Valencia | sports_match | 2025-12-13 12:00 | 109 | 118 | 10 |
-| Elche vs Barcelona | sports_match | 2026-01-31 18:40 | 109 | 116 | 30 |
-| Getafe vs Barcelona | sports_match | 2026-04-25 13:00 | 109 | 114 | 30 |
 | Aston Villa vs Manchester City | sports_match | 2024-12-21 06:40 | 109 | 112 | 300 |
+| Talavera vs Real Madrid | sports_match | 2025-12-17 12:00 | 108 | 122 | 430 |
 | Real Madrid vs Rayo Vallecano | sports_match | 2026-02-01 05:20 | 108 | 120 | 410 |
 | Cardiff City vs Chelsea | sports_match | 2025-12-16 16:30 | 108 | 117 | 160 |
-| Nottingham Forest vs Liverpool | sports_match | 2026-02-22 12:40 | 108 | 115 | 30 |
 
 ## Exports
 
-- 199 files, 73.7 MB; largest `topics_index/006.json` 2.00 MB (limit 2 MB)
+- 198 files, 72.5 MB; largest `topics_index/005.json` 2.00 MB (limit 2 MB)

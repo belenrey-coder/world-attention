@@ -104,3 +104,12 @@ REGION_TZ = {
            **{s: "Asia/Jayapura" for s in "MA MU PA PB".split()},
            **{s: "Asia/Pontianak" for s in "KB KT".split()}},
 }
+
+
+# Crime / death / sexual keywords for sensitive topics (checks review list, export hide rule).
+SENSITIVE_RE = (r"murder|\bkill(?:ed|ing|s)?\b|shooting|\bshot\b|stabb|\barrest|\brape\b|\braped\b|sexual|assault|"
+                r"suicide|dead body|found dead|\bdied\b|\bdeath\b|obituary|\bmissing\b|kidnap|\babuse|victim|"
+                r"accident|\bcrash|\bleak(?:ed|s)?\b|\bnude|naked|\bporn|onlyfans|\bsex\b|\bxxx\b|scandal|"
+                r"viral video|video viral|asesinato|asesinad|\bmuerto|\bmuere\b|falleci|homicid|feminicid|"
+                r"desaparecid|violad|vazad|\bmorte\b|\bmorre\b|assassin|\bmord\b|getötet|"
+                r"قتل|مقتل|وفاة|فضيحة|اغتصاب|убийств|погиб|умер")

@@ -23,7 +23,7 @@ import pandas as pd
 from scipy import sparse
 
 sys.path.insert(0, str(Path(__file__).parent))
-from common import INTERIM, REGION_TZ, ROOT  # noqa: E402
+from common import INTERIM, REGION_TZ, ROOT, SENSITIVE_RE, WORK  # noqa: E402
 
 EXPORT = ROOT / "data" / "export"
 MAX_BYTES = 2_000_000
@@ -37,6 +37,15 @@ NBA_RE = (r"\bnba\b|lakers|celtics|warriors|knicks|thunder|nuggets|bucks|76ers|s
 NIGHT_HOURS = range(0, 5)          # 00:00-04:59 local
 LOW_DATA_MEDIAN = 5                # Wrapped stats are low_data if the median covered day has < 5 national trends
 REGIONAL_TOD = ("US", "CA", "RU")  # time-of-day stats from regional feeds, each region in its own zone
+# Sensitive topics (2026-11-11). Hand decisions (topic_id, decision keep|hide, note) are read from this
+# git-ignored file; every other topic that matches SENSITIVE_RE and reached <= HIDE_MAX_REACH countries is
+# hidden by default. Hidden topics never appear in topic lists on the site (the next topic takes the slot),
+# but still count in totals and aggregate stats.
+SENS_DECISIONS = Path(__file__).parent / "sensitive_decisions.csv"
+HIDE_MAX_REACH = 2
+# Wrapped cards only: skip accident / crash / shooting / death events and the topic "homosexuality"
+WRAPPED_SKIP_RE = r"\b(?:accident|accidents|crash|crashes|crashed|shooting|shootings|death|deaths|dies|died|dead)\b"
+WRAPPED_SKIP_TOPICS = {"homosexuality"}
 INDEX_MIN_REACH = 2                # topics_index: topics in >= 2 countries, or in any daily top 10
 MANIFEST = []
 
@@ -85,6 +94,38 @@ def load():
     t["category"] = t.topic_id.map(meta.category).fillna("unlabeled")
     m = pd.read_parquet(INTERIM / "moments.parquet")
     return t, meta, m
+
+
+def visibility(t, meta):
+    """-> (hidden topic ids, Wrapped-skip topic ids, summary)."""
+    reach = t.groupby("topic_id").country_code.nunique()
+    st = pd.read_parquet(WORK / "string_topics.parquet", columns=["topic_id", "query_norm", "n_rows"])
+    top_q = st.sort_values("n_rows", ascending=False).drop_duplicates("topic_id").set_index("topic_id").query_norm
+    tids = reach.index
+    name = meta.topic_name.reindex(tids).fillna("").astype(str)
+    txt = (name + " | " + top_q.reindex(tids).fillna("")).str.lower()
+    kw = txt.str.contains(SENSITIVE_RE, regex=True)
+    hidden = set(tids[kw & (reach <= HIDE_MAX_REACH)])
+    n_default = len(hidden)
+    unmatched, n_keep, n_hide = [], 0, 0
+    if SENS_DECISIONS.exists():
+        dec = pd.read_csv(SENS_DECISIONS, dtype=str).fillna("")
+        for tid, d in zip(dec.topic_id, dec.decision.str.strip().str.lower()):
+            if tid not in reach.index:
+                unmatched.append(tid)
+            if d == "keep":
+                hidden.discard(tid)
+                n_keep += 1
+            elif d == "hide":
+                hidden.add(tid)
+                n_hide += 1
+    typ = meta["type"].reindex(tids).fillna("")
+    skip = set(tids[(typ == "event") & name.str.lower().str.contains(WRAPPED_SKIP_RE, regex=True)])
+    skip |= {x for x in tids if x.lower() in WRAPPED_SKIP_TOPICS or name.get(x, "").lower() in WRAPPED_SKIP_TOPICS}
+    summary = {"hidden_by_default_rule": n_default, "decisions_keep": n_keep, "decisions_hide": n_hide,
+               "decisions_unmatched_topic_ids": unmatched, "hidden_total": len(hidden),
+               "wrapped_skipped_topics": len(skip), "rule": f"SENSITIVE_RE match and reach <= {HIDE_MAX_REACH}"}
+    return hidden, skip, summary
 
 
 def export_days(t, meta):
@@ -200,7 +241,7 @@ def regional_hours(meta, cz):
     return r
 
 
-def export_wrapped(t, meta, m):
+def export_wrapped(t, meta, m, exclude=frozenset()):
     countries = t.groupby("country_code").agg(country_name=("country_name", "first"), trends=("vol", "size"),
                                               first=("ldate", "min"), last=("ldate", "max"),
                                               days=("ldate", "nunique"))
@@ -214,7 +255,7 @@ def export_wrapped(t, meta, m):
     tc = tc.join(tot, on="topic_id")
     tc["share"] = tc.vol / tc.vol_all.replace(0, np.nan)
     tc["score"] = tc.vol * tc.share
-    local = (tc[tc.reach == 1].sort_values(["vol", "n"], ascending=False)
+    local = (tc[(tc.reach == 1) & ~tc.topic_id.isin(exclude)].sort_values(["vol", "n"], ascending=False)
              .groupby("country_code").head(LOCAL_TOP_N))
 
     # attention twin: Jaccard on topic sets
@@ -249,8 +290,9 @@ def export_wrapped(t, meta, m):
               .reindex(index=ccs, columns=range(24), fill_value=0))
     med_day = low_data_countries(t)
     per_day = t.groupby(["country_code", "ldate"]).size()
-    day_topic = t.groupby(["country_code", "ldate", "topic_id"]).vol.sum()
-    month_top = (t.groupby(["country_code", "lmonth", "topic_id"]).agg(vol=("vol", "sum"), n=("vol", "size"))
+    day_topic = t[~t.topic_id.isin(exclude)].groupby(["country_code", "ldate", "topic_id"]).vol.sum()
+    month_top = (t[~t.topic_id.isin(exclude)].groupby(["country_code", "lmonth", "topic_id"])
+                 .agg(vol=("vol", "sum"), n=("vol", "size"))
                  .reset_index().sort_values(["vol", "n"], ascending=False)
                  .drop_duplicates(["country_code", "lmonth"]).sort_values("lmonth"))
 
@@ -259,7 +301,8 @@ def export_wrapped(t, meta, m):
         info = countries.loc[c]
         h = hours.loc[c]
         busiest = per_day.loc[c].idxmax()
-        bt = day_topic.loc[(c, busiest)].sort_values(ascending=False).head(5)
+        bt = (day_topic.loc[(c, busiest)].sort_values(ascending=False).head(5)
+              if (c, busiest) in day_topic.index.droplevel(2) else pd.Series(dtype=float))
         twins = np.argsort(-jac[ci[c]])[:3]
         card = {
             "country_code": c, "country_name": info.country_name,
@@ -424,13 +467,17 @@ def main():
     EXPORT.mkdir(parents=True)
     t, meta, m = load()
     print(f"national rows {len(t):,}; topics {t.topic_id.nunique():,}; moments {len(m):,}")
-    day_top, day_files = export_days(t, meta)
+    hidden, skip, vis = visibility(t, meta)
+    json.dump(vis, open(WORK / "visibility_summary.json", "w"), indent=1)
+    print(f"visibility: {vis}")
+    tv = t[~t.topic_id.isin(hidden)]          # what topic lists may show
+    day_top, day_files = export_days(tv, meta)
     print(f"days: {sum(len(v) for v in day_files.values())} files for {len(day_files)} months")
     g = export_global(m)
     print(f"global moments: {len(g)} file(s)")
-    ns, nt = export_index(t, meta, day_top, m)
+    ns, nt = export_index(tv, meta, day_top, m)
     print(f"topics_index: {nt:,} topics in {ns} shard(s)")
-    nc, jac, ccs, X, tc, ti = export_wrapped(t, meta, m)
+    nc, jac, ccs, X, tc, ti = export_wrapped(t, meta, m, exclude=frozenset(hidden | skip))
     print(f"wrapped: {nc} countries")
     cdf = t.groupby("country_code").agg(country_name=("country_name", "first"))
     export_similarity(jac, ccs, X, tc, ti, meta, cdf)
@@ -438,7 +485,7 @@ def main():
     export_routine(t, meta)
     print("routine: done")
     print("coverage gaps:", export_coverage(t))
-    print(f"hours: {export_hours(t, meta)} files")
+    print(f"hours: {export_hours(tv, meta)} files")
     total = sum(f["bytes"] for f in MANIFEST)
     biggest = max(MANIFEST, key=lambda f: f["bytes"])
     (EXPORT / "manifest.json").write_text(json.dumps(

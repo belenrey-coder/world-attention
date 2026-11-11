@@ -12,7 +12,8 @@ Usage:
   python pipeline/03_topics.py claude-test  # (d) 500-string test batch, then STOP
   python pipeline/03_topics.py claude-full  # (d) the rest (only after approval)
   python pipeline/03_topics.py combine      # (e) topic_id/topic_name -> topics.parquet
-  python pipeline/03_topics.py validation   # (f) docs/validation_sample.csv
+  python pipeline/03_topics.py validation   # (f) docs/validation_sample.csv (never overwrites hand labels)
+  python pipeline/03_topics.py validation-v3  # (f) fresh docs/validation_sample_v3.csv (key git-ignored)
 """
 import sys
 import time
@@ -449,5 +450,9 @@ if __name__ == "__main__":
         from combine import validation_sample
 
         validation_sample()
+    elif stage == "validation-v3":
+        from combine import validation_sample_v3
+
+        validation_sample_v3()
     else:
         print(__doc__)

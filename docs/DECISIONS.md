@@ -144,6 +144,26 @@ All merging runs on the 895,618 distinct `query_norm` strings, and results are m
 
 **Unique `topic_id` (bug found while applying the fix).** A group without an ID took its Claude name as `topic_id`, so two separate groups with the same name collapsed into one topic, bypassing every merge rule. Low-confidence labels were effectively merging topics this way, e.g. "cf" (0.4) ended up in La Liga. Now the biggest group keeps the plain ID and the others get `<id> [<their most common string>]`: 3,927 collisions resolved. Names may repeat; IDs don't.
 
+**Recall rules (2026-11-11, `pipeline/recall.py`).** Four extra union-find layers run after the same-name layer and before typos/semantic, so each pair goes through the usual guards: QID cannot-link, the short-string gate, and the 50-string cap. Every pair must have trended within the 3-day window.
+
+| rule | what it merges | name block | unions made |
+|---|---|---|---|
+| 4 `claude_near` | important strings, both Claude confidence ≥ 0.7, names near-identical after `norm()` (ratio ≥ 95), same numbers, same word count (or equal without spaces), every differing word close (ratio ≥ 75) | no | 832 |
+| 3 `match_key` | `sports_match` strings (confidence ≥ 0.5) whose Claude names split on vs / v / x / – / contra / gegen / contre / mot into the same two teams, sorted; tokens fc, cf, afc, sc, ac, cd, fk, sk, club, cp, the are dropped from team names | no | 3,342 |
+| 1 `word_set` | same set of words, ignoring order; simple plurals (-s, -es after ch/sh/x/z; not -ss, -us, -is, words < 5 letters); ё = е. Latin accents were already folded by `norm()` | yes | 14,920 |
+| 2 `containment` | B = all words of A + only generic extras: today/live/results/time/news/standings/table/score and equivalents in es, pt, fr, de, it, tr, id, nl, pl, vi, ru, ar; month names; years 2023–2027; day numbers only next to a month word ("december 26", not "iphone 16"). A must not be short (single word / ≤ 4 chars) or a generic related term. Key groups > 60 strings are skipped as too generic | yes | 16,346 |
+
+- **Order:** rules 3 and 4 compare Claude names, which differ by construction ("Real Madrid vs Barcelona" / "Barcelona vs Real Madrid"), so they don't use the confident-name block. Rules 1 and 2 do: 1,721 and 3,078 pairs were refused because confident names differ.
+- **Net effect:** many of these pairs would otherwise have been joined later by typo or semantic edges; those layers made 3,264 and 14,342 fewer unions. Topics went from 798,353 to 780,533 after combine, and from 787,885 to 771,163 after linking.
+- **Review:** 20 random merges per rule were reviewed; see `data/interim/work/recall_examples.md` (local). No false merges were seen. Known weak spot: generic Claude names such as "Earthquake" or "Winter storm" can join different countries' events within 3 days. That already happened for identical names; rule 4 adds near-identical ones ("Winter storm" / "Winter storms").
+- **Score:** on the labeled sample (177 pairs, predictions recomputed from the current topics), recall rose from 0.712 to 0.728 and precision stayed at 0.958 (0.957 before). Most remaining misses are cross-language or paraphrase pairs ("4 czerwca" / "4 de junio", "automóvel" / "automóvil") that these rules don't target.
+- **Fresh sample v3** (`03_topics.py validation-v3`, seed 23), drawn after the rules, with no string shared with the earlier samples. It has 120 Latin-script pairs (45 same topic, 15 linked, 40 hard negatives, 20 random same-window negatives) plus 20 Arabic/Cyrillic sports-match pairs (10 same, 10 hard negatives). `docs/validation_sample_v3.csv` and its key `docs/validation_key_v3.csv` are local and git-ignored. This is the honest final score: label it, then run `python pipeline/score_validation.py v3`.
+- **Scoring changes:** `score_validation.py` now recomputes predictions from the current topics (by string id) and prints the frozen ones alongside; the pandas `groupby.apply` DeprecationWarning is fixed. The `validation` stage no longer overwrites a sample that has hand labels.
+
+**Generic event names (2026-11-11).** A string is a generic event if Claude typed it `event`, it has no QID, and its Claude name is only generic words (`GENERIC_EVENT_WORDS` in `combine.py`: earthquake, storm, winter, snow, rain, tsunami, warning, power, outage, blackout, flood, wildfire, fire, heat, election, results, today, live, …). Examples: "Earthquake", "Winter storm", "Tsunami warning", "Power outage", "Election results". Not generic: "Alaska earthquake", "US election results". A group containing such a string (and no QID) merges only with a group that shares at least one country (`generic_event_no_shared_country` in the merge stats). The same-name layer pairs these strings per country instead of in one star. Cross-language links follow the same rule.
+- **Effect:** 250 strings qualify. The rule removed 27 merges in the same-name layer, and refused 34 near-name, 2 typo, 2 semantic and 2 link merges. Topics went from 771,163 to 771,190 after linking.
+- **Limitation:** the effect is small because strings that themselves trend in many countries still bridge everything. The bare string "earthquake" trended in dozens of countries, so the "Earthquake" topic still has 40 strings across 82 countries. 289 more strings with generic names are typed `other` (mostly weather) and aren't covered, since the rule is for events.
+
 **Manual overrides (`pipeline/overrides.csv`, columns `string, action, topic`).** Applied at the end of combine, after every merge layer and the short-string check. Strings are matched after `norm()`.
 - `detach`: the string becomes its own topic, with no QID, named by its own most common raw form, and its topic never takes part in cross-language linking (as child or parent).
 - `move`: the string joins the topic whose QID or Claude name (case-insensitive) equals `topic`.
@@ -193,7 +213,7 @@ Runs after combine. It attaches a small topic (child, national reach ≤ 3) to t
 
 - **Sport is flagged separately (`is_sport`).** Claude types `sports_match` or `team`, plus league and competition topics matched by name (`LEAGUE_RE` in `04_moments.py`: Premier League, La Liga, Champions League, NBA, World Cup, Grand Prix, …; never people, companies, products or places). Athletes are not counted as sport.
 
-  **Why sport is treated separately:** a scheduled match makes dozens of countries trend the same search within minutes, because kickoff is the same moment everywhere and Google lists fixtures in many feeds. That is synchronized by the fixture list, not a sign of a shared reaction. It also dominates the counts: 6,513 of 8,441 global moments are sport, and 58 of the 63 moments that reached 100+ countries within 60 minutes are matches or clubs (Real Madrid 6 times, FC Barcelona 4 times). The 5 non-sport ones are the two ChatGPT outages (23 Jan 2025, 11 Dec 2024) and the deaths of Diogo Jota, Hulk Hogan and Ozzy Osbourne. So any claim about "the world paying attention together" should be quoted without sport, or with sport shown separately. `docs/GLOBAL_MOMENTS_NO_SPORT.md` is the sport-free top 300 next to `docs/GLOBAL_MOMENTS.md`.
+  **Why sport is treated separately:** a scheduled match makes dozens of countries trend the same search within minutes, because kickoff is the same moment everywhere and Google lists fixtures in many feeds. That is synchronized by the fixture list, not a sign of a shared reaction. It also dominates the counts: 6,371 of 8,303 global moments are sport (after the 2026-11-11 recall rules; 6,513 of 8,441 before), and 58 of the 63 moments that reached 100+ countries within 60 minutes are matches or clubs (Real Madrid 6 times, FC Barcelona 4 times). The 5 non-sport ones are the two ChatGPT outages (23 Jan 2025, 11 Dec 2024) and the deaths of Diogo Jota, Hulk Hogan and Ozzy Osbourne. So any claim about "the world paying attention together" should be quoted without sport, or with sport shown separately. `docs/GLOBAL_MOMENTS_NO_SPORT.md` is the sport-free top 300 next to `docs/GLOBAL_MOMENTS.md`.
 
 ## Step 5: export (`pipeline/05_export.py`)
 
@@ -230,6 +250,13 @@ Runs after combine. It attaches a small topic (child, national reach ≤ 3) to t
   - **No `busiest_hour`** in Wrapped cards or `wrapped/index.json` (removed 2026-11-09): C4 shows it is mostly the 19:00 UTC collection bump (it changes in 87 of 125 countries without that hour). `night_share`, `weather_hour` and the hour histograms stay.
 - **`is_sport`** is included in every moment of `moments_global.json` (and its monthly parts), so the site can filter sport. C11 checks that it is a boolean on every moment.
 
+- **Sensitive topics (2026-11-11).**
+  - **Decisions:** hand decisions are read from `pipeline/sensitive_decisions.csv` (`topic_id, decision, note`; git-ignored). It holds the 7 priority-1 topics, all `keep`.
+  - **Default rule:** every other topic is hidden if its name or most common string matches `SENSITIVE_RE` (crime, death, sexual and accident keywords, now in `common.py`) and it trended in ≤ 2 countries. Otherwise it is kept. This hides 3,839 topics (3,843 by the rule, minus 4 kept by hand). All 7 decision topic ids exist in the current topics.
+  - **What hidden means:** the topic never appears in topic lists on the site (daily top 10, hourly map frames, topics index, Wrapped cards), and the next topic takes its slot. It still counts in totals, coverage, routine and similarity stats.
+  - **Wrapped cards only:** they also skip `event` topics whose name contains accident, crash, shooting, death, dies, died or dead, plus the topic "homosexuality" (511 topics), and take the next topic instead. These topics, including the kept priority-1 ones, can still appear in daily lists.
+  - **Verified:** 0 hidden topics appear in any export file and 0 skipped topics appear on any card. The counts are in `work/visibility_summary.json`.
+
 ## Step 6: profile (`pipeline/06_profile.py`)
 
 - Formerly `04_profile.py`, renamed to match the brief's numbering. It adds moment statistics, the 20 biggest global moments and export sizes. The biggest-topics table is now 20 rows.
@@ -257,7 +284,7 @@ _Updated 2026-11-09, after the short-string, sport, 19:00 UTC and Wrapped fixes 
 - The Claude full run is done: 155,277 of 155,279 important strings labeled (2 failed twice and stay unlabeled). Total API spend is $3.17 (cap $5).
 - Wikidata is populated and final: 31,543 strings have an ID used for merging (36,933 found, minus 5,390 name-lookup IDs dropped from short low-confidence strings), and 26,014 topics have an ID. 6,476 names (7,926 strings) failed from rate limiting and are final "no ID"; there are no further lookups.
 - Generic short strings no longer pull unrelated searches into big topics, and `topic_id` is unique per group (see "(e) Combine").
-- Topics: 895,618 strings → 798,353 after combine → **787,884** after linking (was 774,218 before these fixes).
+- Topics: 895,618 strings → 780,560 after combine → **771,190** after linking (771,163 before the generic-event rule; 787,885 before the recall rules; 774,218 before the short-string fix).
 
 **Still open**
 1. **Hand review (yours).**
@@ -272,7 +299,7 @@ _Updated 2026-11-09, after the short-string, sport, 19:00 UTC and Wrapped fixes 
    - C4: the 19:00 UTC collection bump (busiest hour changes in 87 of 125 countries without it), plus unstable and thin feeds (5 Wrapped cards are `low_data`).
    - C6: the single-country share depends on its definition.
    - C8 is now PASS, but only just: 61% agreement against a 60% threshold.
-4. **Sport dominates global moments** (6,513 of 8,441; 58 of 63 reaching 100+ countries in an hour). How the site presents this is undecided; the data now has `is_sport` and a sport-free list.
+4. **Sport dominates global moments** (6,371 of 8,303; 58 of 63 reaching 100+ countries in an hour). How the site presents this is undecided; the data now has `is_sport` and a sport-free list.
 5. **How the site gets its data** is undecided. `data/export/` is git-ignored for now. The export now carries `is_sport` on global moments and `low_data` / `time_of_day_source` on Wrapped cards; `busiest_hour` is gone.
 6. **Git:** nothing is committed yet. `docs/validation_key*.csv` is git-ignored and must never be published.
 7. **Scope:** steps 3g (linking) and 4–7 go beyond the original brief. No new steps or features are added without your approval.

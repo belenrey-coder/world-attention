@@ -256,6 +256,19 @@ def run():
     agg["accepted"] = ok
     acc = agg[ok].sort_values(["child", "evidence", "cos"], ascending=[True, False, False]).drop_duplicates("child")
     acc, n_short = short_rule(acc, st)
+    # generic event names (combine.is_generic_event_name): a child or parent event topic without a QID and
+    # with a generic name links only if the two topics share at least one country
+    from combine import is_generic_event_name
+    t_cc = st.assign(countries=st.sid.map(s.set_index("sid").countries)).explode("countries") \
+        .groupby("topic_id").countries.agg(lambda x: set(x.dropna()))
+    def gen_t(tt_type, name, q):
+        return tt_type == "event" and not isinstance(q, str) and is_generic_event_name(name)
+    gen_bad = np.array([(gen_t(ct, cn, cq) or gen_t(pt, pn, pq)) and not (t_cc.get(c, set()) & t_cc.get(p, set()))
+                        for c, p, ct, pt, cn, pn, cq, pq in zip(acc.child, acc.parent, acc.c_type, acc.p_type,
+                                                                acc.c_name, acc.p_name, acc.c_qid, acc.p_qid)], dtype=bool)
+    n_gen = int(gen_bad.sum())
+    print(f"links refused (generic event, no shared country): {n_gen:,}")
+    acc = acc[~gen_bad]
     # manual overrides (pipeline/overrides.csv): a detached string's topic never links, in either direction
     if "override" in st.columns:
         frozen = set(st.topic_id[st.override.notna()])
@@ -305,7 +318,7 @@ def run():
     rev[["child", "c_name", "c_type", "c_reach", "parent", "p_name", "p_type", "p_reach", "evidence", "share", "via"]] \
         .to_csv(DOCS / "link_review.csv", index=False)
     summary = {"child_topics": len(child_topics), "candidate_pairs": int(len(agg)), "accepted_links": int(len(acc)),
-               "overrides": n_over, "refused_short_generic": n_short, "strings_relinked": int(st.linked.sum()),
+               "overrides": n_over, "refused_short_generic": n_short, "refused_generic_event": n_gen, "strings_relinked": int(st.linked.sum()),
                "topics_after": int(st.topic_id.nunique()), "rule": {
                    "child_max_reach": CHILD_MAX_REACH, "parent_min_reach": PARENT_MIN_REACH,
                    "min_evidence": MIN_EVIDENCE, "min_share": MIN_SHARE, "window_days": WINDOW_DAYS}}

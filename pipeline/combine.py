@@ -44,6 +44,28 @@ SHORT_GENERIC_LEN = 4
 SHORT_OWN_CONF = 0.8
 
 
+# Generic event names (2026-11-11): an event topic without a QID whose Claude name is only generic words
+# ("Earthquake", "Winter storm", "Tsunami warning", "Power outage", "Election results") may only merge with
+# groups that share at least one country, so different countries' events stop collapsing into one topic.
+GENERIC_EVENT_WORDS = set("""
+earthquake earthquakes quake tremor tremors aftershock seismic storm storms winter snow snowstorm blizzard rain
+rainfall heavy thunderstorm tornado tornadoes hurricane typhoon cyclone tsunami warning warnings alert alerts
+watch power outage outages blackout blackouts electricity cut cuts flood floods flooding flash wildfire
+wildfires fire fires bushfire forest heat heatwave wave cold landslide eruption volcano volcanic explosion
+election elections result results vote voting poll polls today live news update updates latest emergency
+weather forecast fog drought hail lightning evacuation evacuations magnitude disaster
+""".split())
+_EVENT_FILLER = {"the", "a", "an", "of", "in", "and", "near", "me", "now"}
+
+
+def is_generic_event_name(name) -> bool:
+    from textnorm import norm
+    if not isinstance(name, str):
+        return False
+    words = [w for w in norm(name).split() if w not in _EVENT_FILLER and not w.isdigit()]
+    return bool(words) and all(w in GENERIC_EVENT_WORDS for w in words)
+
+
 def is_short_generic(q: str) -> bool:
     return len(q) <= SHORT_GENERIC_LEN or len(q.split()) == 1
 
@@ -57,6 +79,8 @@ class UF:
         self.gated = np.zeros(n, dtype=bool)   # short/single-word strings
         self.own_name = [None] * n             # the string's own Claude name (conf >= SHORT_OWN_CONF), lowercased
         self.own_qid = [None] * n
+        self.gen = np.zeros(n, dtype=bool)     # group holds a generic-event string (type event, generic name, no QID)
+        self.cset = [frozenset()] * n          # countries the group trended in
 
     def gate_ok(self, x, other_root):
         """A gated string x may only join a group whose QID is x's QID or whose confident names include x's own name."""
@@ -86,6 +110,8 @@ class UF:
             return "claude_name_differs"
         if gate and not (self.gate_ok(a, rb) and self.gate_ok(b, ra)):
             return "short_generic"
+        if ((self.gen[ra] and la is None) or (self.gen[rb] and lb is None)) and not (self.cset[ra] & self.cset[rb]):
+            return "generic_event_no_shared_country"
         if cap is not None and self.size[ra] + self.size[rb] > cap:
             return "size_cap"
         if self.size[ra] < self.size[rb]:
@@ -94,6 +120,8 @@ class UF:
         self.size[ra] += self.size[rb]
         self.label[ra] = la if la is not None else lb
         self.canon[ra] = ca | cb
+        self.gen[ra] = self.gen[ra] or self.gen[rb]
+        self.cset[ra] = self.cset[ra] | self.cset[rb]
         return "merged"
 
 
@@ -273,15 +301,28 @@ def run():
         for q, nm in own.canonical_en.str.lower().str.strip().items():
             if q in sid_of:
                 uf.own_name[sid_of[q]] = nm
+    uf.cset = [frozenset(c) for c in s.countries]
+    gen_q = set()
+    if len(lab):
+        ev = lab[(lab["type"] == "event") & lab.canonical_en.map(is_generic_event_name)]
+        gen_q = {q for q in ev.index if q in sid_of and not isinstance(qid.get(q), str)}
+        for q in gen_q:
+            uf.gen[sid_of[q]] = True
+    print(f"  generic-event strings (type event, generic name, no QID): {len(gen_q):,}")
     layer_of = np.array([None] * n, dtype=object)
     stats = {}
 
+    merged_pairs = {}
+
     def apply(name, pairs, cap, use_canon=False, gate=True):
-        c = {"merged": 0, "same": 0, "cannot_link": 0, "claude_name_differs": 0, "short_generic": 0, "size_cap": 0}
+        c = {"merged": 0, "same": 0, "cannot_link": 0, "claude_name_differs": 0, "short_generic": 0,
+             "generic_event_no_shared_country": 0, "size_cap": 0}
+        mp = merged_pairs.setdefault(name, [])
         for a, b in pairs:
             r = uf.union(a, b, cap, use_canon, gate)
             c[r] += 1
             if r == "merged":
+                mp.append((int(a), int(b)))
                 for x in (a, b):
                     if layer_of[x] is None:
                         layer_of[x] = name
@@ -302,10 +343,29 @@ def run():
         ok = ok[~short | (ok.confidence >= SHORT_OWN_CONF).to_numpy()]
         key = ok.canonical_en.str.lower().str.strip()
         pairs = []
+        cc_of = dict(zip(s.sid, s.countries))
         for _, g in key.groupby(key):
             ids = [sid_of[q] for q in g.index if q in sid_of]
-            pairs += [(ids[0], x) for x in ids[1:]]
+            gen_ids = [x for x in ids if uf.gen[x]]
+            rest = [x for x in ids if not uf.gen[x]]
+            pairs += [(rest[0], x) for x in rest[1:]]
+            if gen_ids:   # generic event name: star per country, so only strings sharing a country meet
+                by_cc = {}
+                for x in gen_ids + rest:
+                    for c in cc_of[x]:
+                        by_cc.setdefault(c, []).append(x)
+                for xs in by_cc.values():
+                    pairs += [(xs[0], x) for x in xs[1:]]
         apply("claude", pairs, None, gate=False)   # gated strings filtered above
+    # recall rules (2026-11-11): see recall.py. Rules on Claude names (near-identical names, match
+    # keys) don't use the name block, since the names differ by construction; the word rules do.
+    from recall import all_rules
+    hubs = set(s.query_norm[s.is_generic_term])
+    rr = all_rules(s, lab, is_short_generic, hubs) if len(lab) else {}
+    for key, use_canon in (("claude_near", False), ("match_key", False), ("word_set", True), ("containment", True)):
+        if key in rr:
+            apply(key, rr[key][0], MAX_GROUP, use_canon=use_canon)
+            stats[key]["candidates"] = len(rr[key][0])
     # 3. typos, 4. semantic
     e = pd.read_parquet(WORK / "edges_typo.parquet").sort_values("score", ascending=False)
     e, typo_filter = filter_typo_edges(e, s, lab)
@@ -394,6 +454,8 @@ def run():
                "max_group_size": int(s.group.value_counts().max()), "claude_labels": int(len(lab)),
                "strings_with_qid": int(s.qid.notna().sum()), "claude_qid_unverified": len(unverified)}
     save_json(WORK / "combine_summary.json", summary)
+    pd.DataFrame([(k, a, b) for k, v in merged_pairs.items() for a, b in v], columns=["layer", "a", "b"]) \
+        .to_parquet(WORK / "merged_pairs.parquet", index=False)
     print(json.dumps(summary, indent=1))
     print(f"wrote {INTERIM/'topics.parquet'} ({t.num_rows:,} rows)")
 
@@ -403,6 +465,10 @@ def validation_sample(n_pos=100, n_neg=100, seed=11, n_link=25):
     string + a string of the topic it joined), the rest random pairs from multi-string topics.
     Negatives: half 'hard' (embedding neighbours put in different topics), half random pairs
     of different topics that trended in the same 3-day window."""
+    out_p = DOCS / "validation_sample.csv"
+    if out_p.exists() and pd.read_csv(out_p).same_topic_label.notna().any():
+        print(f"{out_p} already has hand labels: not overwritten (move it away to regenerate)")
+        return
     rng = random.Random(seed)
     s = pd.read_parquet(WORK / "string_topics.parquet")
     full = pd.read_parquet(WORK / "strings.parquet", columns=["sid", "first_day", "countries"])
@@ -454,3 +520,117 @@ def validation_sample(n_pos=100, n_neg=100, seed=11, n_link=25):
     pd.DataFrame(out).to_csv(DOCS / "validation_sample.csv", index=False)
     pd.DataFrame(key).to_csv(DOCS / "validation_key.csv", index=False)  # open only after labelling
     print(f"wrote {DOCS/'validation_sample.csv'} ({len(out)} pairs); answer key in {DOCS/'validation_key.csv'}")
+
+
+# ------------------------------------------------------------------ fresh sample v3 (2026-11-11)
+LATIN_RE = r"^[\u0000-ɏḀ-ỿ -⁯]+$"
+ARAB_CYR_RE = r"[؀-ۿЀ-ӿ]"
+
+
+def validation_sample_v3(seed=23):
+    """Fresh, honest sample drawn after the recall rules: 120 pairs where both strings are Latin-script
+    (45 same-topic, 15 linked, 40 hard negatives, 20 random same-window negatives), plus 20 Arabic/Cyrillic
+    sports-match pairs (10 same-topic, 10 hard negatives). Pairs that share a string id with the earlier
+    samples are excluded. Writes docs/validation_sample_v3.csv and the private docs/validation_key_v3.csv."""
+    out_p = DOCS / "validation_sample_v3.csv"
+    if out_p.exists() and pd.read_csv(out_p).same_topic_label.notna().any():
+        print(f"{out_p} already has hand labels: not overwritten")
+        return
+    rng = random.Random(seed)
+    s = pd.read_parquet(WORK / "string_topics.parquet")
+    full = pd.read_parquet(WORK / "strings.parquet", columns=["sid", "first_day", "countries"])
+    s = s.merge(full, on="sid")
+    used = set()
+    for k in ("validation_key.csv", "validation_key_v1.csv"):
+        if (DOCS / k).exists():
+            kk = pd.read_csv(DOCS / k)
+            used |= set(kk.sid_a) | set(kk.sid_b)
+    s["latin"] = s.top_raw.fillna("").str.match(LATIN_RE)
+    s["arcy"] = s.top_raw.fillna("").str.contains(ARAB_CYR_RE)
+    s = s[~s.sid.isin(used)]
+    tid = dict(zip(s.sid, s.topic_id))
+    info = s.set_index("sid")
+    taken = set()
+
+    def add(rows, a, b, kind):
+        key = (min(a, b), max(a, b))
+        if a == b or key in taken:
+            return False
+        taken.add(key)
+        rows.append((key[0], key[1], kind))
+        return True
+
+    rows = []
+    # same-topic, both Latin
+    lat = s[s.latin]
+    multi = lat.groupby("topic_id").filter(lambda g: len(g) >= 2)
+    topics = multi.topic_id.unique().tolist()
+    by_t = multi.groupby("topic_id").sid.apply(list).to_dict()
+    n = 0
+    while n < 45:
+        a, b = rng.sample(by_t[rng.choice(topics)], 2)
+        n += add(rows, a, b, "same_topic")
+    # linked: a linked Latin string + a non-linked Latin string of the topic it joined
+    lk = lat[lat.linked.astype(bool)]
+    not_lk = lat[~lat.linked.astype(bool)].groupby("topic_id").sid.apply(list).to_dict()
+    lk = lk[lk.topic_id.isin(not_lk)].sample(frac=1, random_state=seed)
+    n = 0
+    for a, t_ in zip(lk.sid, lk.topic_id):
+        if n == 15:
+            break
+        n += add(rows, a, rng.choice(not_lk[t_]), "linked")
+    # hard negatives: embedding neighbours in different topics, both Latin
+    cand = pd.read_parquet(WORK / "semantic_candidates.parquet", columns=["a", "b"])
+    cand = cand[cand.a.isin(lat.sid) & cand.b.isin(lat.sid)]
+    cand = cand[[tid[a] != tid[b] for a, b in zip(cand.a, cand.b)]].sample(frac=1, random_state=seed)
+    n = 0
+    for a, b in zip(cand.a, cand.b):
+        if n == 40:
+            break
+        n += add(rows, a, b, "hard_negative")
+    # random negatives in the same 3-day window, both Latin
+    by_day = lat.groupby("first_day").sid.apply(list).to_dict()
+    days = sorted(by_day)
+    n = 0
+    while n < 20:
+        d = rng.choice(days)
+        pool = [x for k in range(d, d + 3) for x in by_day.get(k, [])]
+        if len(pool) < 2:
+            continue
+        a, b = rng.sample(pool, 2)
+        if tid[a] != tid[b]:
+            n += add(rows, a, b, "random_negative")
+    # Arabic/Cyrillic sports matches
+    ac = s[s.arcy & (s["type"] == "sports_match")]
+    sm_by_t = s[s["type"] == "sports_match"].groupby("topic_id").sid.apply(list).to_dict()
+    ac_pos = ac[ac.topic_id.map(lambda t_: len(sm_by_t.get(t_, [])) >= 2)].sample(frac=1, random_state=seed)
+    n = 0
+    for a, t_ in zip(ac_pos.sid, ac_pos.topic_id):
+        if n == 10:
+            break
+        others = [x for x in sm_by_t[t_] if x != a]
+        n += add(rows, a, rng.choice(others), "arabic_cyrillic_match_same")
+    cand = pd.read_parquet(WORK / "semantic_candidates.parquet", columns=["a", "b"])
+    acs, sms = set(ac.sid), set(s.sid[s["type"] == "sports_match"])
+    cand = cand[(cand.a.isin(acs) | cand.b.isin(acs)) & cand.a.isin(sms) & cand.b.isin(sms)]
+    cand = cand[[tid.get(a) != tid.get(b) for a, b in zip(cand.a, cand.b)]].sample(frac=1, random_state=seed)
+    n = 0
+    for a, b in zip(cand.a, cand.b):
+        if n == 10:
+            break
+        n += add(rows, a, b, "arabic_cyrillic_match_hard_negative")
+    rng.shuffle(rows)
+    out, key = [], []
+    for i, (a, b, kind) in enumerate(rows):
+        ra, rb = info.loc[a], info.loc[b]
+        out.append({"pair_id": i, "string_a": ra.top_raw, "string_b": rb.top_raw,
+                    "countries_a": " ".join(ra.countries[:4]), "countries_b": " ".join(rb.countries[:4]),
+                    "first_date_a": str(pd.Timestamp("1970-01-01") + pd.Timedelta(days=int(ra.first_day)))[:10],
+                    "first_date_b": str(pd.Timestamp("1970-01-01") + pd.Timedelta(days=int(rb.first_day)))[:10],
+                    "same_topic_label": ""})
+        key.append({"pair_id": i, "sampled_as": kind, "predicted_same": tid[a] == tid[b],
+                    "topic_a": ra.topic_id, "topic_b": rb.topic_id, "sid_a": a, "sid_b": b})
+    pd.DataFrame(out).to_csv(out_p, index=False)
+    pd.DataFrame(key).to_csv(DOCS / "validation_key_v3.csv", index=False)  # private: git-ignored
+    print(f"wrote {out_p} ({len(out)} pairs: {pd.Series([r[2] for r in rows]).value_counts().to_dict()}); "
+          f"answer key in {DOCS / 'validation_key_v3.csv'} (git-ignored)")
