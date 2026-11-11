@@ -7,6 +7,7 @@ The pipeline writes a few hand-review files that are **not published** in this r
 | `docs/review_sensitive.csv` | `pipeline/07_checks.py` | Topics shown on the site that match crime/death/sexual keywords or look like private people; decide keep or hide |
 | `docs/validation_sample.csv`, `docs/validation_sample_v1.csv`, `docs/validation_sample_v3.csv` | `pipeline/03_topics.py validation` | String pairs to label by hand (same topic or not), scored with `pipeline/score_validation.py` |
 | `docs/validation_key.csv`, `docs/validation_key_v1.csv`, `docs/validation_key_v3.csv` | `pipeline/03_topics.py validation` | Answer keys for the validation samples; open only after labeling |
+| `docs/review_types.csv` | `pipeline/07_checks.py` | Topics sampled per Claude type to check the type by hand (fill `correct_type`) |
 | `docs/link_review.csv` | `pipeline/03_topics.py link` | Every cross-language link the link step accepted, for spot checks |
 | `pipeline/sensitive_decisions.csv` | by hand | Keep/hide decisions for sensitive topics, read by `pipeline/05_export.py` (columns `topic_id, decision, note`) |
 

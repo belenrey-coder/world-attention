@@ -18,3 +18,5 @@ docs/validation_sample*.csv
 docs/link_review.csv
 # hand decisions on sensitive topics (keep/hide), read by 05_export: local only
 pipeline/sensitive_decisions.csv
+# hand-review list of Claude types (may name low-reach persons): local only
+docs/review_types.csv
