@@ -362,7 +362,8 @@ def run():
     from recall import all_rules
     hubs = set(s.query_norm[s.is_generic_term])
     rr = all_rules(s, lab, is_short_generic, hubs) if len(lab) else {}
-    for key, use_canon in (("claude_near", False), ("match_key", False), ("word_set", True), ("containment", True)):
+    for key, use_canon in (("claude_near", False), ("match_key", False), ("raw_match_key", False), ("word_set", True),
+                           ("containment", True)):
         if key in rr:
             apply(key, rr[key][0], MAX_GROUP, use_canon=use_canon)
             stats[key]["candidates"] = len(rr[key][0])

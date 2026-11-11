@@ -233,9 +233,69 @@ def all_rules(s, lab, is_short_generic, hubs):
     out = {}
     for key, fn in (("claude_near", lambda: rule_claude_near(s, lab)),
                     ("match_key", lambda: rule_match_key(s, lab)),
+                    ("raw_match_key", lambda: rule_raw_match_key(s, lab)),
                     ("word_set", lambda: rule_word_set(s)),
                     ("containment", lambda: rule_containment(s, is_short_generic, hubs))):
         pairs, info = fn()
         out[key] = (pairs, info)
         print(f"  recall rule {key}: {len(pairs):,} candidate pairs {info}", flush=True)
     return out
+
+
+# ------------------------------------------------------------------ 5 raw match key (2026-11-11)
+# Separators between two teams in the raw search string, in any language (matched as whole words; the
+# dash forms only with spaces around them, so "al-hilal" or "saint-etienne" are never split).
+RAW_SEPARATORS = ["vs", "vs.", "v", "v.", "x", "mot", "contra", "contro", "gegen", "contre", "versus", "against",
+                  "lwn", "ضد", "مقابل", "против", "срещу", "проти", "proti", "protiv", "εναντιον", "εναντίον",
+                  "dau voi", "đấu với", "พบ", "対", "對", "vs", "বনাম", "बनाम", "karsi", "karşı", "vastaan", "ellen",
+                  "kontra", "naspram"]
+_SEP_WORDS = sorted({s for s in RAW_SEPARATORS}, key=len, reverse=True)
+RAW_SPLIT = re.compile(r"\s+[-–—]\s+|(?:^|\s)(?:" + "|".join(re.escape(s) for s in _SEP_WORDS) + r")(?:\s|$)", re.I)
+MATCH_EXTRA = {stem(norm(w)) for w in """prediction predictions pronostico pronosticos prognose highlights lineup lineups
+alineaciones alineacion escalacao escalacoes formazioni h2h tickets stats estadisticas where watch donde ver
+onde assistir canal channel tv""".split()}
+MAX_TEAM_WORDS = 4
+
+
+def raw_match_key(raw: str):
+    """(team_a, team_b) sorted, from a raw search string with exactly one separator; None otherwise."""
+    if not isinstance(raw, str):
+        return None
+    parts = [p for p in RAW_SPLIT.split(raw.strip().lower()) if p is not None]
+    if len(parts) != 2:
+        return None
+    teams = []
+    for p in parts:
+        w = [stem(x) for x in norm(p).split()]
+        w = [x for x in w if x not in TEAM_DROP and x not in MATCH_EXTRA and x not in GENERIC_EXTRA
+             and not _YEAR.match(x) and not _DAYNUM.match(x)]
+        if not w or len(w) > MAX_TEAM_WORDS or all(x.isdigit() for x in w):
+            return None
+        teams.append(" ".join(w))
+    if teams[0] == teams[1] or min(len(t) for t in teams) < 2:
+        return None
+    return tuple(sorted(teams))
+
+
+def rule_raw_match_key(s, lab):
+    """Merge strings whose raw text gives the same two teams, within the window. Skip a pair when both
+    strings have confident Claude match names (conf >= 0.8) that give different teams."""
+    days = s.days.to_numpy()
+    raw = s.top_raw.to_numpy()
+    ck = {}
+    if len(lab):
+        sid_of = dict(zip(s.query_norm, s.sid))
+        conf = lab[(lab["type"] == "sports_match") & (lab.confidence >= 0.8)]
+        ck = {sid_of[q]: match_key(n) for q, n in conf.canonical_en.items() if q in sid_of}
+    key = defaultdict(list)
+    for sid in s.sid:
+        k = raw_match_key(raw[sid])
+        if k:
+            key[k].append(sid)
+
+    def cond(a, b):
+        ka, kb = ck.get(a), ck.get(b)
+        return not (ka and kb and ka != kb)
+    pairs, skipped = pairs_in_groups(key.values(), days, cond)
+    return pairs, {"strings_with_key": int(sum(len(v) for v in key.values())), "keys": len(key),
+                   "keys_skipped_too_big": skipped}

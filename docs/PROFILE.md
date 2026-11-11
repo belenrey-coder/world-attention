@@ -39,8 +39,8 @@ Note: “pope francis” also trended on 2025-04-20 (his Easter appearance, and 
 
 - Distinct raw strings (`query_raw`): **923,336**
 - Distinct normalized strings (`query_norm`): **895,618** (normalization merged 27,718)
-- Topics: **780,560**; largest group 64 strings (fuzzy/semantic merges capped at 50 strings)
-- Multi-string topics: 54,528; strings in them: 178,956
+- Topics: **774,319**; largest group 64 strings (fuzzy/semantic merges capped at 50 strings)
+- Multi-string topics: 54,334; strings in them: 184,793
 
 Each union reduces the number of groups by one. Layers run in the order shown (after normalization: Wikidata, Claude, typo, semantic); a pair already joined by an earlier layer counts for that layer.
 
@@ -49,8 +49,8 @@ Each union reduces the number of groups by one. Layers run in the order shown (a
 | normalization (exact query_norm) | 27718 |  |  |  |
 | wikidata | 5528 | 0 | 0 | 0 |
 | claude | 31962 | 4 | 0 | 0 |
-| typo | 17153 | 4 | 604 | 61 |
-| semantic | 24994 | 106 | 11003 | 172 |
+| typo | 8990 | 4 | 262 | 92 |
+| semantic | 21797 | 106 | 7261 | 203 |
 
 Typo edges before the union-find: 34,478; dropped because a string has <= 8 characters and similarity < 0.96: 2,656; dropped because both strings have confident (>= 0.5) Claude names that differ: 2,032; kept: 29,790.
 
@@ -149,19 +149,20 @@ Selected automatically: the lowest-similarity semantic merges, and typo/semantic
 
 ## Moments
 
-- National trend rows: 3,456,593; topics: 690,302; sessions: 3,140,544; moments: **2,040,257** (a country's session ends after 24 h without the topic; a moment is a burst of session starts with gaps ≤ 6 h)
-- Moments lasting ≥ 7 days: 152
-- Topics with more than one moment: 232,969
-- Moments reaching ≥ 2 countries: 220,371; ≥ 10: 27,143
-- Global moments (>= 15 countries started by 60 min after the 3rd): **8,303** (top 300 in `docs/GLOBAL_MOMENTS.md`); excluding matches and clubs: 1,932
+- National trend rows: 3,456,593; topics: 684,507; sessions: 3,130,636; moments: **2,031,818** (a country's session ends after 24 h without the topic; a moment is a burst of session starts with gaps ≤ 6 h)
+- Moments lasting ≥ 7 days: 153
+- Topics with more than one moment: 231,556
+- Moments reaching ≥ 2 countries: 218,239; ≥ 10: 26,652
+- Global moments (>= 15 countries started by 60 min after the 3rd): **8,014** (top 300 in `docs/GLOBAL_MOMENTS.md`); excluding matches and clubs: 1,932
 
 ## 20 biggest global moments
 
 | topic_name | type | start_utc | reach_60 | reach | minutes_to_half |
 |---|---|---|---|---|---|
-| Barcelona vs Deportivo Alavés | sports_match | 2025-11-29 12:30 | 119 | 120 | 110 |
 | ChatGPT | product | 2025-01-23 11:40 | 118 | 121 | 10 |
+| Barcelona vs Deportivo Alavés | sports_match | 2025-11-29 14:00 | 118 | 119 | 20 |
 | Nottingham Forest vs Manchester City | sports_match | 2025-12-27 07:20 | 117 | 120 | 260 |
+| Deportivo Alavés vs Real Madrid | sports_match | 2025-04-13 08:00 | 116 | 119 | 330 |
 | Hong Kong vs Manchester United | sports_match | 2025-05-30 09:20 | 116 | 118 | 110 |
 | ChatGPT | product | 2024-12-11 23:20 | 116 | 116 | 20 |
 | Real Madrid vs Rayo Vallecano | sports_match | 2025-11-09 12:40 | 114 | 117 | 110 |
@@ -171,15 +172,14 @@ Selected automatically: the lowest-similarity semantic merges, and typo/semantic
 | Diogo Jota | person | 2025-07-03 07:20 | 111 | 120 | 60 |
 | Real Madrid vs Rayo Vallecano | sports_match | 2025-03-09 09:30 | 111 | 119 | 290 |
 | Daegu FC vs FC Barcelona | sports_match | 2025-08-04 10:10 | 111 | 118 | 20 |
+| Bayern Munich vs 1. FC Heidenheim | sports_match | 2026-05-02 12:10 | 111 | 114 | 30 |
 | Everton vs Manchester City | sports_match | 2024-12-26 08:50 | 111 | 113 | 170 |
+| Atlético Madrid vs Valencia | sports_match | 2025-12-13 12:00 | 110 | 119 | 10 |
 | Mansfield Town vs Arsenal | sports_match | 2026-03-07 06:50 | 110 | 114 | 290 |
 | Real Madrid CF | team | 2026-02-25 19:50 | 110 | 113 | 30 |
-| Atlético Madrid vs Valencia | sports_match | 2025-12-13 12:00 | 109 | 118 | 10 |
+| Cardiff City vs Chelsea | sports_match | 2025-12-16 16:30 | 109 | 117 | 160 |
 | Aston Villa vs Manchester City | sports_match | 2024-12-21 06:40 | 109 | 112 | 300 |
-| Talavera vs Real Madrid | sports_match | 2025-12-17 12:00 | 108 | 122 | 430 |
-| Real Madrid vs Rayo Vallecano | sports_match | 2026-02-01 05:20 | 108 | 120 | 410 |
-| Cardiff City vs Chelsea | sports_match | 2025-12-16 16:30 | 108 | 117 | 160 |
 
 ## Exports
 
-- 198 files, 72.5 MB; largest `topics_index/005.json` 2.00 MB (limit 2 MB)
+- 198 files, 71.7 MB; largest `topics_index/003.json` 2.00 MB (limit 2 MB)
