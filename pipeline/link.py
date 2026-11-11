@@ -269,6 +269,14 @@ def run():
     n_gen = int(gen_bad.sum())
     print(f"links refused (generic event, no shared country): {n_gen:,}")
     acc = acc[~gen_bad]
+    # como-questions never link into topics about the club Como (see combine.como_guard)
+    from combine import COMO_CLUB, COMO_START
+    top_q = st.sort_values("n_rows", ascending=False).drop_duplicates("topic_id").set_index("topic_id").query_norm
+    como_bad = np.array([bool(COMO_START.match(str(top_q.get(c, "")))) and pt in ("team", "sports_match")
+                         and bool(COMO_CLUB.search(str(pn))) and not (ct in ("team", "sports_match"))
+                         for c, pn, pt, ct in zip(acc.child, acc.p_name, acc.p_type, acc.c_type)], dtype=bool)
+    print(f"links refused (como-question -> Como club): {int(como_bad.sum())}")
+    acc = acc[~como_bad]
     # manual overrides (pipeline/overrides.csv): a detached string's topic never links, in either direction
     if "override" in st.columns:
         frozen = set(st.topic_id[st.override.notna()])

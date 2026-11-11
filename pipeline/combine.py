@@ -18,6 +18,7 @@ topic_name = most common canonical_en in the group, else the Wikidata label, els
 """
 import json
 import random
+import re
 from pathlib import Path
 
 import numpy as np
@@ -208,6 +209,54 @@ def enforce_short_rule(s, root, qid, uf):
     return root, int(detached)
 
 
+# "como" is "how" in Spanish/Portuguese. A string starting with como/cómo may only sit in a topic about the
+# football club Como if Claude labelled that string itself as a Como team/match, or it has a club token or
+# a match separator ("como 1907", "como calcio", "como vs inter", "como x lazio"). Questions never do.
+COMO_START = re.compile(r"^c[oó]mo\s", re.I)
+COMO_CLUB = re.compile(r"\bcomo\b", re.I)
+COMO_CLUB_TOKENS = {"1907", "calcio", "fc", "women", "coppa", "cup"}
+
+
+def como_ok(q, raw, lab_type, lab_name, opponents=frozenset()):
+    from recall import raw_match_key
+    w = q.split()
+    if len(w) > 1 and w[1] in opponents:          # "como inter rigore": the next word is a Como opponent
+        return True
+    if isinstance(lab_type, str) and lab_type in ("team", "sports_match") and isinstance(lab_name, str) \
+            and COMO_CLUB.search(lab_name):
+        return True
+    return bool(set(q.split()) & COMO_CLUB_TOKENS) or raw_match_key(raw) is not None or raw_match_key(q) is not None
+
+
+def como_guard(s, root, lab):
+    """Detach como-questions from groups about the club Como (a group is about the club if one of its strings
+    has a confident-enough Claude label of type team/sports_match naming Como)."""
+    root = root.copy()
+    if not len(lab):
+        return root, 0
+    lt = lab["type"].reindex(s.query_norm).to_numpy()
+    ln = lab.canonical_en.reindex(s.query_norm).to_numpy()
+    lc = lab.confidence.reindex(s.query_norm).fillna(0).to_numpy()
+    club_str = np.array([isinstance(a, str) and a in ("team", "sports_match") and isinstance(b, str)
+                         and bool(COMO_CLUB.search(b)) and c >= 0.5 for a, b, c in zip(lt, ln, lc)])
+    club_root = set(root[club_str])
+    from textnorm import norm
+    opponents = frozenset(x for n in ln[club_str] for x in norm(n).split()) - {"como", "vs", "1907", "fc", "v"} \
+        - {"va", "e", "el", "la", "o", "a", "de", "do", "da"}
+    qn, raw = s.query_norm.to_numpy(), s.top_raw.to_numpy()
+    bad = [i for i in np.where(np.isin(root, list(club_root)))[0]
+           if COMO_START.match(qn[i]) and not como_ok(qn[i], raw[i], lt[i], ln[i], opponents)]
+    if bad:
+        old = root.copy()
+        bad = np.asarray(bad)
+        root[bad] = bad
+        orphan = np.isin(old, bad) & ~np.isin(np.arange(len(root)), bad)
+        if orphan.any():
+            idx = np.where(orphan)[0]
+            root[idx] = pd.Series(idx).groupby(old[idx]).transform("min").to_numpy()
+    return root, len(bad)
+
+
 def load_overrides():
     """pipeline/overrides.csv: one row per string (matched after norm()).
     detach: the string becomes its own topic, with no QID, named by its own most common raw form.
@@ -379,6 +428,9 @@ def run():
     root = np.array([uf.find(i) for i in range(n)])
     root, detached = enforce_short_rule(s, root, qid, uf)
     stats["short_generic_detached"] = detached
+    root, n_como = como_guard(s, root, lab)
+    stats["como_questions_detached"] = n_como
+    print(f"  como-questions detached from Como club topics: {n_como}")
     root, done = apply_overrides(overrides, s, root, qid, lab)
     stats["overrides_applied"] = [list(x) for x in done]
     print(f"  overrides applied: {done}")

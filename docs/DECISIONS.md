@@ -168,6 +168,14 @@ All merging runs on the 895,618 distinct `query_norm` strings, and results are m
 - **Moments:** global moments went from 8,303 to 8,014 (split match moments now join). Moments reaching 100+ countries within 60 min went from 63 to 73; all 10 new ones are sport, and non-sport stays at 5.
 - **Review:** 20 random merges were reviewed (`data/interim/work/recall_examples.md`, local); all are the same match ("metz - paris" / "metz x paris fc", "newcastle đấu với ipswich town" / "newcastle - ipswich town"). Known ambiguity: dropping "fc" makes "Paris" and "Paris FC" one team name.
 
+**"Como" questions vs the club Como (2026-11-11).** "Como" means "how" in Spanish and Portuguese. A string starting with como/cómo may stay in a topic about the football club Como only if one of these holds:
+- Claude labeled that string itself as a Como team or match;
+- it has a club token (1907, calcio, fc, women, coppa, cup);
+- it has a match separator ("como vs inter", "como x lazio", "como lwn juventus");
+- the word right after "como" is an opponent named in Claude's Como match labels ("como inter rigore").
+
+Anything else is detached at the end of combine (`como_guard`), and such strings never link into a Como topic. In the current data this changes nothing (0 detached, 0 links refused): questions like "como va el inter" or "como quedo el madrid" are already their own topics. The guard keeps it that way.
+
 **Generic event names (2026-11-11).** A string is a generic event if Claude typed it `event`, it has no QID, and its Claude name is only generic words (`GENERIC_EVENT_WORDS` in `combine.py`: earthquake, storm, winter, snow, rain, tsunami, warning, power, outage, blackout, flood, wildfire, fire, heat, election, results, today, live, …). Examples: "Earthquake", "Winter storm", "Tsunami warning", "Power outage", "Election results". Not generic: "Alaska earthquake", "US election results". A group containing such a string (and no QID) merges only with a group that shares at least one country (`generic_event_no_shared_country` in the merge stats). The same-name layer pairs these strings per country instead of in one star. Cross-language links follow the same rule.
 - **Effect:** 250 strings qualify. The rule removed 27 merges in the same-name layer, and refused 34 near-name, 2 typo, 2 semantic and 2 link merges. Topics went from 771,163 to 771,190 after linking.
 - **Limitation:** the effect is small because strings that themselves trend in many countries still bridge everything. The bare string "earthquake" trended in dozens of countries, so the "Earthquake" topic still has 40 strings across 82 countries. 289 more strings with generic names are typed `other` (mostly weather) and aren't covered, since the rule is for events.
