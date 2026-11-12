@@ -55,6 +55,10 @@ Every external call is cached: Wikidata responses go to `cache/wikidata/`, and C
 - `docs/PROFILE.md`, `docs/DECISIONS.md`, `docs/CHECKS.md`, `docs/GLOBAL_MOMENTS.md`, `docs/GLOBAL_MOMENTS_NO_SPORT.md`.
 - Hand-review files (`review_sensitive.csv`, `validation_sample*.csv`, `validation_key*.csv`, `link_review.csv`) are written to `docs/` but stay local: see `docs/REVIEW_FILES.md`.
 
+## Methodology
+
+How the data was collected and processed, what "trending" means, how topics, moments and kinds are defined, how well topic merging was validated, and the limitations: [docs/METHODOLOGY.md](docs/METHODOLOGY.md). Every number the article quotes is in [docs/STORY_NUMBERS.md](docs/STORY_NUMBERS.md).
+
 ## Citation
 
 Urman, A., Hannák, A., & Baumann, J. (2026). *Google Trend Archive: Global Real-Time Search Trends*. ICWSM 2026. Dataset: Hugging Face, https://doi.org/10.57967/hf/7531. Licensed CC BY 4.0.
