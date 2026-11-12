@@ -1,7 +1,7 @@
 PY := .venv/bin/python
 T  := pipeline/03_topics.py
 
-.PHONY: setup download clean-data strings typos embed semantic combine link validation topics moments export profile checks after-topics score
+.PHONY: setup download clean-data strings typos embed semantic combine link validation topics moments export profile checks story after-topics score
 
 setup:
 	python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
@@ -19,6 +19,7 @@ moments:           ; $(PY) pipeline/04_moments.py
 export:            ; $(PY) pipeline/05_export.py
 profile:           ; $(PY) pipeline/06_profile.py
 checks:            ; $(PY) pipeline/07_checks.py
+story:             ; $(PY) pipeline/08_story_export.py
 score:             ; $(PY) pipeline/score_validation.py
 
 # Step 3 without any paid API call (Claude labels are read from cache/claude/)

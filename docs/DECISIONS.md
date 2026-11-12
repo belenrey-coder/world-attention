@@ -312,6 +312,16 @@ Scored with `pipeline/score_validation.py [v3]`, with predictions from the curre
 - **19:00 UTC collection bump (fix of 2026-11-09).** `topics.parquet` has a flag `utc19_bump` for trends starting 19:00–19:59 UTC: 287,362 national trends (8.3%, against 4.2% if evenly spread). Nothing is dropped or changed. C4 reports the busiest hour with and without them: worldwide 19:00 UTC (8.3%) → 18:00 UTC (7.6%) without; in local time 20:00 → 19:00. 87 of 125 countries change their busiest local hour, so a Wrapped "busiest hour" is mostly a collection artifact. Night shares barely move.
 - **Validation sample:** topics changed, so `docs/validation_sample.csv` was regenerated. The previous one is kept as `docs/validation_sample_v1.csv`, with its answer key in `docs/validation_key_v1.csv`, which is git-ignored like `docs/validation_key.csv`.
 
+## Step 8: story export (`pipeline/08_story_export.py`, `make story`)
+
+- One JSON per chapter in `data/export/story/` (`opening`, `local`, `shocks`, `appointments`, `waves`, `rituals`, `timemachine/` by month, `wrapped/`), each < 1 MB. `docs/STORY_NUMBERS.md` lists every quoted number with its file and key, and is regenerated on each run.
+- **Sensitive topics:** follows step 5's visibility rules. Hidden topics never appear (checked: 0 of 45,639 referenced topic ids are hidden). Wrapped cards keep step 5's choices, which also skip accident, crash, shooting and death events. `local.json` examples also leave out people.
+- **Kinds** (shock / appointment / wave / ritual / local) use the STORY_CANDIDATES.md rules. A topic whose biggest moment reached < 15 countries is "local" unless it is a ritual.
+- **Shock kind** (death / outage / other): a keyword rule on the topic name, the moment's phrasings, the topic's searches in its first 48 h, and Google's related searches. 98 deaths, 30 outages, the rest other. Some deaths stay "other".
+- **Shocks left out:** the unnamed topics "i", "c" and "t" (23–24 Jun 2025, up to 54 countries) and "working" (Cloudflare day).
+- **Weather by hour:** US, CA and RU use regional feeds in each region's own zone; the others use one zone per country. Each curve is also given without the 19:00 UTC bump.
+- **Opening:** the Pope Francis timeline starts at the first scrape after the announcement (07:50 UTC), where 20 countries already tie.
+
 ## Open issues (need a decision)
 
 _Updated 2026-11-09, after the short-string, sport, 19:00 UTC and Wrapped fixes (rerun from combine: combine, link, validation, moments, export, profile, checks)._

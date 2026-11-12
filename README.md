@@ -35,6 +35,7 @@ Each step reads the previous step's output. Run from the project root.
 | 5 export | `.venv/bin/python pipeline/05_export.py` | `data/export/` (days, hours, moments_global, topics_index, wrapped, similarity, routine, coverage) | ~3 min |
 | 6 profile | `.venv/bin/python pipeline/06_profile.py` | `docs/PROFILE.md` | ~1 min |
 | 7 checks | `.venv/bin/python pipeline/07_checks.py` | `docs/CHECKS.md`, `docs/review_sensitive.csv`, `docs/review_types.csv` | ~1 min |
+| 8 story | `make story` (`.venv/bin/python pipeline/08_story_export.py`) | `data/export/story/` (one JSON per chapter, < 1 MB each), `docs/STORY_NUMBERS.md` | ~1 min |
 
 `make topics` reruns step 3 from cache (no API calls); `make after-topics` runs steps 4–7.
 
