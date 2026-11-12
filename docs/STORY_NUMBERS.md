@@ -39,6 +39,11 @@ Conventions: national feeds; UTC unless a local hour is named; a moment is one t
 | ... of kind other | 409 | `shocks.json` | `moments[].kind` |
 | ... of kind death | 98 | `shocks.json` | `moments[].kind` |
 | ... of kind outage | 28 | `shocks.json` | `moments[].kind` |
+| ... 'other' shocks of sub-kind viral or celebrity (all / in the top 40) | 265 / 18 | `shocks.json` | `moments[].sub_kind, other_top40` |
+| ... 'other' shocks of sub-kind other (all / in the top 40) | 43 / 5 | `shocks.json` | `moments[].sub_kind, other_top40` |
+| ... 'other' shocks of sub-kind politics or conflict (all / in the top 40) | 41 / 5 | `shocks.json` | `moments[].sub_kind, other_top40` |
+| ... 'other' shocks of sub-kind launch (all / in the top 40) | 39 / 5 | `shocks.json` | `moments[].sub_kind, other_top40` |
+| ... 'other' shocks of sub-kind disaster or accident (all / in the top 40) | 21 / 7 | `shocks.json` | `moments[].sub_kind, other_top40` |
 | Diogo Jota (2025-07-03): countries / minutes to half | 120 / 60 | `shocks.json` | `moments[Diogo Jota]` |
 | Hulk Hogan (2025-07-24): countries / minutes to half | 118 / 20 | `shocks.json` | `moments[Hulk Hogan]` |
 | Eric Dane (2026-02-20): countries / minutes to half | 112 / 60 | `shocks.json` | `moments[Eric Dane]` |
@@ -88,11 +93,26 @@ Conventions: national feeds; UTC unless a local hour is named; a moment is one t
 | number | value | file | key |
 |---|---|---|---|
 | Weather: busiest local hour, all countries (with / without 19 UTC bump) | 6 / 6 | `rituals.json` | `weather_all_countries` |
-| Weather: days trending in 10+ countries | 491 | `rituals.json` | `weather_days_in_10plus_countries` |
-| 'When is Ramadan': peak day and countries | 2025-02-28: 10 | `rituals.json` | `when_is.Ramadan` |
-| 'When is Eid': peak day and countries | 2026-03-18: 9 | `rituals.json` | `when_is.Eid` |
-| 'When is Easter': peak day and countries | 2025-04-20: 5 | `rituals.json` | `when_is.Easter` |
-| 'Is X down': peak day, countries, top search | 2026-05-12: 25 (is spotify down) | `rituals.json` | `is_x_down` |
+| Archive days (first to last data day) / of which full collection coverage | 537 / 486 | `rituals.json` | `weather_days.full_coverage_days` |
+| (a) Full-coverage days on which the topic 'Weather' (22 topics named so) trended in 10+ countries | 409 | `rituals.json` | `weather_days.topic_weather_days_10plus` |
+| (a') ... the single topic with id 'Weather' only | 294 | `rituals.json` | `weather_days.topic_weather_plain_id_days_10plus` |
+| (b) Full-coverage days on which any weather topic (6,212 topics) trended in 10+ countries | 486 | `rituals.json` | `weather_days.any_weather_topic_days_10plus` |
+| Ramadan, whole topic (385 topics): peak day and countries (ARTICLE) | 2026-02-17: 75 | `rituals.json` | `by_topic.Ramadan.whole_topic` |
+| Ramadan, whole topic: countries ever / trends | 93 / 2,463 | `rituals.json` | `by_topic.Ramadan.whole_topic` |
+| Ramadan, strict phrasing: peak day and countries | 2025-02-28: 10 | `rituals.json` | `by_topic.Ramadan.strict` |
+| Ramadan, strict phrasing: countries ever / trends | 23 / 62 | `rituals.json` | `by_topic.Ramadan.strict` |
+| Eid, whole topic (730 topics): peak day and countries (ARTICLE) | 2025-03-30: 81 | `rituals.json` | `by_topic.Eid.whole_topic` |
+| Eid, whole topic: countries ever / trends | 95 / 3,727 | `rituals.json` | `by_topic.Eid.whole_topic` |
+| Eid, strict phrasing: peak day and countries | 2026-03-18: 9 | `rituals.json` | `by_topic.Eid.strict` |
+| Eid, strict phrasing: countries ever / trends | 21 / 65 | `rituals.json` | `by_topic.Eid.strict` |
+| Easter, whole topic (236 topics): peak day and countries (ARTICLE) | 2025-04-20: 83 | `rituals.json` | `by_topic.Easter.whole_topic` |
+| Easter, whole topic: countries ever / trends | 103 / 1,562 | `rituals.json` | `by_topic.Easter.whole_topic` |
+| Easter, strict phrasing: peak day and countries | 2025-04-20: 5 | `rituals.json` | `by_topic.Easter.strict` |
+| Easter, strict phrasing: countries ever / trends | 12 / 41 | `rituals.json` | `by_topic.Easter.strict` |
+| Is it down, whole topic (652 topics): peak day and countries (ARTICLE) | 2025-11-18: 99 | `rituals.json` | `by_topic.Is it down.whole_topic` |
+| Is it down, whole topic: countries ever / trends | 111 / 3,941 | `rituals.json` | `by_topic.Is it down.whole_topic` |
+| Is it down, strict phrasing: peak day and countries | 2026-05-12: 25 | `rituals.json` | `by_topic.Is it down.strict` |
+| Is it down, strict phrasing: countries ever / trends | 61 / 1,237 | `rituals.json` | `by_topic.Is it down.strict` |
 
 ## Time machine
 
@@ -111,4 +131,51 @@ Conventions: national feeds; UTC unless a local hour is named; a moment is one t
 | Mean share of trends that are wave | 7.2% | `wrapped/<CC>.json` | `kind_shares.wave` |
 | Mean share of trends that are ritual | 5.2% | `wrapped/<CC>.json` | `kind_shares.ritual` |
 | Mean share of trends that are local | 45.2% | `wrapped/<CC>.json` | `kind_shares.local` |
+
+## Shocks tagged 'other': the 40 biggest by reach
+
+From `shocks.json` → `other_top40`. Sub-kinds are keyword rules (see `sub_kind_rule` in the file); check them.
+
+| # | topic | date (UTC) | countries | min to half | Claude type | sub-kind | top phrasings |
+|---|---|---|---|---|---|---|---|
+| 1 | Bianca Censori | 2025-02-02 | 101 | 150 | person | viral or celebrity | bianca censori; bianca; бьянка цензори |
+| 2 | James Van Der Beek | 2026-02-11 | 91 | 30 | person | viral or celebrity | james van der beek; james vanderbeek; джеймс ван дер бик |
+| 3 | Edoardo Bove | 2024-12-01 | 84 | 30 | person | viral or celebrity | bove; edoardo bove; fiorentina edoardo bove |
+| 4 | Travis Scott | 2025-05-11 | 83 | 50 | person | viral or celebrity | travis scott; camisa barcelona travis scott; cactus jack |
+| 5 | Luka Dončić | 2025-02-02 | 79 | 70 | person | viral or celebrity | luka doncic; doncic; лука дончич |
+| 6 | Malcolm-Jamal Warner | 2025-07-21 | 73 | 100 | person | viral or celebrity | malcolm jamal warner; malcolm jamal; malcolm-jamal warner |
+| 7 | Jonas Urbig | 2026-03-18 | 71 | 40 | person | viral or celebrity | jonas urbig |
+| 8 | Robert Francis Prevost | 2025-05-08 | 67 | 50 | person | other | robert francis prevost; robert prevost; robert françois prevost |
+| 9 | Air India crash | 2025-06-12 | 65 | 40 | event | disaster or accident | air india; air india crash; acidente avião air india sobrevivente |
+| 10 | Microsoft Copilot | 2025-11-18 | 65 | 90 | product | launch | copilot |
+| 11 | BTS | 2026-03-04 | 65 | 110 | media | viral or celebrity | bts |
+| 12 | Character.AI | 2025-01-06 | 64 | 10 | company | other | character ai |
+| 13 | Enhypen | 2026-03-10 | 64 | 150 | media | viral or celebrity | enhypen |
+| 14 | Anthony Joshua | 2025-12-29 | 63 | 80 | person | disaster or accident | anthony joshua; энтони джошуа |
+| 15 | Virginia Giuffre | 2025-04-26 | 61 | 140 | person | disaster or accident | virginia giuffre |
+| 16 | Magdeburg Christmas market attack | 2024-12-20 | 60 | 110 | event | politics or conflict | magdeburg; maagdenburg |
+| 17 | Michail Antonio | 2024-12-07 | 59 | 70 | person | disaster or accident | michail antonio |
+| 18 | Shrek 5 | 2025-02-27 | 58 | 130 | media | launch | shrek 5; шрек 5 |
+| 19 | Tel Aviv | 2025-06-13 | 58 | 30 | place | politics or conflict | tel aviv; تل ابيب; тель авив |
+| 20 | Lyme disease | 2025-07-31 | 58 | 130 | other | other | lyme disease; болезнь лайма; enfermedad de lyme |
+| 21 | Víctor Valdepeñas | 2025-12-14 | 58 | 30 | person | viral or celebrity | víctor valdepeñas; victor valdepenas |
+| 22 | John Ternus | 2026-04-20 | 58 | 50 | person | viral or celebrity | john ternus; джон тернус; john ternus apple |
+| 23 | CDU/CSU | 2025-02-23 | 56 | 90 | other | politics or conflict | cdu/csu |
+| 24 | Terence Stamp | 2025-08-17 | 55 | 100 | person | viral or celebrity | terence stamp; actor terence stamp |
+| 25 | Senny Mayulu | 2025-05-31 | 54 | 0 | person | viral or celebrity | senny mayulu; mayulu |
+| 26 | Christian Horner | 2025-07-09 | 54 | 30 | person | viral or celebrity | christian horner |
+| 27 | Ross Ulbricht | 2025-01-21 | 53 | 130 | person | politics or conflict | ross ulbricht; росса ульбрихта; росс ульбрихт |
+| 28 | Steam Machine | 2025-11-12 | 53 | 80 | product | launch | steam machine; steam machine pc; steam machine gaming console |
+| 29 | OPEC | 2026-04-28 | 53 | 40 | company | other | opec |
+| 30 | Google Maps | 2026-03-26 | 52 | 30 | product | launch | maps |
+| 31 | Pizza | 2025-08-26 | 51 | 30 | other | other | pizza |
+| 32 | ChatGPT Atlas | 2025-10-21 | 51 | 110 | product | launch | chatgpt atlas; atlas browser; chat gpt atlas |
+| 33 | Bondi Beach | 2025-12-14 | 51 | 80 | place | disaster or accident | bondi beach; ボンダイビーチ |
+| 34 | Amy Madigan | 2026-03-15 | 51 | 120 | person | viral or celebrity | amy madigan |
+| 35 | Tonga earthquake | 2025-03-30 | 50 | 80 | event | disaster or accident | tonga |
+| 36 | South Korea martial law crisis | 2024-12-03 | 49 | 70 | event | politics or conflict | south korea; 韩国; south korean |
+| 37 | Madison Keys | 2025-01-25 | 49 | 40 | person | viral or celebrity | madison keys; keys tennis; мэдисон киз |
+| 38 | Myanmar | 2025-03-28 | 49 | 150 | place | disaster or accident | myanmar; burma; mjanmar |
+| 39 | Ian Watkins | 2025-10-11 | 49 | 90 | person | viral or celebrity | ian watkins |
+| 40 | Dro Fernández | 2025-10-21 | 49 | 30 | person | viral or celebrity | dro fernández |
 

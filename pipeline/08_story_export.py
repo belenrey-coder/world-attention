@@ -249,6 +249,53 @@ _lab = pd.read_parquet(WORK / "string_topics.parquet", columns=["topic_id", "can
 _named = _lab[_lab.canonical_en.notna() & (_lab.canonical_en.str.lower() != "unknown")].topic_id.unique()
 _unnamed = gm[(gm.topic_name.astype(str).str.len() <= 2) | ~gm.topic_id.isin(set(_named))]
 gm = gm.drop(_unnamed.index)
+DISASTER_RE = (r"earthquake|quake|sismo|terremoto|gempa|tsunami|flood|inondation|wildfire|incendio|incendie|fire\b|"
+               r"hurricane|typhoon|cyclone|tornado|storm|eruption|volcan|landslide|explosion|blast|collapse|derail|"
+               r"crash|accident|plane|flight \d|shooting|tiroteo|stabbing|attack on|hostage|missing sub|sinking")
+POLITICS_RE = (r"election|elecciones|president|presidente|prime minister|minister|government|parliament|congress|"
+               r"senate|war\b|guerra|strike on|airstrike|missile|invasion|military|army|ceasefire|coup|protest|"
+               r"sanction|tariff|arrest|captured|detenido|resign|impeach|nuclear|attack|bomb|iran|israel|gaza|ukraine|"
+               r"russia|venezuela|maduro|trump|putin|khamenei|netanyahu|nato|united nations")
+VIRAL_RE = (r"viral|video|meme|trend|kiss|kiss cam|wedding|engaged|pregnan|divorce|concert|tour|scandal|leak|"
+            r"interview|award|red carpet|outfit|dating|girlfriend|boyfriend|instagram|tiktok|reality")
+LAUNCH_RE = (r"launch|release|released|announce|unveil|new model|update|beta|preorder|pre-order|trailer|"
+             r"iphone|pixel|galaxy|playstation|nintendo|switch 2|gpt|gemini|copilot|grok|model|app\b|version")
+
+
+PERSON_ACCIDENT_RE = r"crash|accident|acidente|accidente|unfall|shooting|shot\b|stabb|attack"
+POLITICS_STRONG_RE = (r"pardon|arrest|detenido|preso|election|elecciones|president|presidente|minister|resign|impeach|"
+                      r"parliament|senate|congress|sanction|deport|indict|trial|court")
+RELIGION_RE = r"\bpope\b|\bpapa\b|conclave|vatican|leo xiv|leone xiv"
+
+
+def sub_kind(text, typ):
+    """Claude type first, then keywords (first match wins)."""
+    if re.search(RELIGION_RE, text):
+        return "other"
+    if typ == "product":
+        return "launch"
+    if typ == "company":
+        return "launch" if re.search(LAUNCH_RE, text) else ("politics or conflict" if re.search(POLITICS_STRONG_RE, text)
+                                                            else "other")
+    if typ in ("person", "media"):
+        if re.search(PERSON_ACCIDENT_RE, text):
+            return "disaster or accident"
+        if re.search(POLITICS_STRONG_RE, text):
+            return "politics or conflict"
+        if typ == "media" and re.search(r"trailer|release|premiere|estreno|season \d|teaser|announce", text):
+            return "launch"
+        return "viral or celebrity"
+    if re.search(DISASTER_RE, text):
+        return "disaster or accident"
+    if re.search(POLITICS_RE, text) or typ == "place":
+        return "politics or conflict"
+    if re.search(LAUNCH_RE, text):
+        return "launch"
+    if re.search(VIRAL_RE, text):
+        return "viral or celebrity"
+    return "other"
+
+
 shocks = []
 by_topic = t[t.topic_id.isin(set(gm.topic_id))].groupby("topic_id")
 # Google's related searches of the topic's strings ("hulk hogan death"): people mostly search just the name
@@ -265,8 +312,10 @@ for r in gm.itertuples():
     text = " ".join([str(r.topic_name)] + ph + w_.query_raw.str.lower().unique().tolist()
                     + [related_text.get(r.topic_id, "")]).lower()
     k = "death" if re.search(DEATH_RE, text) else ("outage" if re.search(OUTAGE_RE, text) else "other")
+    sk = sub_kind(text, r.type) if k == "other" else None
     mm = np.array([c["min_from_start"] for c in cs])
     shocks.append({"moment_id": int(r.moment_id), "topic_id": r.topic_id, "name": r.topic_name, "kind": k,
+                   "sub_kind": sk, "claude_type": r.type,
                    "date_utc": iso(r.start_utc), "reach": int(r.reach), "reach_60": int(r.reach_60),
                    "minutes_to_half": int(r.minutes_to_half), "phrasings": ph,
                    "curve_first_3h": [[x, int((mm <= x).sum())] for x in range(0, 181, 10)]})
@@ -278,11 +327,24 @@ write("shocks.json", {"note": "Sport-free global moments (>= 15 countries within
                                "deaths stay 'other'. Unnamed topics (<= 2 characters or no Claude name) are left out.",
                      "left_out_unnamed": [{"name": r.topic_name, "date_utc": iso(r.start_utc), "reach": int(r.reach)}
                                           for r in _unnamed.itertuples()],
+                     "sub_kind_rule": "for kind 'other' only. Papal topics -> other. Products -> launch; companies -> "
+                                      "launch with launch words, politics with political words, else other. People and "
+                                      "media -> disaster or accident with crash/accident/shooting words, politics with "
+                                      "strong political words (arrest, pardon, election, ...), media with trailer/release "
+                                      "words -> launch, else viral or celebrity. "
+                                      "Other types: disaster, politics (or a place topic), launch, viral words, else other.",
+                     "other_top40": [{k_: s_[k_] for k_ in ("name", "date_utc", "reach", "minutes_to_half", "claude_type",
+                                                           "sub_kind", "phrasings")} | {"phrasings": s_["phrasings"][:5]}
+                                     for s_ in [x for x in shocks if x["kind"] == "other"][:40]],
                      "moments": shocks})
 kc = pd.Series([s["kind"] for s in shocks]).value_counts().to_dict()
 num("Shocks", "Sport-free global shock moments", len(shocks), "shocks.json", "moments")
 for k_, v in kc.items():
     num("Shocks", f"... of kind {k_}", v, "shocks.json", "moments[].kind")
+oth = [x for x in shocks if x["kind"] == "other"]
+for k_, v in pd.Series([x["sub_kind"] for x in oth]).value_counts().items():
+    num("Shocks", f"... 'other' shocks of sub-kind {k_} (all / in the top 40)",
+        f"{v} / {sum(1 for x in oth[:40] if x['sub_kind'] == k_)}", "shocks.json", "moments[].sub_kind, other_top40")
 for s_ in shocks[:5]:
     num("Shocks", f"{s_['name']} ({s_['date_utc'][:10]}): countries / minutes to half",
         f"{s_['reach']} / {s_['minutes_to_half']}", "shocks.json", f"moments[{s_['name']}]")
@@ -412,7 +474,25 @@ for c, d in w.groupby("country_code"):
                 "top_phrasing": d.query_raw.str.lower().value_counts().index[0],
                 "weather": split(d), "weather_tomorrow": split(d[d.tomorrow]),
                 "time_zone_source": "regional feeds, own zones" if c in REG else "national feed, one zone"}
-wd_cc = tv[tv.topic_id.isin(weather_ids)].groupby("day").country_code.nunique()
+# weather days: only days with full collection coverage (not a gap day), from the first to the last data day
+all_days = pd.date_range(t.day.min(), t.day.max(), freq="D").strftime("%Y-%m-%d")
+full_days = [d for d in all_days if d not in set(gap_days)]
+wx_named = set(meta.index[meta.topic_name == "Weather"]) - hidden        # every topic Claude named exactly "Weather"
+
+
+def days_10plus(ids):
+    cc = tv[tv.topic_id.isin(ids) & tv.day.isin(full_days)].groupby("day").country_code.nunique()
+    return int((cc >= 10).sum())
+
+
+weather_days = {"archive_days": len(all_days), "full_coverage_days": len(full_days),
+                "topic_weather_days_10plus": days_10plus(wx_named), "topic_weather_n_topics": len(wx_named),
+                "topic_weather_plain_id_days_10plus": days_10plus({"Weather"}),
+                "any_weather_topic_days_10plus": days_10plus(weather_ids), "any_weather_n_topics": len(weather_ids),
+                "note": "Days (UTC) with full collection coverage on which the topic trended in 10+ national feeds. "
+                        "'topic Weather' = every topic Claude named exactly 'Weather' (one per language group, e.g. "
+                        "'hava durumu', '天気'); plain_id = only the topic whose id is 'Weather' (English 'weather'); "
+                        "any = every topic in the weather category (city forecasts, storms, ...)."}
 WHEN_RE = r"^(when is|when does|cu[aá]ndo es|cu[aá]ndo empieza|quando [eé]|quando come[cç]a|wann ist|wann beginnt|quand est|quand commence|kapan|ne zaman)\b"
 FEST = {"Ramadan": r"ramadan|ramad[aã]n|ramazan|puasa", "Eid": r"\beid\b|bayram|lebaran|aid el|a[iï]d al", "Easter": r"easter|pascua|p[aá]scoa|ostern|p[aâ]ques|pasqua"}
 DOWN_RE = r"^is \S+( \S+)? down|\bdown right now|not working|\bca[ií]do\b|\bcaiu\b|fora do ar|\bpanne\b|st[oö]rung|downdetector"
@@ -425,28 +505,69 @@ for k, rx in FEST.items():
 dn = tv[ql.str.contains(DOWN_RE, regex=True, na=False)]
 dg = dn.groupby("day").agg(countries=("country_code", "nunique"), trends=("country_code", "size"),
                           top=("query_raw", lambda s: s.str.lower().value_counts().index[0]))
+WHOLE = {"Ramadan": topics_where(r"\bramadan\b|ramazan|ramad[aã]n"),
+         "Eid": topics_where(r"\beid\b|eid al|eid-al|bayram|lebaran|hari raya|aid el"),
+         "Easter": topics_where(r"\beaster\b"),
+         "Is it down": topics_where(r"outage|\bdown\b|not working", exclude=r"power|electric|blackout|apag")}
+STRICT_RX = {k: (WHEN_RE, rx) for k, rx in FEST.items()} | {"Is it down": (DOWN_RE, None)}
+
+
+def day_series(rows):
+    g = rows.groupby("day").agg(countries=("country_code", "nunique"), trends=("country_code", "size"))
+    return g
+
+
+def summary(rows):
+    g = day_series(rows)
+    if g.empty:
+        return {"trends": 0, "countries": 0, "peak_day": None, "peak_countries": 0}, []
+    pk = g.countries.idxmax()
+    return ({"trends": int(len(rows)), "countries": int(rows.country_code.nunique()), "peak_day": pk,
+             "peak_countries": int(g.countries.max())}, [[d, int(x.countries), int(x.trends)] for d, x in g.iterrows()])
+
+
+by_topic_counts = {}
+for k in WHOLE:
+    rx1, rx2 = STRICT_RX[k]
+    strict = tv[ql.str.contains(rx1, regex=True, na=False) & (ql.str.contains(rx2, regex=True, na=False) if rx2 else True)]
+    whole = tv[tv.topic_id.isin(WHOLE[k])]
+    s_sum, s_days = summary(strict)
+    w_sum, w_days = summary(whole)
+    by_topic_counts[k] = {"strict": s_sum | {"rule": "searches phrased 'when is ...' / 'is ... down' only"},
+                          "whole_topic": w_sum | {"topics": len(WHOLE[k]),
+                                                  "rule": "every trend of topics whose Claude name matches (the article uses this)"},
+                          "strict_by_day": s_days, "whole_topic_by_day": w_days}
 rituals = {"note": "Weather topics (category weather) by local hour, weekday (Mon-Fri) vs weekend (Sat-Sun). US, CA and RU "
                    "use regional feeds in each region's zone; all others one zone per country. 'all_without_19utc_bump' "
                    "leaves out trends starting 19:00-19:59 UTC (CHECKS.md C4). Date series are UTC days: [day, countries, trends].",
            "weather_all_countries": split(w), "weather_tomorrow_all_countries": split(w[w.tomorrow]),
            "per_country": per_c,
-           "weather_days_in_10plus_countries": int((wd_cc >= 10).sum()), "weather_days_total": int(len(wd_cc)),
-           "when_is": when, "is_x_down": [[d, int(x.countries), int(x.trends), x.top] for d, x in dg.iterrows()]}
+           "weather_days": weather_days,
+           "when_is": when, "is_x_down": [[d, int(x.countries), int(x.trends), x.top] for d, x in dg.iterrows()],
+           "by_topic": by_topic_counts}
 write("rituals.json", rituals)
 allh = pd.Series(rituals["weather_all_countries"]["all"])
 nob = pd.Series(rituals["weather_all_countries"]["all_without_19utc_bump"])
 num("Rituals", "Weather: busiest local hour, all countries (with / without 19 UTC bump)", f"{allh.idxmax()} / {nob.idxmax()}",
     "rituals.json", "weather_all_countries")
-num("Rituals", "Weather: days trending in 10+ countries", rituals["weather_days_in_10plus_countries"], "rituals.json",
-    "weather_days_in_10plus_countries")
-for k, s_ in when.items():
-    if s_:
-        b = max(s_, key=lambda x: x[1])
-        num("Rituals", f"'When is {k}': peak day and countries", f"{b[0]}: {b[1]}", "rituals.json", f"when_is.{k}")
-if len(dg):
-    b = dg.countries.idxmax()
-    num("Rituals", "'Is X down': peak day, countries, top search", f"{b}: {dg.countries.max()} ({dg.loc[b, 'top']})",
-        "rituals.json", "is_x_down")
+num("Rituals", "Archive days (first to last data day) / of which full collection coverage",
+    f"{weather_days['archive_days']} / {weather_days['full_coverage_days']}", "rituals.json", "weather_days.full_coverage_days")
+num("Rituals", f"(a) Full-coverage days on which the topic 'Weather' ({len(wx_named)} topics named so) trended in 10+ countries",
+    weather_days["topic_weather_days_10plus"], "rituals.json", "weather_days.topic_weather_days_10plus")
+num("Rituals", "(a') ... the single topic with id 'Weather' only", weather_days["topic_weather_plain_id_days_10plus"],
+    "rituals.json", "weather_days.topic_weather_plain_id_days_10plus")
+num("Rituals", f"(b) Full-coverage days on which any weather topic ({len(weather_ids):,} topics) trended in 10+ countries",
+    weather_days["any_weather_topic_days_10plus"], "rituals.json", "weather_days.any_weather_topic_days_10plus")
+for k, v in by_topic_counts.items():
+    w_, s_ = v["whole_topic"], v["strict"]
+    num("Rituals", f"{k}, whole topic ({w_['topics']} topics): peak day and countries (ARTICLE)",
+        f"{w_['peak_day']}: {w_['peak_countries']}", "rituals.json", f"by_topic.{k}.whole_topic")
+    num("Rituals", f"{k}, whole topic: countries ever / trends", f"{w_['countries']} / {w_['trends']:,}", "rituals.json",
+        f"by_topic.{k}.whole_topic")
+    num("Rituals", f"{k}, strict phrasing: peak day and countries", f"{s_['peak_day']}: {s_['peak_countries']}",
+        "rituals.json", f"by_topic.{k}.strict")
+    num("Rituals", f"{k}, strict phrasing: countries ever / trends", f"{s_['countries']} / {s_['trends']:,}", "rituals.json",
+        f"by_topic.{k}.strict")
 
 # ------------------------------------------------------------------ 7 time machine
 print("time machine ...", flush=True)
@@ -552,6 +673,14 @@ for ch in dict.fromkeys(x[0] for x in NUMBERS):
         if c_ == ch:
             L.append(f"| {label.replace('|', '/')} | {fmt(v).replace('|', '/')} | `{fl}` | `{key}` |")
     L.append("")
+L += ["## Shocks tagged 'other': the 40 biggest by reach", "",
+      "From `shocks.json` → `other_top40`. Sub-kinds are keyword rules (see `sub_kind_rule` in the file); check them.", "",
+      "| # | topic | date (UTC) | countries | min to half | Claude type | sub-kind | top phrasings |",
+      "|---|---|---|---|---|---|---|---|"]
+for i, s_ in enumerate([x for x in shocks if x["kind"] == "other"][:40], 1):
+    L.append(f"| {i} | {s_['name']} | {s_['date_utc'][:10]} | {s_['reach']} | {s_['minutes_to_half']} | {s_['claude_type']} | "
+             f"{s_['sub_kind']} | {'; '.join(s_['phrasings'][:3]).replace('|', '/')} |")
+L.append("")
 (DOCS / "STORY_NUMBERS.md").write_text("\n".join(L) + "\n")
 big = max(WRITTEN, key=lambda x: x[1])
 print(f"{len(WRITTEN)} files, {sum(b for _, b in WRITTEN) / 1e6:.1f} MB; largest {big[0]} {big[1] / 1e6:.2f} MB")

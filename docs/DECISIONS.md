@@ -321,6 +321,15 @@ Scored with `pipeline/score_validation.py [v3]`, with predictions from the curre
 - **Shocks left out:** the unnamed topics "i", "c" and "t" (23–24 Jun 2025, up to 54 countries) and "working" (Cloudflare day).
 - **Weather by hour:** US, CA and RU use regional feeds in each region's own zone; the others use one zone per country. Each curve is also given without the 19:00 UTC bump.
 - **Opening:** the Pope Francis timeline starts at the first scrape after the announcement (07:50 UTC), where 20 countries already tie.
+- **Weather days** are counted only on full-coverage days: 486 of the archive's 537 days, gap days excluded.
+  - (a) the topic "Weather", meaning the 22 topics Claude named exactly "Weather", one per language group: 409 days in 10+ countries;
+  - (a') the single English "weather" topic: 294 days;
+  - (b) any of the 6,212 weather-category topics: all 486 days.
+- **Rituals by topic:** Ramadan, Eid, Easter and "is it down" have two counts.
+  - The strict count includes only searches phrased "when is …" or "is … down".
+  - The whole-topic count includes every trend of topics whose Claude name matches. "Is it down" means outage-named topics, excluding power outages and blackouts. The article uses the whole-topic count.
+  - The two differ a lot: Ramadan peaks at 75 countries whole-topic vs 10 strict.
+- **Shocks tagged "other"** get a sub-kind: disaster or accident, politics or conflict, viral or celebrity, launch, or other. It's a keyword rule on Claude's type, the name, the searches and the related searches (`sub_kind_rule` in `shocks.json`). The 40 biggest are listed in `shocks.json` → `other_top40` and in STORY_NUMBERS.md.
 
 ## Open issues (need a decision)
 
