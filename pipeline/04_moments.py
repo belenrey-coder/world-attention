@@ -24,7 +24,9 @@ import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).parent))
-from common import DOCS, INTERIM, WORK, save_json  # noqa: E402
+from common import CACHE, DOCS, INTERIM, WORK, save_json  # noqa: E402
+from kinds import (CONSTANT_MIN_MONTHS, SHOCK_MIN_CONF, SHOCK_PROMPT, WAVE_MIN_MONTHS, load_shock_labels,  # noqa: E402
+                   moment_kinds, shock_moments, topic_ritual, topic_summary_kind, wave_flags, wave_months)
 
 SESSION_GAP_HOURS = 24
 BURST_GAP_HOURS = 6
@@ -113,6 +115,95 @@ def add_category(meta: pd.DataFrame, st: pd.DataFrame) -> pd.DataFrame:
             is_w[meta.topic_id == tid] = bool(flag)
     meta["category"] = np.where(is_w, "weather", meta["type"])
     return meta
+
+
+def add_moment_sport(m: pd.DataFrame, meta: pd.DataFrame) -> pd.DataFrame:
+    """Moment-level sport (2026-11-16, DECISIONS.md Step 9): a global moment of a non-sport topic is sport when
+    pipeline/sport.py finds an entity signal, sporting-event evidence in that moment and no override. is_sport_topic
+    keeps the topic rule (it is also the fixtures list the moment rule checks dates against)."""
+    from sport import sport_fix, sport_moments
+    m["is_sport_topic"] = m.is_sport
+    m["sport_evidence"] = None
+    cand = m[m.is_global & ~m.is_sport].copy()
+    cand["key"] = cand.index
+    mi = meta.set_index("topic_id")
+    ent = sport_fix(set(cand.topic_id), mi)
+    mom = sport_moments(cand, mi, ent, moments=m[["topic_name", "start_utc", "is_sport_topic", "reach"]]).set_index("key")
+    hit = mom.index[mom.sport_moment]
+    m.loc[hit, "is_sport"] = True
+    m.loc[hit, "sport_evidence"] = mom.loc[hit, "event_evidence"]
+    print(f"moment-level sport: {len(hit):,} of {len(cand):,} global non-sport moments moved to sport")
+    return m
+
+
+# Junk topics (DECISIONS.md, Step 9 round 6): generic or empty-meaning names, left out everywhere downstream.
+JUNK_WORDS = {
+    # generic nouns people type into the search box
+    "test", "video", "videos", "live", "live tv", "tv", "news", "noticias", "notícias", "nachrichten", "sport", "sports",
+    "deportes", "esportes", "football", "futbol", "fútbol", "futebol", "radio", "time", "hora", "email", "mail", "film",
+    "films", "movie", "movies", "game", "games", "juegos", "jogos", "music", "musica", "música", "score", "photos",
+    "images", "online", "free", "download", "login", "home", "app", "apps", "today", "hoy", "hoje", "weather", "clima",
+    "tiempo", "wetter", "meteo", "météo", "pogoda", "погода", "translate", "calculator", "calendar", "lyrics",
+    # stopwords and question words
+    "a", "an", "the", "of", "in", "on", "at", "to", "for", "and", "or", "is", "it", "what", "how", "why", "when",
+    "where", "which", "ok", "yes", "we", "you", "me", "my", "de", "la", "el", "los", "las", "que", "y", "en", "un",
+    "una", "do", "da", "na", "se", "por", "para", "com", "le", "les", "des", "du", "et", "der", "die", "das", "und"}
+
+
+# real topics the junk rule would remove (topic_id): BTS's V, Google Translate (DECISIONS.md, Step 9 round 7)
+JUNK_ALLOW = {"V", "Translate"}
+
+
+def junk_topics(mi: pd.DataFrame, ritual: pd.Series) -> pd.Series:
+    """Reason a topic is junk, else None. Rules, in order:
+      single character   the name is one character ("A", "e", "f")
+      bare number        only digits ("2026", "0", "7")
+      unknown            Claude named it "unknown" (and never anything else) and there is no Wikidata match
+                         ("test", "live", "working", "what"); topics Claude was never asked to name are not junk
+      generic word       the name (without a "[...]" language suffix) is in JUNK_WORDS, unless the topic is a ritual
+                         (the generic "Weather" topics are rituals and stay)
+    Real short topics are unaffected: "Iran", "Gemini", "X (Twitter)", "NBA", "CNN"."""
+    st = pd.read_parquet(WORK / "string_topics.parquet", columns=["topic_id", "canonical_en"])
+    named = set(st[st.canonical_en.notna() & (st.canonical_en.str.lower() != "unknown")].topic_id)
+    unknown = set(st[st.canonical_en.str.lower().eq("unknown")].topic_id) - named
+    n = mi.topic_name.astype(str).str.replace(r"\s*\[.*\]\s*$", "", regex=True).str.strip().str.lower()
+    rit = ritual.reindex(mi.index).fillna(False).astype(bool)
+    reason = pd.Series(None, index=mi.index, dtype=object)
+    reason[n.isin(JUNK_WORDS) & ~rit] = "generic word"
+    reason[mi.index.isin(unknown) & mi.qid.isna()] = "unknown"
+    reason[n.str.fullmatch(r"\d+")] = "bare number"
+    reason[n.str.len() <= 1] = "single character"
+    reason[reason.index.isin(JUNK_ALLOW)] = None
+    return reason
+
+
+def sporty(mi: pd.DataFrame, m: pd.DataFrame, ids: set) -> pd.Series:
+    """Athletes and other sport topics the topic rule misses (left out of is_wave), among `ids`: an entity signal
+    of the sport rule (sport.sport_fix: Wikidata sport description, sport site or channel, competition name; for
+    people and "other"-typed topics also sport related searches (Teams, Valencia, Madrid; not products or companies
+    such as Max or Stake); for places, 3+ sport related searches: club cities and countries whose
+    national team drives the searches, such as Valencia or Georgia), or most of the topic's global moments are sport
+    (moment-level rule; Paris, Monaco)."""
+    from sport import sport_fix
+    ent = sport_fix(ids, mi).set_index("topic_id")
+    sig = ent.reason.isin(["wikidata", "site", "competition name", "club place"]) | \
+        (ent.reason.eq("related") & ent.index.to_series().map(mi["type"]).isin(["person", "other", "unlabeled"]))
+    g = m[m.is_global]
+    share = g.groupby("topic_id").is_sport.mean()
+    by_moments = share[share >= 0.5].index
+    out = pd.Series(False, index=mi.index)
+    out[out.index.isin(set(sig.index[sig]) | set(by_moments))] = True
+    return out
+
+
+def add_shock(m: pd.DataFrame) -> pd.DataFrame:
+    """is_shock: kinds.shock_moments with the cached step-9 Claude labels (cache/claude/shocks/labels.jsonl).
+    Moments without a label are not shocks; run `make shocks-label2` for them (the count is in moments_summary)."""
+    labels = load_shock_labels(CACHE / "claude" / "shocks" / "labels.jsonl")
+    m["is_shock"], m["shock_labelled"], m["claude_scheduled"] = shock_moments(m, labels)
+    print(f"shock moments: {int(m.is_shock.sum()):,}; global non-sport moments without a label: "
+          f"{int((m.is_global & ~m.is_sport & ~m.shock_labelled).sum()):,}")
+    return m
 
 
 def topic_meta() -> pd.DataFrame:
@@ -208,6 +299,28 @@ def main():
     meta = topic_meta()
     m = m.reset_index().merge(meta[["topic_id", "type", "category", "intent", "qid", "is_sport"]], on="topic_id", how="left")
     m["is_sport"] = m.is_sport.fillna(False).astype(bool)
+    m = add_moment_sport(m, meta)
+    m = add_shock(m)
+    mi = meta.set_index("topic_id")
+    rit = topic_ritual(mi, m)
+    m["kind"] = moment_kinds(m, set(rit.index[rit]))
+    meta["kind"] = meta.topic_id.map(topic_summary_kind(m)).fillna("other")
+    months = wave_months(t)
+    meta["wave_months"] = meta.topic_id.map(months).fillna(0).astype(int)
+    ath = sporty(mi, m, set(months.index[months >= WAVE_MIN_MONTHS]))
+    meta["is_athlete"] = meta.topic_id.map(ath).fillna(False).astype(bool)
+    junk = junk_topics(mi, rit)
+    meta["junk_reason"] = meta.topic_id.map(junk)
+    meta["is_junk"] = meta.junk_reason.notna()
+    is_wave, is_const = wave_flags(mi, months, rit, ath)
+    is_wave &= junk.reindex(is_wave.index).isna()
+    is_const &= junk.reindex(is_const.index).isna()
+    meta["is_wave"] = meta.topic_id.map(is_wave).fillna(False).astype(bool)
+    meta["is_constant"] = meta.topic_id.map(is_const).fillna(False).astype(bool)
+    m["is_wave"] = m.topic_id.map(meta.set_index("topic_id").is_wave).fillna(False).astype(bool)
+    # which moment each national trend row belongs to (step 8 gives rows their moment's kind)
+    t[["topic_id", "country_code", "start_time_utc", "moment_id"]].drop_duplicates(
+        ["topic_id", "country_code", "start_time_utc"]).to_parquet(WORK / "row_moments.parquet", index=False)
     m["duration_h"] = ((m.end_utc - m.start_utc).dt.total_seconds() / 3600).round(1)
     m.to_parquet(INTERIM / "moments.parquet", index=False)
     meta.to_parquet(INTERIM / "topic_meta.parquet", index=False)
@@ -220,7 +333,23 @@ def main():
         "sessions": int(len(ss)),
         "global_moments_sport": int(g.is_sport.sum()),
         "global_moments_non_sport": int((~g.is_sport).sum()),
-        "sport_rule": "Claude type sports_match/team, or a league/competition name (LEAGUE_RE)",
+        "sport_rule": "topic: Claude type sports_match/team, or a league/competition name (LEAGUE_RE); "
+                      "global moments: also the moment-level rule in pipeline/sport.py",
+        "global_moments_sport_topic_rule": int(g.is_sport_topic.sum()),
+        "global_moments_sport_moment_rule_added": int((g.is_sport & ~g.is_sport_topic).sum()),
+        "shock_rule": f"global non-sport moment, Claude {SHOCK_PROMPT} unscheduled with confidence >= {SHOCK_MIN_CONF}",
+        "shock_moments": int(g.is_shock.sum()),
+        "moment_kinds": m.kind.value_counts().to_dict(),
+        "global_moment_kinds": g.kind.value_counts().to_dict(),
+        "topic_summary_kinds": meta.kind.value_counts().to_dict(),
+        "wave_rule": f"topic in 15+ countries in >= {WAVE_MIN_MONTHS} separate UTC months; not a sport topic, "
+                     "athlete or ritual",
+        "wave_topics": int(meta.is_wave.sum()),
+        "constant_rule": f"topic in 15+ countries in >= {CONSTANT_MIN_MONTHS} UTC months (any topic)",
+        "constant_topics": int(meta.is_constant.sum()),
+        "wave_and_constant_topics": int((meta.is_wave & meta.is_constant).sum()),
+        "junk_topics": meta.junk_reason.value_counts().to_dict(),
+        "global_non_sport_without_claude_label": int((~g.is_sport & ~g.shock_labelled).sum()),
         "reach_100_in_60min": {"all": int((m.reach_60 >= 100).sum()), "sport": int(((m.reach_60 >= 100) & m.is_sport).sum()),
                                "non_sport": int(((m.reach_60 >= 100) & ~m.is_sport).sum())},
         "moments_longer_than_7d": int(((m.end_utc - m.start_utc).dt.days >= 7).sum()),
@@ -232,8 +361,8 @@ def main():
 
     write_review(g, "GLOBAL_MOMENTS.md", "Global moments (top 300 for review)", "")
     write_review(g[~g.is_sport], "GLOBAL_MOMENTS_NO_SPORT.md", "Global moments without sport (top 300 for review)",
-                 "Sport excluded (`is_sport`: Claude type sports_match or team, or a league/competition topic). "
-                 "Athletes and other people stay in. ")
+                 "Sport excluded (`is_sport`: Claude type sports_match or team, or a league/competition topic; for "
+                 "global moments also the moment-level rule in `pipeline/sport.py`: athletes on match days). ")
 
 
 

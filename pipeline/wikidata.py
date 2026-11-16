@@ -224,6 +224,9 @@ def run(s: pd.DataFrame, scope="important"):
 # Verification of Claude's QIDs (wbgetentities, 50 ids per request) and English-name lookup.
 # ============================================================================================
 ENT_DIR = CACHE / "wikidata" / "entities"
+# read-only entity fetches tolerate replication lag up to 30 s (maxlag=5 failed with ~17 s lag on 2026-11-13;
+# maxlag mainly protects the servers from bot edits). Search requests keep maxlag=5.
+READ_MAXLAG = 30
 # API limit is 50 languages: all trending-country languages + "mul" (Wikidata's multilingual label,
 # where many person names now live), minus Turkmen and Uzbek (rare in this data)
 ALL_LANGS = sorted({"en", "mul", *COUNTRY_LANG.values()} - {"tk", "uz"})
@@ -246,7 +249,7 @@ def get_entities(qids):
     for k in range(0, len(todo), 50):
         chunk = todo[k:k + 50]
         data = _get({"action": "wbgetentities", "ids": "|".join(chunk), "props": "labels|aliases|descriptions",
-                     "languages": "|".join(ALL_LANGS), "redirects": "yes", "format": "json", "maxlag": 5})
+                     "languages": "|".join(ALL_LANGS), "redirects": "yes", "format": "json", "maxlag": READ_MAXLAG})
         if data is None or "entities" not in data:
             print(f"  wbgetentities failed for {chunk[0]}..; will retry on the next run")
             continue
@@ -404,3 +407,33 @@ def run_v2(s, step, estimate_only=False):
     q.to_parquet(WORK / "wikidata_qids.parquet", index=False)
     print(f"wrote {WORK/'wikidata_qids.parquet'}: {len(q):,} strings with a QID "
           f"({q.qid_source.value_counts().to_dict()})")
+
+
+# ============================================================================================
+# P54 ("member of sports team") for athletes, used by the moment-level is_sport rule (pipeline/sport.py).
+# ============================================================================================
+CLAIM_DIR = CACHE / "wikidata" / "claims_p54"
+
+
+def get_p54(qids):
+    """{qid: [team qids]} from wbgetentities props=claims, 50 ids per request; only P54 is kept in the cache."""
+    qids = sorted({q for q in qids if isinstance(q, str) and q.startswith("Q")})
+    path = lambda q: CLAIM_DIR / q[-2:] / f"{q}.json"  # noqa: E731
+    todo = [q for q in qids if not path(q).exists()]
+    for k in range(0, len(todo), 50):
+        chunk = todo[k:k + 50]
+        # read-only and small: tolerate replication lag up to 30 s (maxlag=5 kept failing with ~17 s lag on
+        # 2026-11-13; maxlag mainly protects the servers from bot edits)
+        data = _get({"action": "wbgetentities", "ids": "|".join(chunk), "props": "claims", "format": "json",
+                     "maxlag": READ_MAXLAG})
+        if data is None or "entities" not in data:
+            print(f"  P54 lookup failed for {chunk[0]}..; will retry on the next run")
+            continue
+        for q in chunk:
+            e = data["entities"].get(q) or {}
+            teams = [c.get("mainsnak", {}).get("datavalue", {}).get("value", {}).get("id")
+                     for c in (e.get("claims") or {}).get("P54", [])]
+            p = path(q)
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text(json.dumps([x for x in teams if x]))
+    return {q: json.loads(path(q).read_text()) for q in qids if path(q).exists()}

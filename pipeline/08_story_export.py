@@ -9,9 +9,14 @@ examples or the time machine, and Wrapped keeps step 5's card choices (which als
 shooting and death events). Example lists for local topics also leave out people, since small local
 person-topics can be private individuals.
 
-Kinds (shock / appointment / wave / ritual / local) are rule-based, from the Claude type plus timing; the
-rules are the ones in docs/STORY_CANDIDATES.md (see KIND RULES below). A topic whose biggest moment reached
-< 15 countries is "local" unless it is a ritual.
+Two layers (DECISIONS.md, Step 9 rounds 3-4; rules in pipeline/kinds.py):
+  - moment kind (shock / appointment / ritual / other) from step 4 (moments.parquet `kind`); every trend row takes
+    the kind of the moment it belongs to (work/row_moments.parquet). The timeline, shocks.json, the time machine
+    colours and the Wrapped kind shares use these. A topic's kind (topic_meta `kind`) is only a summary (its biggest
+    moment's kind), used only in manifest.json counts.
+  - topic pattern is_wave (topic_meta `is_wave`: 15+ countries in >= 3 separate months). waves.json lists every wave
+    topic's monthly series regardless of moment kinds; the time machine and the timeline flag wave topics.
+"Local" is no longer a kind: Wrapped's local_share is the share of trends whose moment reached < 15 countries.
 """
 import importlib.util
 import json
@@ -94,6 +99,17 @@ m = pd.read_parquet(INTERIM / "moments.parquet")
 cov = json.load(open(EXPORT / "coverage.json"))
 cname = t.groupby("country_code").country_name.first().to_dict()
 name = meta.topic_name.astype(str)
+# junk topics (step 4 `is_junk`) are left out of every chapter, including the denominators of the Wrapped shares
+_junk = set(meta.index[meta.is_junk.astype(bool)])
+print(f"junk topics left out: {len(_junk):,} ({int(t.topic_id.isin(_junk).sum()):,} national rows)", flush=True)
+t = t[~t.topic_id.isin(_junk)]
+m = m[~m.topic_id.isin(_junk)]
+# each national row takes the kind of its moment (step 4)
+_rm = pd.read_parquet(WORK / "row_moments.parquet")
+t = t.merge(_rm, on=["topic_id", "country_code", "start_time_utc"], how="left")
+t["kind"] = t.moment_id.map(m.set_index("moment_id").kind).fillna("other")
+t["moment_reach"] = t.moment_id.map(m.set_index("moment_id").reach).fillna(1)
+WAVE = set(meta.index[meta.is_wave.astype(bool)])
 hidden, wrapped_skip, vis = ex.visibility(t, meta)
 tv = t[~t.topic_id.isin(hidden)]
 print(f"national rows {len(t):,}; hidden topics {len(hidden):,}", flush=True)
@@ -113,37 +129,12 @@ def topics_where(rx, types=None, exclude=None):
     return set(meta.index[ok]) - hidden
 
 
-# ------------------------------------------------------------------ KIND RULES (as in STORY_CANDIDATES.md)
+# ------------------------------------------------------------------ KIND RULES (pipeline/kinds.py)
 print("kinds ...", flush=True)
+from kinds import LOCAL_MAX_REACH, MOMENT_KINDS, WAVE_MIN_MONTHS, topic_features  # noqa: E402
 best = m.sort_values(["reach", "reach_60"], ascending=False).drop_duplicates("topic_id").set_index("topic_id")
-day_cc = t.groupby(["topic_id", "day"]).country_code.nunique()
-f = pd.DataFrame({"max_reach": best.reach, "best_min_to_half": best.minutes_to_half})
-f["persistence_days"] = (day_cc >= 10).groupby(level=0).sum().reindex(f.index).fillna(0).astype(int)
-f["moments_10plus"] = m[m.reach >= 10].groupby("topic_id").size().reindex(f.index).fillna(0).astype(int)
-f["type"] = meta["type"].reindex(f.index)
-f["category"] = meta["category"].reindex(f.index)
-f["is_sport"] = meta.is_sport.reindex(f.index).fillna(False).astype(bool)
-nm = name.reindex(f.index).fillna("").str.lower()
-RITUAL_RE = (r"lotto|lottery|loter|quina|mega ?sena|lotofacil|powerball|euromillion|xo so|kqxs|prayer|namaz|"
-             r"salat|solat|sholat|adhan|horoscope|wordle|connections|strands|crossword|exchange rate|dollar rate|"
-             r"gold (price|rate)|fuel price|petrol price|weather|forecast|tide|sunrise|sunset|tv guide")
-APPOINT_RE = (r"final|award|awards|oscar|grammy|emmy|golden globe|eurovision|election|elecciones|debate|super bowl|"
-              r"launch|release|premiere|estreno|draw|keynote|budget|summit|ceremony|festival|black friday|"
-              r"cyber monday|world cup|olympic|marathon|grand prix|coronation|inauguration|met gala|wwdc|"
-              r"apple event|state of the union|season \d|episode|trailer|draft|halftime|wrestlemania|"
-              r"new year|countdown|eclipse|meteor shower|supermoon")
-ritual = (f.category == "weather") | (f.type == "holiday") | nm.str.contains(RITUAL_RE) | \
-         ((f.moments_10plus >= 15) & ~f.is_sport & f.type.isin(["other", "product", "company", "unlabeled"]))
-appoint = f.is_sport | nm.str.contains(APPOINT_RE) | ((f.type == "person") & (f.moments_10plus >= 10))
-shock = (f.best_min_to_half <= 180) & (f.max_reach >= 20) & (f.persistence_days <= 4) & \
-        f.type.isin(["event", "person", "company", "product", "place", "other", "unlabeled", "media"])
-kind = pd.Series("wave", index=f.index)
-kind[shock] = "shock"
-kind[appoint] = "appointment"
-kind[ritual] = "ritual"
-kind[(f.max_reach < 15) & (kind != "ritual")] = "local"
-KIND = kind.to_dict()
-kind_of = lambda tid: KIND.get(tid, "local")  # noqa: E731
+f = topic_features(t, m, meta)
+kind = meta.kind           # topic SUMMARY kind (its biggest moment's kind); charts use moment / row kinds
 holiday = set(f.index[f.type == "holiday"])
 
 OUT.exists() and shutil.rmtree(OUT)
@@ -241,9 +232,20 @@ print("shocks ...", flush=True)
 DEATH_RE = (r"\b(death|dies|died|dead|rip|obituary|funeral|muere|muri[oó]|fallece|falleci[oó]|morre|morreu|"
             r"faleceu|d[ée]c[eè]s|est mort|meurt|gestorben|stirbt|tot\b|morto|muore|[oö]ld[uü]|wafat|meninggal|"
             r"qua đời|умер|скончал|توفي|وفاة)")
-OUTAGE_RE = r"\b(outage|down|not working|ca[ií]do|caiu|fora do ar|panne|st[oö]rung|error|no funciona)\b"
-gm = m[m.is_global & ~m.is_sport.astype(bool) & m.topic_id.map(lambda x: kind_of(x) == "shock")
-       & ~m.topic_id.isin(hidden)].sort_values("start_utc")
+# outage needs evidence in the MOMENT's own phrasings or related searches (DECISIONS.md, Step 9 round 5)
+OUTAGE_RE = (r"\b(outages?|down|not working|isn'?t working|stopped working|server status|status page|service status|"
+             r"down ?detector|error|errors|problems?|issues?|"
+             r"ca[ií]d[oa]|se cay[oó]|no funciona|no carga|falla|fallas|problemas?|"
+             r"caiu|fora do ar|n[aã]o funciona|inst[aá]vel|"
+             r"panne|en panne|ne fonctionne pas|"
+             r"st[oö]rung|ausfall|geht nicht|funktioniert nicht|"
+             r"non funziona|disservizio|"
+             r"kesinti|[cç][oö]kt[uü]|eri[sş]im sorunu|"
+             r"gangguan|tidak bisa|error|"
+             r"не работает|сбой|упал|"
+             r"storing|werkt niet|"
+             r"awaria|nie działa)\b|障害|繋がらない|つながらない|ダウン|عطل|توقف|لا يعمل|خلل|故障|宕机|장애|오류")
+gm = m[m.kind.eq("shock") & ~m.topic_id.isin(hidden)].sort_values("start_utc")   # moment kind (step 4)
 # leave out unnamed strings ("c": 41 countries on 23 Jun 2025, Claude "unknown"): no story without a topic
 _lab = pd.read_parquet(WORK / "string_topics.parquet", columns=["topic_id", "canonical_en", "n_rows"])
 _named = _lab[_lab.canonical_en.notna() & (_lab.canonical_en.str.lower() != "unknown")].topic_id.unique()
@@ -303,6 +305,43 @@ _st = pd.read_parquet(WORK / "string_topics.parquet", columns=["sid", "topic_id"
 _rel = pd.read_parquet(WORK / "strings.parquet", columns=["sid", "related_top"]).merge(_st, on="sid")
 _rel = _rel[_rel.topic_id.isin(set(gm.topic_id))]
 related_text = _rel.groupby("topic_id").related_top.agg(lambda s: " ".join(" ".join(x) for x in s)).to_dict()
+# the moment's own searches: national rows of the topic inside the moment (start .. end, at least 1 h), raw
+# searches and Google's related searches of those rows (same window as the sport rule and Claude shock-v2)
+_mrows = pd.read_parquet(INTERIM / "topics.parquet", columns=["topic_id", "level", "start_time_utc", "query_raw", "related"],
+                         filters=[("topic_id", "in", sorted(set(gm.topic_id)))])
+_mrows = _mrows[_mrows.level == "country"]
+_mby = {k_: g_ for k_, g_ in _mrows.groupby("topic_id")}
+
+
+# a search about planes, the military or markets is not outage evidence ("jets shot down", "aviao caiu",
+# "why is gold down today", "caida criptomonedas", "trump backs down")
+OUTAGE_NOT_RE = (r"\b(shot|shoots|shooting|back|backs|backed|step|steps|stepped|stand|stands|calm|slow|count|knock|"
+                 r"knocked|let|bring|brought|hands|bear|bears|weigh|weighs) down\b|"
+                 r"\b(avi[aã]o|avi[oó]n|plane|planes|jet|jets|aircraft|helic[oó]ptero|helicopter|drone|pilot|flight|"
+                 r"f ?16|missile|market|markets|stock|stocks|bolsa|mercado|acciones|a[cç][oõ]es|cripto\w*|crypto|"
+                 r"bitcoin|btc|price|prices|precio|pre[cç]o|d[oó]lar|dollar|gold|oro|ouro|oil|dow|jones|nasdaq|s&p)\b")
+
+
+def outage_evidence(r):
+    """First search of the moment that is outage evidence, or None."""
+    for x in moment_own_terms(r):
+        if re.search(OUTAGE_RE, x, re.I) and not re.search(OUTAGE_NOT_RE, x, re.I):
+            return x
+    return None
+
+
+def moment_own_terms(r):
+    g_ = _mby.get(r.topic_id)
+    ph_ = [c["phrasing"].lower() for c in r.countries if c["phrasing"]]
+    if g_ is None:
+        return ph_
+    hi_ = max(r.end_utc, r.start_utc + pd.Timedelta(hours=1))
+    w_ = g_[(g_.start_time_utc >= r.start_utc) & (g_.start_time_utc <= hi_)]
+    rel_ = [x.lower() for lst in w_.related for x in (lst if lst is not None else [])]
+    return list(dict.fromkeys(ph_ + w_.query_raw.str.lower().tolist() + rel_))
+
+
+n_outage_word_elsewhere = 0
 for r in gm.itertuples():
     cs = r.countries
     ph = list(dict.fromkeys(c["phrasing"].lower() for c in cs if c["phrasing"]))[:10]
@@ -311,20 +350,29 @@ for r in gm.itertuples():
     w_ = g_[(g_.start_time_utc >= r.start_utc) & (g_.start_time_utc < r.start_utc + pd.Timedelta(hours=48))]
     text = " ".join([str(r.topic_name)] + ph + w_.query_raw.str.lower().unique().tolist()
                     + [related_text.get(r.topic_id, "")]).lower()
-    k = "death" if re.search(DEATH_RE, text) else ("outage" if re.search(OUTAGE_RE, text) else "other")
+    ev_out = outage_evidence(r)
+    if re.search(DEATH_RE, text):
+        k = "death"
+    elif ev_out:
+        k = "outage"
+    else:
+        k = "other"
+        n_outage_word_elsewhere += bool(re.search(OUTAGE_RE, text, re.I))
     sk = sub_kind(text, r.type) if k == "other" else None
     mm = np.array([c["min_from_start"] for c in cs])
     shocks.append({"moment_id": int(r.moment_id), "topic_id": r.topic_id, "name": r.topic_name, "kind": k,
-                   "sub_kind": sk, "claude_type": r.type,
+                   "sub_kind": sk, "claude_type": r.type, "outage_evidence": ev_out if k == "outage" else None,
                    "date_utc": iso(r.start_utc), "reach": int(r.reach), "reach_60": int(r.reach_60),
                    "minutes_to_half": int(r.minutes_to_half), "phrasings": ph,
                    "curve_first_3h": [[x, int((mm <= x).sum())] for x in range(0, 181, 10)]})
 shocks.sort(key=lambda d: -d["reach"])
-write("shocks.json", {"note": "Sport-free global moments (>= 15 countries within 60 min of the third country) of "
-                               "topics tagged shock. curve_first_3h = [minutes from the moment's first trend, "
-                               "countries started]. kind (death / outage / other) is a keyword rule on the topic name, "
-                               "phrasings, the topic's searches in its first 48 h and Google's related searches; some "
-                               "deaths stay 'other'. Unnamed topics (<= 2 characters or no Claude name) are left out.",
+write("shocks.json", {"note": "Sport-free global moments (>= 15 countries within 60 min of the third country) that "
+                               "Claude (shock-v2, the moment's own searches) calls unscheduled with confidence >= 0.5 "
+                               "(DECISIONS.md, Step 9). curve_first_3h = [minutes from the moment's first trend, "
+                               "countries started]. kind (death / outage / other) is a keyword rule: death on the topic name, "
+                               "phrasings, the topic's searches in its first 48 h and Google's related searches; outage "
+                               "only on the moment's own phrasings and related searches (status / down words in several "
+                               "languages); some deaths stay 'other'. Unnamed topics (<= 2 characters or no Claude name) are left out.",
                      "left_out_unnamed": [{"name": r.topic_name, "date_utc": iso(r.start_utc), "reach": int(r.reach)}
                                           for r in _unnamed.itertuples()],
                      "sub_kind_rule": "for kind 'other' only. Papal topics -> other. Products -> launch; companies -> "
@@ -425,10 +473,74 @@ DAILY = {"Tariffs": topics_where(r"tariff|aranceles|tarifas de trump|zölle|dazi
 ddays = pd.date_range("2025-03-25", "2025-04-20", freq="D").strftime("%Y-%m-%d")
 daily = {k: [[d, int(tv[tv.topic_id.isin(ids) & (tv.day == d)].country_code.nunique())] for d in ddays]
          for k, ids in DAILY.items()}
+# Selection rule for the chapter's series (DECISIONS.md, Step 9 round 5): every wave topic gets a theme (keyword
+# groups first, then its Claude type); in each theme, the WAVE_SERIES_PER_THEME NON-constant wave topics with the most
+# months in 15+ countries (ties: more countries overall) are the chapter's series. Constant wave topics (12+ months)
+# are listed apart per theme (always there rather than rising and falling).
+WAVE_SERIES_PER_THEME = 5
+THEMES = [("AI tools", r"chatgpt|openai|gemini|claude|grok|deepseek|sora|copilot|perplexity|\bai\b|llm|midjourney"),
+          ("markets and crypto", r"price|s&p|dow jones|nasdaq|stock|bitcoin|crypto|binance|ethereum|gold|oil|dollar|"
+                                 r"tariff|inflation"),
+          ("Epstein", r"epstein|maxwell|giuffre")]
+TYPE_THEME = {"person": "people", "media": "media and entertainment", "product": "tech and brands",
+              "company": "tech and brands", "event": "events", "place": "places and politics", "other": "other"}
+
+
+def theme_of(tid):
+    n_ = str(name.get(tid, tid)).lower()
+    for th, rx in THEMES:
+        if re.search(rx, n_):
+            return th
+    return TYPE_THEME.get(meta["type"].get(tid), "other")
+
+
+_reach_all = tv.groupby("topic_id").country_code.nunique()
+_wt = pd.DataFrame({"months": meta.wave_months.reindex(list(WAVE - hidden))})
+_wt["countries"] = _reach_all.reindex(_wt.index).fillna(0).astype(int)
+_wt["theme"] = [theme_of(x) for x in _wt.index]
+_wt["constant"] = meta.is_constant.reindex(_wt.index).fillna(False).astype(bool)
+_wt = _wt.sort_values(["months", "countries"], ascending=False)
+_sel = _wt[~_wt.constant].groupby("theme", sort=False).head(WAVE_SERIES_PER_THEME)
+_const = _wt[_wt.constant]
+
+
+def _items(g):
+    return [{"topic_id": tid, "name": name.get(tid), "months_15plus": int(r.months), "countries": int(r.countries)}
+            for tid, r in g.iterrows()]
+
+
+wave_series = {th: {"series": _items(g), "constant": _items(_const[_const.theme == th])}
+               for th, g in _sel.groupby("theme", sort=False)}
+picked = {k: sorted(ids & set(_sel.index)) for k, ids in {**SER, **DAILY}.items()}
+hand_vs_rule = {k: {"selected_by_rule": bool(v), "via": [name.get(x) for x in v],
+                    "constant_wave_topics": [name.get(x) for x in sorted(({**SER, **DAILY}[k]) & set(_const.index))],
+                    "wave_topics_matched": [name.get(x) for x in sorted(({**SER, **DAILY}[k]) & WAVE)]}
+                for k, v in picked.items()}
+
+# every wave topic (topic pattern, independent of moment kinds): countries per month
+wv = tv[tv.topic_id.isin(WAVE)]
+wcc = wv.groupby(["topic_id", "month"]).country_code.nunique().unstack(fill_value=0).reindex(columns=months, fill_value=0)
+wcc = wcc.loc[meta.wave_months.reindex(wcc.index).sort_values(ascending=False).index]
+wave_topics = [[tid, name.get(tid), int(meta.wave_months.get(tid, 0)), meta["type"].get(tid), int(bool(meta.is_sport.get(tid))),
+                [int(x) for x in row]] for tid, row in zip(wcc.index, wcc.values)]
 write("waves.json", {"note": "Countries per UTC month whose national feed had the series trending; daily series for "
-                             "25 Mar - 20 Apr 2025. gap_months = months with collection-gap days (counts lower there).",
+                             "25 Mar - 20 Apr 2025. gap_months = months with collection-gap days (counts lower there). "
+                             f"wave_topics = every topic in 15+ countries in >= {WAVE_MIN_MONTHS} separate months "
+                             "(is_wave, regardless of moment kinds), most months first.",
                      "months": months, "gap_months": gap_months, "monthly": monthly, "daily_2025_03_25_to_04_20": daily,
+                     "wave_topic_fields": ["topic_id", "name", "months_15plus", "claude_type", "is_sport_topic",
+                                           "countries_per_month"],
+                     "wave_topics": wave_topics,
+                     "wave_series_rule": f"Each wave topic gets a theme: keyword groups first ({', '.join(t_ for t_, _ in THEMES)}), "
+                                         "otherwise its Claude type. In each theme, the "
+                                         f"{WAVE_SERIES_PER_THEME} non-constant wave topics with the most months in 15+ "
+                                         "countries (ties: more countries overall) are the chapter's series; constant "
+                                         "wave topics (12+ months) are listed apart per theme.",
+                     "wave_series": wave_series,
+                     "hand_picked_vs_rule": hand_vs_rule,
                      "topics_matched": {k: len(v) for k, v in {**SER, **DAILY}.items()}})
+num("Waves", f"Wave topics (15+ countries in >= {WAVE_MIN_MONTHS} months; not hidden)", len(wave_topics), "waves.json",
+    "wave_topics")
 for k, rows in monthly.items():
     b = max(rows, key=lambda d: d["countries"])
     num("Waves", f"{k}: peak month and countries", f"{b['month']}: {b['countries']}", "waves.json", f"monthly.{k}")
@@ -577,7 +689,8 @@ end = end.where(end > tv.start_time_utc, tv.start_time_utc + pd.Timedelta(minute
 h0 = tv.start_time_utc.dt.floor("h").astype("int64") // 3_600_000_000_000
 h1 = (end - pd.Timedelta(microseconds=1)).dt.floor("h").astype("int64") // 3_600_000_000_000
 n = np.clip(h1 - h0 + 1, 1, 25).values
-tid_codes, tid_uni = pd.factorize(tv.topic_id)
+# one entry per (topic, moment kind): the same topic can show in a month with different kinds
+tid_codes, tid_uni = pd.factorize(tv.topic_id + "|" + tv.kind)
 cc_codes, cc_uni = pd.factorize(tv.country_code, sort=True)
 idx = np.repeat(np.arange(len(tv)), n)
 offs = np.arange(len(idx)) - np.repeat(np.cumsum(n) - n, n)
@@ -586,7 +699,7 @@ e = pd.DataFrame({"hour": h0.values[idx] + offs, "cc": cc_codes[idx], "tid": tid
 e = e.sort_values(["hour", "cc", "vol", "start"], ascending=[True, True, False, False]).drop_duplicates(["hour", "cc"])
 e["month"] = pd.to_datetime(e.hour * 3_600_000_000_000, utc=True).dt.strftime("%Y-%m")
 countries = list(cc_uni)
-KINDS = ["shock", "appointment", "wave", "ritual", "local"]
+KINDS = MOMENT_KINDS
 tm_files = []
 for month, g in e.groupby("month"):
     start = pd.Timestamp(month + "-01", tz="UTC")
@@ -601,10 +714,14 @@ for month, g in e.groupby("month"):
         d = sub.to_dict()
         return {"month": month, "countries": countries, "hours": [h.strftime("%Y-%m-%dT%H") for h in hh],
                 "kinds": KINDS,
-                "topics": [[tid_uni[x], name.get(tid_uni[x]), KINDS.index(kind_of(tid_uni[x]))] for x in tids],
+                "topics": [[tid_uni[x].rsplit("|", 1)[0], name.get(tid_uni[x].rsplit("|", 1)[0]),
+                            KINDS.index(tid_uni[x].rsplit("|", 1)[1]), int(tid_uni[x].rsplit("|", 1)[0] in WAVE)]
+                           for x in tids],
                 "top": [[pos[d[(h, c)]] if (h, c) in d else -1 for c in range(len(countries))] for h in hi_],
                 "note": "top[i][j] = index into topics of country j's top active trend in hour i (-1 = none); "
-                        "topics = [topic_id, name, kind index into kinds]"}
+                        "topics = [topic_id, name, kind index into kinds, is_wave 0/1] (kind = the kind of the "
+                        "moment the trend belongs to, so a topic can appear twice with different kinds; is_wave = "
+                        "the topic is a wave topic, a flag, not a kind)"}
     for k in range(1, 9):
         parts = [list(p) for p in np.array_split(np.array(hrs, dtype=object), k)]
         objs = [build(p) for p in parts]
@@ -617,19 +734,19 @@ for month, g in e.groupby("month"):
     else:
         raise ValueError(f"time machine {month} does not fit")
 peaks_ = m[m.is_global & ~m.topic_id.isin(hidden)].sort_values("start_utc")
-write("timemachine/peaks.json", {"note": "Global moments for the timeline (>= 15 countries within 60 min of the third). name is null when it equals topic_id; is_sport 0/1; kind = index into kinds.",
+write("timemachine/peaks.json", {"note": "Global moments for the timeline (>= 15 countries within 60 min of the third). name is null when it equals topic_id; is_sport 0/1; kind = index into kinds (the moment's own kind); is_wave 0/1 = the topic is a wave topic.",
                                  "files": tm_files,
-                                 "fields": ["date_utc", "topic_id", "name", "reach", "is_sport", "kind"], "kinds": KINDS,
+                                 "fields": ["date_utc", "topic_id", "name", "reach", "is_sport", "kind", "is_wave"], "kinds": KINDS,
                                  "peaks": [[iso(r.start_utc), r.topic_id, r.topic_name if r.topic_name != r.topic_id else None,
-                                            int(r.reach), int(bool(r.is_sport)), KINDS.index(kind_of(r.topic_id))]
+                                            int(r.reach), int(bool(r.is_sport)), KINDS.index(r.kind), int(r.topic_id in WAVE)]
                                            for r in peaks_.itertuples()]})
 num("Time machine", "Global moments on the timeline", len(peaks_), "timemachine/peaks.json", "peaks")
 
 # ------------------------------------------------------------------ 8 wrapped
 print("wrapped ...", flush=True)
-tk = t.assign(kind=t.topic_id.map(kind_of))
-share = tk.groupby(["country_code", "kind"]).size().unstack(fill_value=0)
+share = t.groupby(["country_code", "kind"]).size().unstack(fill_value=0)     # rows by their moment's kind
 share = share.div(share.sum(1), axis=0).reindex(columns=KINDS, fill_value=0)
+local_sh = (t.moment_reach < LOCAL_MAX_REACH).groupby(t.country_code).mean()   # reach, not a kind
 index = []
 for p in sorted((EXPORT / "wrapped").glob("[A-Z][A-Z].json")):
     c5 = json.load(open(p))
@@ -644,28 +761,36 @@ for p in sorted((EXPORT / "wrapped").glob("[A-Z][A-Z].json")):
                                "country_name": c5["attention_twin"]["country_name"],
                                "jaccard": c5["attention_twin"]["jaccard"]},
             "weather_hour": c5["weather_hour"], "time_of_day_source": c5["time_of_day_source"],
-            "kind_shares": {k: round(float(share.loc[c, k]), 4) if c in share.index else 0.0 for k in KINDS}}
+            "kind_shares": {k: round(float(share.loc[c, k]), 4) if c in share.index else 0.0 for k in KINDS},
+            "local_share": round(float(local_sh.get(c, 0.0)), 4)}
     write(f"wrapped/{c}.json", card)
     index.append({k: card[k] for k in ("country_code", "country_name", "low_data", "weather_hour")} |
-                 {"twin": card["attention_twin"]["country_code"], "local_share": card["kind_shares"]["local"]})
+                 {"twin": card["attention_twin"]["country_code"], "local_share": card["local_share"]})
 write("wrapped/index.json", {"note": "Per-country cards; card choices (most local topic, biggest day) come from step 5 and "
                                      "respect the sensitive-topic decisions. kind_shares = share of the country's trends "
-                                     "by topic kind. low_data = median covered day < 5 national trends.", "countries": index})
+                                     "by the kind of the moment each trend belongs to; local_share = share of the country's trends whose moment "
+                                     "reached < 15 countries. low_data = median covered day < 5 national trends.", "countries": index})
 num("Wrapped", "Countries with a card", len(index), "wrapped/index.json", "countries")
 num("Wrapped", "Cards flagged low_data", sum(x["low_data"] for x in index), "wrapped/index.json", "countries[].low_data")
 ws = share.mean()
 for k in KINDS:
     num("Wrapped", f"Mean share of trends that are {k}", float(ws[k]), "wrapped/<CC>.json", f"kind_shares.{k}")
+num("Wrapped", "Mean share of trends whose moment reached < 15 countries", float(local_sh.mean()), "wrapped/<CC>.json",
+    "local_share")
 
 # ------------------------------------------------------------------ manifest + numbers
 (OUT / "manifest.json").write_text(json.dumps({"generated_by": "pipeline/08_story_export.py", "max_bytes": MAX_BYTES,
                                                "files": [{"file": r, "bytes": b} for r, b in WRITTEN],
-                                               "visibility": vis, "kind_counts": kind.value_counts().to_dict()}, indent=1))
+                                               "visibility": vis,
+                                               "kind_counts": {"moments": m.kind.value_counts().to_dict(),
+                                                               "global_moments": m[m.is_global].kind.value_counts().to_dict(),
+                                                               "topics_summary": kind.value_counts().to_dict()}},
+                                              indent=1))
 L = ["# Story numbers", "",
      "_Generated by `pipeline/08_story_export.py` (`make story`). Every number the article quotes, with the file in "
      "`data/export/story/` and the key it comes from. Re-run after any pipeline change; do not edit by hand._", "",
      "Conventions: national feeds; UTC unless a local hour is named; a moment is one topic in one burst of attention "
-     "(DECISIONS.md, Step 4); kinds are rule-based (shock, appointment, wave, ritual, local); hidden sensitive topics are "
+     "(DECISIONS.md, Step 4); kinds (shock, appointment, ritual, other) are rule-based and belong to moments: each trend takes the kind of its moment; waves are a topic pattern (15+ countries in 3+ months), not a kind (DECISIONS.md, Step 9); hidden sensitive topics are "
      f"excluded ({len(hidden):,} topics). Collection-gap months: {', '.join(f'{k} ({v} days)' for k, v in gap_months.items())}.", ""]
 for ch in dict.fromkeys(x[0] for x in NUMBERS):
     L += [f"## {ch}", "", "| number | value | file | key |", "|---|---|---|---|"]

@@ -20,3 +20,8 @@ docs/link_review.csv
 pipeline/sensitive_decisions.csv
 # hand-review list of Claude types (may name low-reach persons): local only
 docs/review_types.csv
+# shock validation sample (hand labels) and its answer key (Claude labels, strata): local only
+docs/shock_validation_sample.csv
+docs/shock_validation_key.csv
+docs/shock_validation_sample2.csv
+docs/shock_validation_key2.csv

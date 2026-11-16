@@ -247,7 +247,7 @@ Scored with `pipeline/score_validation.py [v3]`, with predictions from the curre
 - **Per moment:** `start_utc`, `end_utc`, `reach` (countries), `countries` (per country: first UTC start, minutes from the moment's start, max volume bucket, most common raw phrasing), `minutes_to_half` (minutes until ceil(reach/2) countries had started), `peak_volume` (max `search_volume_lower`), and topic `type`/`intent`/`qid` (the most common value among the topic's strings, weighted by rows).
 - **Global moment:** at least **15** countries had started by **60 min after the third country's first trend**. Measuring from the third country, not the first, means one or two early outliers (a time-zone artefact or an earlier local story) don't disqualify a real global spike. `docs/GLOBAL_MOMENTS.md` lists the top 300, sorted by countries in that window, then total reach.
 
-- **Sport is flagged separately (`is_sport`).** Claude types `sports_match` or `team`, plus league and competition topics matched by name (`LEAGUE_RE` in `04_moments.py`: Premier League, La Liga, Champions League, NBA, World Cup, Grand Prix, …; never people, companies, products or places). Athletes are not counted as sport.
+- **Sport is flagged separately (`is_sport`).** Since 2026-11-16, global moments also use the moment-level rule (Step 9, round 2); the topic rule below is kept as `is_sport_topic`. Claude types `sports_match` or `team`, plus league and competition topics matched by name (`LEAGUE_RE` in `04_moments.py`: Premier League, La Liga, Champions League, NBA, World Cup, Grand Prix, …; never people, companies, products or places). Athletes are not counted as sport.
 
   **Why sport is treated separately:** a scheduled match makes dozens of countries trend the same search within minutes, because kickoff is the same moment everywhere and Google lists fixtures in many feeds. That is synchronized by the fixture list, not a sign of a shared reaction. It also dominates the counts: 6,082 of 8,014 global moments are sport, and 68 of the 73 that reached 100+ countries within 60 minutes (after all 2026-11-11 rules; 6,513 of 8,441 and 58 of 63 before), and 58 of the 63 moments that reached 100+ countries within 60 minutes are matches or clubs (Real Madrid 6 times, FC Barcelona 4 times). The 5 non-sport ones are the two ChatGPT outages (23 Jan 2025, 11 Dec 2024) and the deaths of Diogo Jota, Hulk Hogan and Ozzy Osbourne. So any claim about "the world paying attention together" should be quoted without sport, or with sport shown separately. `docs/GLOBAL_MOMENTS_NO_SPORT.md` is the sport-free top 300 next to `docs/GLOBAL_MOMENTS.md`.
 
@@ -330,6 +330,355 @@ Scored with `pipeline/score_validation.py [v3]`, with predictions from the curre
   - The whole-topic count includes every trend of topics whose Claude name matches. "Is it down" means outage-named topics, excluding power outages and blackouts. The article uses the whole-topic count.
   - The two differ a lot: Ramadan peaks at 75 countries whole-topic vs 10 strict.
 - **Shocks tagged "other"** get a sub-kind: disaster or accident, politics or conflict, viral or celebrity, launch, or other. It's a keyword rule on Claude's type, the name, the searches and the related searches (`sub_kind_rule` in `shocks.json`). The 40 biggest are listed in `shocks.json` → `other_top40` and in STORY_NUMBERS.md.
+
+## Step 9: shock validation (`pipeline/09_validate_shocks.py`, `make shocks-*`)
+
+Started 2026-11-13. It checks whether the "shock" kind really captures unscheduled events before the definition is final. **`shocks.json` and `STORY_NUMBERS.md` are not changed until the scores have been reviewed.** They were built with the old 20-country rule.
+
+- **Threshold.** The 535 sport-free shocks in `shocks.json` came from a topic-level shock rule requiring the topic's biggest moment to reach **20** countries, on top of the moment being global (15+ countries within 60 min of the third). The rule now lives in `pipeline/kinds.py`, shared by steps 8 and 9, with `SHOCK_MIN_REACH = 15` for consistency with the global-moment rule.
+  - **Counts** (sport-free global moments of shock topics, named topics only): min reach 20 → **535**, the same 535 as `shocks.json`; **15 → 698**; 10 → 698.
+  - **Why 10 equals 15:** a global moment already has 15+ countries, so every candidate's topic has a biggest moment of 15+, and any threshold ≤ 15 gives the same set. 20 is the meaningful robustness variant. `make story` has not been rerun, so the exported files still hold the 20-country version.
+- **Candidates:** every non-sport global moment (`is_global`, `is_sport` false, topic not hidden), 1,932 moments. It's not only current shocks, so recall can be measured.
+- **Claude labels:** `claude-haiku-5-5`, Message Batches API, 40 moments per request, thinking off, output constrained by a JSON schema, malformed answers retried once, everything cached (`cache/claude/shocks/`, prompt version `shock-v1`), with the same key handling and spend cap as step 3.
+  - **Input per moment:** topic name, UTC date and start, up to 8 phrasings from the moment, the topic's top 10 Google related searches (weighted by rows), countries reached, countries within 60 min, minutes to half, and the Wikidata item if the topic has a QID.
+  - **Output:** `scheduled` (scheduled / unscheduled / unsure), `what_happened` (one sentence), `event_type` (death, outage, disaster, politics_conflict, launch, viral_celebrity, other) and `confidence`.
+  - **Instructions:** rely only on the evidence, don't add facts not in the evidence, assume events may be after the training data, answer "unsure" rather than guess, and call something a death only when phrasings or related searches point to one.
+- **Labeling run (2026-11-13):** one batch of 49 requests. All 1,932 answers passed the schema, none needed a retry. Tokens in 460,342, out 144,874, cost **$0.059**; all Claude runs total $3.23 (cap $5).
+  - **scheduled:** unsure 1,124, scheduled 441, unscheduled 367. The large "unsure" share is expected from the instructions not to guess. Many non-sport global moments are athletes or sport-adjacent sites ("Livescore", "Yalla Shoot") whose trigger isn't visible.
+  - **event_type:** other 1,232, viral_celebrity 265, death 118, launch 110, outage 109, politics_conflict 70, disaster 28.
+  - **Caveat:** related searches are Google's list for the whole topic, gathered over all its trends, not for that one moment. A topic's later or earlier news can therefore color Claude's label for a given date. For example, a 15 Aug 2025 moment was labeled an outage because the topic's related searches mention the April 2025 Spain blackout. The phrasings are per moment.
+- **Blind sample** (`make shocks-sample`, seed 13): 100 named candidates, 50 current shocks and 50 other non-sport global moments, shuffled.
+  - `docs/shock_validation_sample.csv` shows only the name, date and time, phrasings and related searches, with blank `scheduled_label` and `event_type_label`.
+  - `docs/shock_validation_key.csv` holds the stratum, the timing-rule flags (current file, 10 / 15 / 20) and Claude's labels. Both are git-ignored (REVIEW_FILES.md). The sample step refuses to overwrite a labeled sample.
+  - **Population of each stratum** (named candidates): 535 current shocks, 1,387 others (`work/shock_sample_strata.json`). The strata split the whole candidate set, so weighted estimates are valid for any rule, including the 15-country rule, whose 163 extra shocks all fall in the "others" stratum.
+- **Labeling helpers** (`09_validate_shocks.py helpers`, 2026-11-13). Six columns are appended to the sample, with no Claude output and nothing from the key except ids:
+  - `google_link` and `news_link`: Google and Google News searches for the topic name, limited to the moment's date ± 1 day (`tbs=cdr:1,cd_min,cd_max`);
+  - `wiki_link`: Wikidata's `Special:GoToLinkedPage/enwiki/<QID>`, which opens the English Wikipedia page of the topic's item, or the Wikidata item if there is none; 70 of 100 rows have one;
+  - `moment_phrasings`: the top phrasings within that moment, with the number of countries using each;
+  - `first_countries`: the first 5 countries with minutes from the start;
+  - `local_start_hint`: the UTC start and the local time in the first country.
+
+  Row order, ids and the empty label columns were verified unchanged, and the key file is untouched. The stage refuses to run once labels exist.
+- **"sport" hand label and the is_sport leak (2026-11-13).** `event_type_label` may also be `sport`, for rows that are really sport (athletes, competitions, clubs, sport sites) and leaked into the non-sport candidates. Claude was not offered this label.
+  - **Leak rate:** the scorer reports how many sampled moments are labeled sport, overall, within current shocks and within the rest, plus a weighted estimate for all candidates.
+  - **Scores twice:** every shock score is computed on all labeled rows and again without the sport rows.
+  - **Event-type confusion:** hand `sport` appears as a row, to show where Claude put the leaked moments.
+- **Proposed is_sport fix** (`pipeline/sport.py`, `09_validate_shocks.py sport-check`; *not yet used by step 4*). The current rule only knows Claude's sports_match/team types and league names, so athletes (typed person), sport sites and tournaments leak. A topic becomes sport if any of these holds:
+  - its Wikidata description names a sport role or body (tennis player, footballer, cricketer, racing driver, club, tournament, …);
+  - its name is a sport site or channel (Yalla Shoot, Livescore, Flashscore, ESPN, Marca, DAZN, …);
+  - its name ends like a competition ("Cincinnati Open", "Asia Cup", "Pichichi Trophy");
+  - at least 3 of its top 10 Google related searches (2 for people) are fixtures ("x vs y", any language) or sport terms. Places never qualify this way, because a country's related searches are full of its team's fixtures ("Andorra").
+
+  **Draft result: 1,006 of the 1,932 candidates (52.1%) move to sport:** 840 by Wikidata, 76 by related searches, 70 as sites, 20 by competition name (387 topics). That includes 169 of the 535 current shocks and 247 of the 703 shocks under the 15-country rule.
+  - **Known misses:** footballers without a Wikidata match (e.g. Gonzalo García, Mingueza).
+  - **Status:** the rule was drafted before any hand labels existed. It will be tuned on the hand `sport` rows: the scorer reports how many of them the fix catches and which non-sport rows it would wrongly move. It moves into `04_moments.add_sport` only after the scores are reviewed, since that changes moments, candidates and `shocks.json`.
+- **Moment-level sport rule (2026-11-13, replaces the entity-only draft above; still not used by step 4).** Sport must describe the *moment*, not the person: an athlete's death, collapse, injury, arrest or scandal is not sport and can be a shock (Diogo Jota, Hulk Hogan, Edoardo Bove). A candidate moment is sport only if all three hold:
+  1. its topic has an entity signal (Wikidata sport role, sport site or tournament name; the 1,006 above);
+  2. **the moment itself looks like a sporting event**, judged from the topic's national trend rows inside the moment (`start_utc`..`end_utc`): their raw searches and their *own* Google related searches (the per-row `related` column, not the topic-wide list), plus the moment's phrasings. Any of:
+     - a fixture ("x vs y" in any language, the step-3 match key);
+     - an event word (score, result, live, stream, highlights, lineup, final, round, transfer, debut, …);
+     - the topic is a competition or sport site;
+     - a **known competition date**: a fixture moment ("a vs b") within a day whose name contains the athlete's surname or a team named in this moment's own searches ("bayern" on the day of Real Madrid vs Bayern);
+  3. **no moment-level override**: death, accident, health (collapse, hospital, injury, illness), crime (arrest, police, court case, doping, ban) or outage words in those same searches (`OVERRIDE_RE`: "murió", "died", "cause of death", "accident", "malore", "injury", "arrested", "doping", …).
+  - **Result:** of the 1,006 entity-flagged moments, **457 move back to non-sport**: 41 by override, 416 for lack of sporting-event evidence. **549 of 1,932 (28.4%) are sport**: 220 by fixture, 183 by event word, 115 by competition date, 31 as competition or site topics. That includes 73 of the 535 current shocks and 94 of the 703 under the 15-country rule.
+  - **The 30 widest athlete moments that are now non-sport** are in `data/interim/work/sport_check_athletes_non_sport.md` (local), for review.
+  - **Things to check:**
+    - injuries suffered *during* a match count as non-sport by this rule (Musiala at the Club World Cup, Djokovic and Sinner at Wimbledon);
+    - Sinner on 26 Jan 2025 (the Australian Open final) is blocked by "doping" in its related searches;
+    - some match days are still missed (Yamal 9 Apr 2025, Mbappé 15 Apr 2026, Kalmurza with a Cyrillic team name);
+    - true non-sport news stays non-sport (Horner fired, De Bruyne and Alexander-Arnold departures).
+- **Moment-level sport rule v2 (2026-11-13, your decisions; still not used by step 4).** It replaces the override handling of v1 above.
+  1. **A surprise during a scheduled sporting event is sport.** Overrides are split in two:
+     - **Always** apply, even on a match day: death; health emergencies (collapse, cardiac, hospital, coma; treated like death because Bove's on-pitch collapse was named non-sport); accidents outside play (car, plane or road words); crime (arrest, police, charged, sentenced); outage.
+     - **In-play** words are *lifted* when the moment has fixture or competition evidence: injury, doping, suspension or ban, an accident or crash without a vehicle word (Vonn at the Olympics), and "retired"/"retirement" (a tennis player retiring hurt mid-match). With no such evidence they still make the moment non-sport.
+  2. **Support:** an override word counts only if it is in the moment's own phrasings or in at least 2 of its related searches. One stray related search isn't enough. This fixes Sinner on 26 Jan 2025, the AO final, where "doping" appeared only in one related search.
+  3. **Announcements are an always-override:** fired, sacked, leaving, departure, transfer, signing, contract, appointed, "where is X going", next or new club, joins, presentation. So Horner, Salah, Ten Hag, Eze, Mbeumo and Dončić's trade are non-sport. "transfer", "signs", "fichaje" and "contrato" no longer count as sporting-event words. De Bruyne and Alexander-Arnold (announcement days whose searches show only names) are non-sport because no fixture falls in their window.
+  4. **Date check:**
+     - **Clubs:** each athlete's clubs and national teams come from Wikidata P54 ("member of sports team"), fetched for 327 athletes and cached in `cache/wikidata/claims_p54/`. Team names come from the cached entity labels in all languages.
+     - **Transliteration:** moment words are also transliterated (unidecode), so Cyrillic and Arabic team names match ("кайрата" → Kairat Almaty vs Real Madrid).
+     - **Competition names** in the moment's searches count as competition evidence, now also in Spanish, Portuguese, French, Italian, German, Arabic, Russian and Turkish (copa, كأس, кубок, …).
+     - **Window:** a competition only counts if it started between 12 h before and 3 h after the athlete's moment, not ± 1 day. Women's fixtures count only for athletes with a women's team.
+     - **Co-trending athletes:** at least 2 *other* athletes (different Wikidata IDs, not the athlete's own name in other scripts) in the moment's searches during a competition window count as a match day (Nico Williams with Merino, Oyarzabal and Dembélé on Spain vs France day).
+     - **Generic club words** (sport, club, racing, sociedad, …) are not team names. They had matched De Bruyne to "Sport Club Internacional".
+  - **Wikidata reads:** the P54 and entity reads now use `maxlag=30`, because Wikidata's replica lag was ~17 s and `maxlag=5` refused every request. Search requests keep `maxlag=5`.
+  - **Checked cases:**
+    - sport: Yamal 9 Apr 2025 (Dortmund vs Barcelona), Mbappé 15 Apr 2026, Kalmurza, Sinner 26 Jan 2025, Musiala, Djokovic and Sinner at Wimbledon, Vonn, Nico Williams and Unai Simón 5 Jun 2025;
+    - non-sport: Bove, Hogan, Horner, De Bruyne, Alexander-Arnold.
+    - The evidence text names the first competition found in the window, which can be another fixture than the athlete's own (e.g. "Portugal vs Spain" for Unai Simón). The decision is what is scored.
+  - **Result:** **827 of the 1,932 candidates (42.8%) are sport.** Of the 1,006 entity-flagged moments, 179 stay non-sport: 30 by override, 149 with no sporting-event evidence.
+    - Evidence for the 827: fixture 237, competition in searches 227, club via P54 225, competition or site topic 57, team named in searches 44, co-trending athletes 27, event word 8, surname 2.
+    - Among shocks: **120 of the 535 current shocks** and **171 of the 703 under the 15-country rule** are sport.
+  - **The 30 widest athletes still non-sport** are in `data/interim/work/sport_check_athletes_non_sport.md`. Mostly deaths and accidents (Hogan, Bove, Clarke, Foreman, Costa, Antonio, Joshua, Woods) and announcements (Horner, Salah, Haaland's contract, Eze). Also some tennis days without a visible fixture (Sinner 1 Jul and 9 Aug 2025, Djokovic 8 Mar 2025, Sabalenka 23 Apr 2026).
+- **Individual-sport calendar (2026-11-13; still not used by step 4).** `pipeline/sport_calendar.py` holds a small static calendar, Dec 2024 – May 2026.
+  - **Tennis:** Grand Slams, ATP and WTA 1000s, ATP and WTA Finals, the United Cup and the Davis Cup Finals.
+  - **F1:** race weekends.
+  - **Golf:** men's majors.
+
+  An athlete moment (Claude type person) whose Wikidata description makes them a tennis player, racing driver or golfer, and that starts inside a window of that sport (UTC date, with one day of slack after the window for late finals in the Americas), counts as a competition day: `calendar: <event>`. Like any competition evidence, this lifts in-play override words, but never an always-override. Where windows overlap (Canada and Cincinnati), the label names the most recently started event.
+  - **Tennis sources:** English Wikipedia, read 2026-11-13: the schedule week columns of "2025 ATP Tour", "2026 ATP Tour", "2025 WTA Tour" and "2026 WTA Tour", plus "2025 ATP Finals" for exact dates (9–16 Nov 2025). The season pages give the Monday of each tournament week, so a window runs from that Monday minus 1 day (most events start on a Sunday) to the last week's Monday plus 6 days. The United Cup starts 3 days before its first Monday.
+  - **F1 sources:** "2024", "2025" and "2026 Formula One World Championship" race dates; a weekend is Friday to the race Sunday. The page notes that the 2026 Saudi Arabian GP was cancelled and the Bahrain GP moved to October 2026, so neither falls in the range.
+  - **Golf sources:** "2025 PGA Tour" and "2026 PGA Tour" final-round dates of the majors (Masters, PGA Championship, U.S. Open, The Open); a major runs Thursday to Sunday.
+  - **Rechecked, now sport:** Sinner 1 Jul 2025 (Wimbledon), Sinner 9 Aug 2025 (Cincinnati), Djokovic 8 Mar 2025 (Indian Wells), Sabalenka 23 Apr 2026 (Madrid). Also Leclerc 20 Apr 2025 (Saudi Arabian GP weekend).
+  - **New counts:** **sport 874 of 1,932 (45.2%)**; 132 of the 1,006 entity-flagged moments stay non-sport (30 by override, 102 with no evidence). Calendar evidence decides 241 moments. Sport among the 535 current shocks: **121**; among the 703 under the 15-country rule: **173**.
+- **"markets" hand label (2026-11-13).** `event_type_label` may also be `markets` (stocks, indices, crypto, gold, currencies). Like `sport`, Claude was not offered it. It gets its own row in the event-type confusion table, and the scorer counts sampled markets moments overall, among current shocks, among shocks under the 15-country rule, and among the other moments. Markets rows are not removed from the shock scores; only `sport` rows have a with/without variant.
+- **Scoring** (`make shocks-score` → `docs/SHOCK_VALIDATION.md`):
+  - Claude vs hand labels on scheduled: accuracy and Cohen's kappa, with and without "unsure".
+  - Precision and recall for "unscheduled" (hand label = truth, hand "unsure" left out) for the current file, the timing rule at 10 / 15 / 20, each timing rule AND Claude "unscheduled", and Claude alone. Raw, and weighted by stratum population (current shocks vs the rest).
+  - Event-type confusion and agreement.
+
+### Step 9, round 2 (2026-11-16): your corrected labels, tuning on sample 1, rules wired into step 4
+
+Sample 1 (`docs/shock_validation_sample.csv`, 100 moments) is now the **tuning** sample. Sample 2 (below) is kept untouched for testing. You corrected five labels: Heidi Klum, Bove, Rio Ferdinand, Dan Ashworth and Christian Horner. After the corrections, 56 of the 100 rows are sport and 44 are not; 28 are unscheduled and 72 scheduled, with no "unsure".
+
+**1. Sport rule, retuned on the 56 hand sport rows** (`pipeline/sport.py`, `pipeline/sport_calendar.py`)
+- **Health stays an always-override,** even during a match: collapse, cardiac arrest, hospital, coma, illness. Bove (1 Dec 2024, "malore") is non-sport and unscheduled. In-match injuries are in-play words, lifted on competition days, so they stay sport: Musiala 5 Jul 2025 (fixture PSG vs Bayern), and Djokovic 24 Jan 2025 and Sinner (Australian Open 2025 and Wimbledon) by fixture or calendar.
+- **Before tuning,** the rule caught 36 of 56 and wrongly moved 1 of 44 (Postecoglou). The 20 misses fell into five groups, and the changes are:
+  - **Related searches name other athletes or clubs.** Many footballers had no Wikidata item or a wrong one: Isco matched "international standard for job names", Gonzalo García a PhD, Jack Fletcher an army officer. A related search now counts as sport if any 1–4-word part of it is a search whose Wikidata item has a sport description (athlete, club, competition), not counting the topic's own item or its own name tokens. These entities also give the topic an identity, like P54: (a) the sport for the calendar, taken from the co-trending athletes when the topic has no description (Medvedev), and (b) its club for the fixture-date check, from clubs named directly or clubs shared by at least 2 of the co-trending athletes (Wikidata P54).
+  - **Non-athletes are guarded.** If the topic's own Wikidata description names a non-sport role (actress, singer, model, presenter, politician, journalist, …), related entities are ignored. Margarida Corceiro, an actress whose related searches are F1 drivers, had become sport on the Monaco GP weekend.
+  - **Winter Olympics.** `sport_calendar.py` now has the 2026 Winter Olympics: competitions 4–22 Feb 2026, from English Wikipedia's "2026 Winter Olympics", read 2026-11-16 (Games 6–22 Feb, first events 4 Feb). It applies to figure skaters, ice dancers, skiers, ski jumpers, snowboarders, biathletes, lugers, bobsledders, curlers and ice hockey players. Those roles were added to the sport descriptions, and Olympic words to the competition terms: "олимпиада", "jo 2026", "jeux olympiques", "giochi olimpici", "milano cortina". This fixes Cizeron and Gumennik.
+  - **Places with clubs.** A place (never sport by related searches before) is a candidate "club place" when at least 3 of its related searches are sport. Its moment is sport only with a fixture of a club named after the place: in its own searches, or a club fixture within −12 h…+3 h. This fixes Paris (15 Apr 2025, PSG vs Aston Villa) and Monaco (18 Sep 2025, Champions League).
+  - **Cup names.** Topic names starting with coppa, copa, coupe, taça, pokal, supercopa or supercup are competition names. This fixes Coppa Italia.
+  - **Generic name tokens** (south, north, east, west, central, saint, port, new, royal, santa, são, …) are no longer club keys. Postecoglou had matched "South Africa vs Tanzania" through South Melbourne.
+- **After tuning: 48 of 56 hand sport rows caught; 1 of 44 non-sport rows wrongly moved.** Remaining misses:
+  - **Transfer days with no match** (Mbeumo 21 Jul 2025, Leoni 13 Aug 2025): your rule says announcements are non-sport, and no fixture falls in the window. Labelling them sport contradicts that rule; if transfers should be sport, the announcement override has to change.
+  - **National-team match days without a link to the team** (Álex Baena 8 Jun 2025, Pedro Porro 5 Jun 2025, Alexsandro 5 Jun 2025): no Wikidata item, or P54 without the national team, and too few co-trending athletes. Porro's related searches name only "europa league" and one teammate.
+  - **Club known only through teammates** (Fabio Silva 19 Jan 2025, Jack Fletcher 26 Dec 2025): no shared club was found. One batch of P54 lookups is still missing because Wikidata's query-service lag (~42 s) is above our `maxlag=30`. It will be retried on the next run and may fix these two.
+  - **Pablo Torre** (16 Aug 2025): the related searches name a coach and one player, with no shared club.
+  - **Wrongly moved: Dan Ashworth** (8 Dec 2024). Manchester United's sporting director, dismissed on a United match day. His searches have no dismissal word, so the club match counts.
+- **All candidates:** sport 1,050 of 1,932 (54.3%). Of the 1,198 entity-flagged moments, 148 stay non-sport: 34 by override, 114 with no evidence. Evidence for the 1,050:
+
+  | Evidence | Moments |
+  |---|---:|
+  | Club date (P54 or related clubs) | 314 |
+  | Calendar | 269 |
+  | Fixture | 268 |
+  | Competition in searches | 72 |
+  | Competition or site topic | 61 |
+  | Team in searches | 38 |
+  | Club named after the place | 10 |
+  | Co-trending athletes | 7 |
+  | Event word | 6 |
+  | Surname | 5 |
+
+**2. Claude labels v2** (`09_validate_shocks.py label2`, prompt `shock-v2`, `make shocks-label2`)
+- **What changed from v1.** Each moment gets only its own evidence: the phrasings and Google related searches of the topic's national rows inside the moment (start .. end, at least 1 h), ranked by how many rows have them; top 10 phrasings, top 15 related. Claude must choose scheduled or unscheduled ("unsure" was removed) and give a confidence 0–1. Event type and the one-line summary are kept. Same schema validation, retry and cache (`cache/claude/shocks/labels.jsonl`, by prompt version).
+- **Model: Haiku 5.5, not Sonnet 5.5.** Sonnet 5.5 batch pricing is $1 / $5 per MTok (Anthropic pricing page, read 2026-11-16), 20× Haiku. The estimate for this run was ~$1.25, over your $1 cap.
+- **Run:** 1,932 of 1,932 valid on the first try; 450k input and 142k output tokens; **$0.058**. Total Claude spend across all runs: **$3.29** (limit $10, alert at $5). Claude says unscheduled for 1,060 and scheduled for 872; median confidence 0.70.
+- **Agreement with your labels** (sample 1, non-sport rows, n = 44): **accuracy 0.750, kappa 0.404**. v1, counting only rows where neither said "unsure", was 0.870 / 0.721 on 23 rows; v2 must answer on all 44. Claude's mistakes lean toward "unscheduled": 9 of your 16 scheduled rows. Accuracy by confidence: 0.60 at ≤ 0.6 (n = 20), 1.00 at > 0.8 (n = 16).
+
+**3. Shock-rule variants** (sample 1, non-sport rows; 28 of 44 unscheduled by hand)
+
+| Rule | Flagged | Precision | Recall | Weighted P | Weighted R |
+|---|---:|---:|---:|---:|---:|
+| a) Claude unscheduled, conf ≥ 0.5 | 30 | 0.80 | 0.86 | 0.77 | 0.86 |
+| a) conf ≥ 0.6 | 20 | 0.85 | 0.61 | 0.80 | 0.51 |
+| a) conf ≥ 0.7 | 15 | 0.93 | 0.50 | 0.96 | 0.38 |
+| b) a AND half of countries within 6 h or 12 h | same as a) at every confidence | | | | |
+| c) timing rule 15 AND Claude unscheduled, conf ≥ 0.5 | 22 | 0.82 | 0.64 | 0.82 | 0.28 |
+| c) conf ≥ 0.6 / ≥ 0.7 | 16 / 13 | 0.88 / 0.92 | 0.50 / 0.43 | | 0.22 / 0.19 |
+| Timing rule 15 alone | 32 | 0.66 | 0.75 | 0.57 | 0.33 |
+
+- **The looser speed test changes nothing.** Every global moment already has 15+ countries within an hour of the third, so only 22 of the 882 non-sport global moments take more than 6 h to reach half their countries, and 1 takes more than 12 h. On all 882 moments, b) at 6 h removes 15 of a)'s 627, and at 12 h it removes 1.
+- **Chosen rule: a) at conf ≥ 0.5,** i.e. any moment Claude calls unscheduled. The timing rule is the weak link: its weighted recall is 0.33, so it misses two thirds of the real shocks, and adding it (c) keeps precision about the same (0.82 vs 0.80) while cutting weighted recall from 0.86 to 0.28. Raising the confidence bar buys precision (0.93 at 0.7) at a large recall cost (0.50 raw, 0.38 weighted). With 44 rows, the gap between 0.80 and 0.85 precision is one moment. About 1 in 5 shocks will be a scheduled event Claude misread: mostly releases and broadcasts, the 9 false "unscheduled". For a chapter about surprises that is a visible cost, so sample 2 tests exactly this rule. If its precision comes out too low, the next step is conf ≥ 0.7, not the timing rule.
+
+**4. Wired into step 4** (`pipeline/04_moments.py`, `pipeline/kinds.py`; `make story` not run)
+- **`is_sport` is now moment-level for global moments.** The topic rule (Claude type plus `LEAGUE_RE`) is kept as `is_sport_topic`; it is also the fixtures list the moment rule checks dates against, so the rule is not circular. A global moment of a non-sport topic becomes sport when `sport.py` finds an entity signal, sporting-event evidence in that moment and no override; the evidence is kept in `sport_evidence`. Non-global moments keep the topic rule, since the moment rule was only tuned and validated on global moments. `meta.is_sport` stays topic-level.
+- **`is_shock`** = global, non-sport, and Claude shock-v2 unscheduled with confidence ≥ `SHOCK_MIN_CONF` (0.5), from the cached labels (`kinds.shock_moments`). Moments without a label are not shocks; `moments_summary.json` counts them (0 now).
+- **Rebuilt moments:** 8,014 global moments; 7,132 sport (6,082 by the topic rule plus 1,050 by the moment rule) and 882 non-sport, of which **627 are shocks**.
+- **Kinds** (`kinds.topic_kinds`; written to `data/interim/work/topic_kinds.parquet` for review): a topic is a shock if it has a shock moment, is in 10+ countries on at most 4 days, and has a shock-eligible type. Precedence is unchanged: appointment and ritual win. This gives **341 shock topics** (1,268 under the old timing rule); all 927 that left became waves.
+- **Step 8** (`08_story_export.py`) now takes `shocks.json` from the moment flag (`is_shock`, not hidden, named topics only). Not run yet; shocks.json and STORY_NUMBERS.md are unchanged.
+- **Mismatch to decide:** 253 of the 627 shock moments belong to topics whose kind is not shock: 161 waves (in 10+ countries on more than 4 days), 49 appointments, 43 rituals. In the timeline (`peaks.json`, kind per topic) those moments will show the topic's kind, while `shocks.json` lists them as shocks.
+
+**5. Test sample 2** (`09_validate_shocks.py sample2`, `make shocks-sample2`)
+- **80 new named non-sport global moments,** none from sample 1: 40 the new rule calls shocks and 40 others, seed 29. Population after removing sample 1: 586 shocks and 236 others (`data/interim/work/shock_sample2_strata.json`, for weighting).
+- **Files:** `docs/shock_validation_sample2.csv` has the same columns and helper links as sample 1 and empty label columns. `docs/shock_validation_key2.csv` holds the strata, `is_shock`, the old flags and Claude v2's labels. Both are git-ignored and listed in `docs/REVIEW_FILES.md`.
+- **Scoring sample 2 is not written yet.** After you label, it needs a score stage for sample 2: precision and recall of `is_shock` and of the sport rule on these rows.
+
+### Step 9, round 3 (2026-11-16): your decisions on transfers, moment kinds and sample 2
+
+**1. Transfers are announcements (non-sport).** The announcements always-override stays as it is. You will relabel Mbeumo (21 Jul 2025) and Leoni (13 Aug 2025) in sample 1 as unscheduled / other. After that, the sport rule's score on sample 1 becomes 48 of 54 hand sport rows caught. The two rows weren't relabelled yet when this was written; rerun `make shocks-score` after relabelling.
+
+**2. Kinds belong to moments, not topics.**
+- **Each moment gets its own kind in step 4** (`kinds.moment_kinds`, `moments.parquet` column `kind`). Later rules win:
+  - **wave:** reached 15+ countries and none of the rules below applies. That covers spread without a clear trigger, and global moments that Claude calls unscheduled with confidence < 0.5.
+  - **appointment:** a sport moment (moment-level `is_sport`), a topic whose name matches a scheduled-event pattern (`APPOINT_RE`: final, awards, election, launch, premiere, …), or a global non-sport moment that Claude (shock-v2) calls scheduled.
+  - **ritual:** the topic is a ritual (`kinds.topic_ritual`, same as before): weather, holidays, lotteries, prayer times, horoscopes and rates, or a non-sport other / product / company / unlabeled topic with 15+ moments in 10+ countries.
+  - **local:** reached < 15 countries, unless ritual.
+  - **shock:** `is_shock` (the validated rule). It wins even over ritual, so a storm on a weather topic or an outage of a daily-searched app is a shock.
+- **Dropped from the old topic rule:** "a person with 10+ moments in 10+ countries is an appointment". A single moment of a frequently trending person is not scheduled because the person trends often. The shock timing and persistence conditions are dropped too; the moment-level shock rule replaces them.
+- **Every trend row takes the kind of its moment.** Step 4 writes `data/interim/work/row_moments.parquet` (topic, country, start → moment_id). All 3,456,593 national rows map to a moment.
+- **A topic's kind is only a summary:** the kind of its biggest moment (by reach, then countries within 60 min), in `topic_meta.parquet` column `kind`. Topics with no national moment (region-only) are local. The summary appears only in `manifest.json` counts and is available for Wrapped-style summaries; no chart uses it.
+- **Step 8 changes (`08_story_export.py`, not run):**
+  - `shocks.json` = moments of kind shock (not hidden, named).
+  - `peaks.json`: each moment's own kind.
+  - Time machine: each entry is (topic, kind of the moment the trend belongs to), so a topic can appear twice in a month with different kinds.
+  - Wrapped `kind_shares`: share of the country's trends by their moment's kind.
+  - `manifest.json`: kind counts for moments, global moments and topic summaries.
+  - The old `topic_kinds` rule is kept only for the timing-rule columns of sample 1 (`09_validate_shocks.py`).
+- **Counts after rebuilding step 4:**
+  - Global moments (8,014): appointment 7,238, shock 627, wave 77, ritual 72.
+  - All moments (2.03M): local 1,938,073, ritual 77,854, appointment 12,123, wave 3,141, shock 627.
+  - Topic summaries: local 743,874, ritual 13,575, appointment 5,439, wave 1,887, shock 384.
+- **Dry run of step 8** into a scratch folder (the real `data/export/story/` and `STORY_NUMBERS.md` are unchanged): `shocks.json` would hold 621 moments (627 minus hidden or unnamed topics: death 111, outage 98, other 412), and the timeline holds 8,014 peaks.
+
+**3. Sample-2 scoring** (`09_validate_shocks.py score2`, `make shocks-score2` → `docs/SHOCK_VALIDATION_2.md`). Same metrics as sample 1; nothing is tuned on sample 2.
+- **Sport the rule still misses:** hand `sport` rows, raw and weighted by the sample-2 strata. Moments wrongly moved to sport can't be measured here, because sample 2 only holds moments the rule calls non-sport; sample 1 measured those (1 of 44).
+- **Markets** counts.
+- **Claude v2 vs hand:** accuracy, kappa, confusion table and accuracy by confidence, on all rows and without sport rows.
+- **Precision and recall of `is_shock`** (the chosen rule) first, then the same variants as on sample 1 (Claude at conf ≥ 0.5 / 0.6 / 0.7, with 6 h / 12 h speed tests, the timing rule AND Claude, the timing rule alone, the old shocks.json), raw and weighted.
+- **Event-type confusion** against Claude v2.
+- Tested on a throwaway copy with stand-in labels; the key and sample were unchanged.
+
+### Step 9, round 4 (2026-11-16): moment kinds vs the wave pattern; outage check
+
+**1. Sample 1 rescored after your relabel.** In the saved file, Mbeumo and Leoni now say `unscheduled`, but `event_type_label` still says `sport`, so `make shocks-score` still counts them as sport rows (56). I didn't edit your file. Scored on a scratch copy with `other` for those two rows:
+- **Sport rule:** 48 of 54 hand sport rows caught; 1 of 46 non-sport rows wrongly moved (Ashworth).
+- **Claude v2:** accuracy 0.761, kappa 0.413.
+- **Chosen shock rule** (Claude unscheduled, conf ≥ 0.5): precision 0.81, recall 0.87; weighted 0.81 / 0.88.
+- **Timing rule 15 alone:** precision 0.67, recall 0.73; weighted 0.63 / 0.38.
+
+**2. Two layers: moment kind and topic pattern.** (`pipeline/kinds.py`, step 4, step 8)
+- **Moment kind:** shock | appointment | ritual | other, which describes what each spike was. Later rules win:
+  - other: the default;
+  - appointment: sport moment, scheduled-event name, or Claude says scheduled;
+  - ritual: ritual topic;
+  - shock: `is_shock`.
+- **"Wave" and "local" are no longer kinds.** A wave is a topic pattern, and "local" is a reach (< 15 countries), not what happened. Because the local rule no longer overrides appointment, small sport moments are now appointments. All moments (2.03M): other 1,789,152, appointment 164,185, ritual 77,854, shock 627. Global moments: appointment 7,238, shock 627, other 77, ritual 72. Topic summaries (biggest moment's kind): other 710,514, appointment 40,686, ritual 13,575, shock 384.
+- **Topic pattern `is_wave`:** the topic trends in 15+ countries in at least `WAVE_MIN_MONTHS` separate UTC calendar months (`kinds.wave_months`; topic_meta `wave_months` and `is_wave`; moments carry `is_wave` too). It doesn't depend on moment kinds. The data covers 19 months.
+
+  | N (months) | Wave topics | Sport topics | Ritual topics | Neither |
+  |---:|---:|---:|---:|---:|
+  | 3 | 1,481 | 804 | 49 | 632 |
+  | 4 | 878 | 420 | 38 | 421 |
+  | 6 | 426 | 174 | 26 | 226 |
+
+  (Hidden topics excluded. "Sport" is the topic rule, so athletes count as people, not sport.)
+  - **Top 20 by months (the same for every N),** non-sport and non-ritual: Donald Trump, Lamine Yamal, X (Twitter), Google, Cristiano Ronaldo, BBC, Flashscore, BYD, McDonald's, ChatGPT, CNN, Novak Djokovic, Earthquake, Lionel Messi, Bruce Willis, Sydney Sweeney, Iga Świątek, Monaco, Tom Cruise, Ticketmaster. These are always-on topics; months alone don't separate a rising wave from a constant presence.
+  - **The 20 biggest topics exactly at each threshold** (where the cut-off decides):
+    - 3 months: Diogo Jota, DeepSeek, "2026", Val Kilmer, Ali Khamenei, Cloudflare outage, Squid Game season 3, Pope Leo XIV, Squid Game, Spotify Wrapped, Epstein files, María Corina Machado, Myanmar, Lily Phillips, YouTube outage, Jonas Urbig, Heidi Klum, Eurovision 2025, The Last of Us, Manuel Neuer.
+    - 4 months: Eric Dane, 67 (meme), Zohran Mamdani, Stranger Things 5, Gonzalo García, Travis Scott, Musiala, Luigi Mangione, Olivia Rodrigo, Olise, Jim Carrey, Travis Kelce, Szczęsny, NATO, Claude AI, Greenland, Virginia Giuffre, De Bruyne, Oil price, Sora.
+    - 6 months: Roblox, Luis Enrique, Hakimi, Flightradar24, Solar eclipse, Doué, Claude, Joe Biden, GTA VI, Modrić, Kristi Noem, Marmoush, "A", Mourinho, Alexander-Arnold, Millie Bobby Brown, Woltemade, Argentina, Vitinha, Meta Platforms.
+  - **AI tools and the Epstein files** (months with 15+ countries): ChatGPT 16, Google Gemini 14, Jeffrey Epstein 9, OpenAI 8, Grok 8, Claude 6, Claude AI 4, Sora 4, ChatGPT outage 4, **DeepSeek 3**, **Epstein files 3**, Perplexity 2.
+  - **Proposed N = 3:** the only threshold that includes DeepSeek and the "Epstein files" topic. At N = 4 the other AI tools and Jeffrey Epstein are still in. The cost of N = 3 is repeated news (a death and its follow-ups, Diogo Jota; repeated outages, Cloudflare), plus clubs and always-on brands. Two open choices: whether `is_wave` should leave out sport topics and rituals (804 and 49 at N = 3), and whether athletes should count.
+- **Step 8 (not run; checked with a dry run into a scratch folder):**
+  - `waves.json`: keeps the curated series and adds `wave_topics`, every non-hidden `is_wave` topic (1,481) with its countries per month, months first. The file is 172 kB.
+  - Time machine: colours = the 4 moment kinds. Topic entries are `[topic_id, name, kind index, is_wave 0/1]`, so wave is a flag, not a fifth colour.
+  - Timeline (`peaks.json`): adds an `is_wave` field; 4,282 of the 8,014 peaks are on wave topics.
+- **What changes for the site** (there is no front-end in this repo, so nothing here breaks):
+  - `kinds` in the time machine and peaks is now `[shock, appointment, ritual, other]`. Code that maps kind indices to five colours must be updated, because index 2 was "wave" and is now "ritual".
+  - Time-machine topic entries have a 4th element; readers that take the first 3 still work.
+  - Wrapped: `kind_shares` has the 4 kinds, so `kind_shares.local` no longer exists. `local_share` is now its own field on each card and in `wrapped/index.json`: the share of the country's trends whose moment reached < 15 countries (US 0.94). STORY_NUMBERS adds that mean. Per-file size is unchanged (largest time-machine month 0.64 MB).
+
+**3. Outages: 28 → 98 (report only; the rule is unchanged).** The full list (date, topic, countries, old topic kind, top phrasings) is in `data/interim/work/outages98.csv` (local). Findings:
+- **All 28 old outages are still in.** Of the 70 new ones, **62 come from topics the old rule called "wave"**: in 10+ countries on more than 4 days, like ChatGPT, Google Gemini, OpenAI, BBC, Spotify, YouTube, X, Instagram and Roblox. That persistence test removed every moment of such a topic, including real outages (ChatGPT 11 Dec 2024 and 23 Jan 2025, YouTube 15 Oct 2025). **8 come from a topic the old ritual rule caught**: all 8 are Bet365, a product/company topic with 15+ moments in 10+ countries.
+- **Routine status searches:** only **21 of the 98** have a status word in their top phrasings ("is X down", "downdetector", "status", "se cayó"). 56 of the 70 new ones show only the brand name, so "outage" comes from the sub-kind keyword rule on the topic's later searches or related searches. Likely routine or mislabelled: **BBC × 8** and **Bet365 × 8**, none with a status phrasing.
+- **One outage often hits several topics:** the 98 moments fall on 66 days, and 20 days have 2 or more (11 Dec 2024: Facebook, Instagram, Gemini, ChatGPT; 18 Nov 2025: Cloudflare, Bet365, ChatGPT). The number of outage *events* is closer to 66 than 98.
+
+### Step 9, round 5 (2026-11-16): sample 1 final, wave refinements, outage evidence
+
+**1. Sample 1 with your fixed labels** (`make shocks-score`; Mbeumo and Leoni are now unscheduled / other):
+- **Sport:** 54 of 100 rows are sport (weighted 61.1%). The sport rule catches 48 of 54 and wrongly moves 1 of 46 (Ashworth). Remaining misses: Baena, Porro, Alexsandro (national-team days), Fabio Silva, Jack Fletcher (club only via teammates; one P54 batch is still blocked by Wikidata lag), Pablo Torre.
+- **Claude v2 vs hand** (46 non-sport rows): accuracy 0.761, kappa 0.413.
+- **Chosen shock rule** (Claude unscheduled, conf ≥ 0.5): precision 0.81, recall 0.87; weighted 0.81 / 0.88. Timing rule 15 alone: 0.67 / 0.73; weighted 0.63 / 0.38.
+
+**2. Wave refinements (N stays 3)** (`kinds.wave_flags`, `04_moments.sporty`)
+- **`is_wave`** = 15+ countries in at least 3 separate UTC months, and not:
+  - a sport topic (topic rule);
+  - an athlete or other sport topic the topic rule misses: the sport rule's entity signal (Wikidata sport description, sport site or channel, competition name, or sport related searches for people), or most of the topic's global moments are sport (club cities such as Paris and Monaco);
+  - a ritual topic.
+- **`is_constant`** = 15+ countries in 12 or more months, for any topic (`CONSTANT_MIN_MONTHS = 12`, of the 18 full months). A topic can be both.
+- **Counts:** 385 wave topics (not hidden), of which 43 are also constant; 159 constant topics overall. The exclusions took 1,481 → 385.
+- **Top 30 wave topics** by months, non-constant first: Iran 11, iPhone 17 11, Dua Lipa 11, The New York Times 11, "test" 11, "Videos" 11, IPTV 11, Outlook 10, YouTube 10, Shakira 10, Justin Bieber 10, Prime Video 10, PlayStation 5 10, Sabrina Carpenter 10, Bitcoin price (BTC/USD) 10, Jason Statham 10, Julia Roberts 10, Venezuela 9, Spotify 9, Nicolás Maduro 9, Jeffrey Epstein 9, Twitter (X) outage 9, Emmanuel Macron 9, Binance 9, Yahoo 9, Nintendo Switch 2 9, Demi Moore 9, Ariana Grande 9, Jackie Chan 9, Major League Baseball 9.
+- **Wave and constant (43):** X, Donald Trump, Google, BBC, McDonald's, BYD, Tom Cruise, ChatGPT, Sydney Sweeney, CNN, Bruce Willis, Ticketmaster, Earthquake (×2), Instagram, Putin, "News", Netflix, Taylor Swift, Elon Musk, Disney, Teams, Tarjeta roja, GTA 6, Tesla, TikTok, Israel, Google Gemini, Angelina Jolie, Apple, WhatsApp, Stranger Things, Titanic, BBC News, Epic Games, Netanyahu, Amazon, DiCaprio, Nvidia, Starlink, Madonna, Harry Potter, "f".
+- **Checks (months with 15+ countries):**
+  - **In:** DeepSeek 3, Epstein files 3, Jeffrey Epstein 9, Claude 6, Claude AI 4, Grok 8, Google Gemini 14 (constant), ChatGPT 16 (constant), OpenAI 8, Sora 4. Markets: S&P 500 8, Dow Jones 5, Nasdaq 3, Bitcoin price (BTC/USD) 10, Oil price 4.
+  - **Not in:** Tariffs (15+ countries in only 1 month, April 2025, a spike rather than a wave). Bitcoin (18 months) and Gold price (12) are rituals by the existing rule (the frequent-topic rule and `RITUAL_RE` "gold price"), so `is_wave` leaves them out, though both are constant.
+- **Still in the wave list but questionable:** sport the exclusions miss (Major League Baseball, DFB-Pokal, Tarjeta roja, Valencia) and generic strings ("test", "Videos", "live", "News", "f"). Not changed.
+
+**3. Selection rule for the Waves chapter's series** (`waves.json` → `wave_series_rule`, `wave_series`, `hand_picked_vs_rule`)
+- **Rule:** each wave topic gets a theme, from keyword groups first (AI tools; markets and crypto; Epstein), otherwise from its Claude type (people; tech and brands; media and entertainment; events; places and politics; other). In each theme, the **5 non-constant wave topics** with the most months in 15+ countries (ties: more countries overall) are the series. Constant wave topics are listed apart per theme, because they are always present rather than rising and falling.
+- **Selected, per theme:**
+
+  | Theme | Series (months with 15+ countries) |
+  |---|---|
+  | AI tools | Grok 8, OpenAI 8, Claude 6, Claude AI 4, Sora 4 (constant: ChatGPT, Google Gemini) |
+  | Markets and crypto | Bitcoin price (BTC/USD) 10, Binance 9, Nvidia stock 8, S&P 500 8, Dow Jones 5 |
+  | Epstein | Jeffrey Epstein 9, Virginia Giuffre 4, Epstein files 3 |
+  | Places and politics | Iran 11, Venezuela 9, Malta 9, Saudi Arabia 9, Syria 8 |
+  | People | Dua Lipa, Shakira, Justin Bieber, Sabrina Carpenter, Jason Statham |
+  | Tech and brands | iPhone 17, IPTV, Outlook, YouTube, Prime Video |
+  | Media and entertainment | The New York Times, BTS, Radio, Fortnite, Al Jazeera |
+  | Events | Major League Baseball, Full moon, Solar eclipse, DFB-Pokal, Papal conclave |
+  | Other | "test", "Videos", Valencia, Classroom, "live" |
+
+- **The hand-picked series against the rule:**
+  - **Selected:** ChatGPT (through OpenAI and Sora; ChatGPT itself is constant), Claude, Grok, Epstein files, Bitcoin (through Bitcoin price (BTC/USD)), S&P 500, Dow Jones.
+  - **Not selected:**
+    - Google Gemini: constant, so it is listed apart;
+    - DeepSeek and Nasdaq: waves with 3 months each, below the top 5 of their themes;
+    - Gold price: not a wave (ritual);
+    - Tariffs: not a wave (1 month).
+  - The hand-picked series stay in `waves.json` (`monthly`, `daily`) next to the rule-based ones until you choose.
+
+**4. Outages need evidence in the moment's own searches** (`08_story_export.py`)
+- **Rule:** a shock is an outage only if one of the moment's own searches is outage evidence. Those searches are the per-country phrasings plus the raw and related searches of the topic's national rows inside the moment (start .. end, at least 1 h). Before, outage words anywhere in the topic's 48 h searches or all of its related searches counted. Otherwise the event type is other (or death, which keeps its old rule).
+- **Evidence words** (several languages): outage, down, not working, stopped working, server status / status page / service status, downdetector, error, problem(s), issue(s); caído/a, se cayó, no funciona, no carga, falla(s); caiu, fora do ar, não funciona, instável; panne, ne fonctionne pas; Störung, Ausfall, geht nicht, funktioniert nicht; non funziona, disservizio; kesinti, çöktü, erişim sorunu; gangguan, tidak bisa; не работает, сбой, упал; storing, werkt niet; awaria, nie działa; 障害, 繋がらない, ダウン, عطل, توقف, لا يعمل, خلل, 故障, 宕机, 장애, 오류.
+- **Not evidence:** a search about planes, the military or markets. A first pass without this exclusion tagged "pakistan shot down indian jets", "aviao caiu", "why is gold down today", "caida criptomonedas", "trump backs down", "delta flight status" and "big beautiful bill status" as outages. "Status" alone, and "bug", no longer count.
+- **Result:** **64 outage moments on 47 distinct days** (98 on 66 days before this rule; 28 in the current shocks.json). 60 of the 98 stay; 26 of the original 28 stay. The two originals that drop, Reddit 19 Dec 2025 and Claude AI 20 Apr 2026, show only the brand name in their own searches. 4 are added: Canva 20 Oct 2025 and 5 Dec 2025 (AWS and Cloudflare days), "Cloudflare challenge page unblock" 18 Nov 2025, and Wordle 9 Apr 2026 ("wordle down").
+- **BBC:** all 8 moments are now other (sub-kind viral or celebrity); none had outage evidence. **Bet365:** 7 of 8 are now other; 20 Feb 2026 stays an outage ("bet 365 down", "bet365 app not working").
+- `shocks.json` gets an `outage_evidence` field (the matching search). The list is in `data/interim/work/outages_v2.csv` (local).
+
+### Step 9, round 6 (2026-11-16): junk topics, last sport leaks in waves, waves rule notes
+
+**1. Junk topics are left out everywhere** (`04_moments.junk_topics` → topic_meta `is_junk` and `junk_reason`)
+- **Rule** (a topic is junk if any of these hold):
+  1. **single character:** the name is one character ("A", "e", "f", "V");
+  2. **bare number:** the name is only digits ("2026", "2024", "0", "7"); "9-1-1" and "+31" stay;
+  3. **unknown:** Claude named the topic "unknown", never anything else, and it has no Wikidata match ("test", "live", "working", "what", "next", "home", "ok", "in", "on"). Topics Claude was never asked to name are *not* junk;
+  4. **generic word:** the name, without a "[…]" language suffix, is on a list of generic search-box words: news, sport(s), football, radio, time, email, mail, video(s), film, movie(s), game(s), score, live tv, translate, weather, …, plus English, Spanish, Portuguese, French and German stopwords and question words. A ritual topic is exempt, so the generic "Weather" topics (category weather) stay.
+- **Kept on purpose:** real short topics are unaffected because none of the rules match them: Iran, Gemini, X (Twitter), NBA, UFC, CNN, BTS, BBC, BYD, G7, XRP. Ambiguous short words that aren't on the list also stay: Dog, Air, Red, Gas, Who, Age.
+- **Removed:** 1,140 topics (bare number 646, single character 257, generic word 127, unknown 110), 19,037 national trends (0.55%), 69 of them reaching 15+ countries. **Top 50 by reach:** 2026, A, e, c, m, n, i, News, t, working, test, Radio, 2024, live, f, Videos, G, s, r, Time, Sport, B, Football, Live TV, 2027, Email, Video, what, d, Film, next, home, Translate, Games, H, Score, V, j, 3, k, ok, Mail, 2028, in, 0, on, Game, Sports, Movies, 2.
+  - "V" (BTS's V) and "Translate" (Google Translate) are real meanings lost by the rule; "orai rytoj" (Lithuanian for "weather tomorrow") is junk because Claude named it "unknown".
+- **Where it applies:**
+  - **Step 5:** `visibility()` adds junk topics to the hidden set, whatever the sensitive decisions say. This takes effect on the next `make export`, not run yet. Until then, four current Wrapped cards name a junk topic: LT most-local "orai rytoj", and busiest-day top topics IR "Film", KZ "2026" and KH "best".
+  - **Step 8:** junk rows and moments are dropped at load, so they leave every chapter and the denominators of the Wrapped shares.
+  - **Waves:** `is_wave` and `is_constant` leave junk out.
+  - **Step 9:** `score2` skips junk-topic rows and prints their sample_ids; the sample files are not changed. **No sample-2 moment is junk** (and no sample-1 moment).
+- **How the chapters change** (dry run of step 8 into a scratch folder, before vs after):
+
+  | Chapter | Before | After |
+  |---|---:|---:|
+  | Local: topics in 1 country | 580,756 (84.8%; 33.9% of trends) | 579,959 (84.9%; 34.0%) |
+  | Local: topics in 2–14 countries | 92,450 | 92,201 |
+  | Local: topics in 15+ countries | 11,301 (1.7%; 40.3% of trends) | 11,232 (1.6%; 40.2%) |
+  | Local: median single-country share | 21.2% | 21.3% |
+  | Local: most / least local | Japan 92.3%, Turkmenistan 1.3% | Japan 92.4%, Turkmenistan 1.4% |
+  | Shocks | 621 | 614: News × 2 (junk) and Tarjeta roja × 5 (now sport, below) |
+  | Outages | 64 on 47 days | unchanged |
+  | Timeline peaks | 8,014 | 7,999: the unnamed "c / e / i / m / n / r / t" moments of 23–24 Jun 2025, "2026", "Live TV" × 2, "News" × 2, "working" |
+  | Wave topics | 385 | 360 |
+  | Wrapped mean shares | appointment 47.2%, other 46.5%, local 58.8% | appointment 47.5%, other 46.2%, local 58.6% |
+
+**2. Last sport leaks in `is_wave`** (`sport.py`, `04_moments.sporty`)
+- **New sport sites:** tarjeta roja, roja directa / rojadirecta, pirlo tv, fútbol libre, marca tv.
+- **New competition names:** names containing "pokal", starting "major league", or ending in league / liga / ligue / lig / serie a/b / bundesliga; also "primera división" and "friendlies".
+- **Club places count as sport for waves:** places with 3+ sport related searches (Georgia, Budapest, Azerbaijan, Panama).
+- **"Other"-typed topics with sport related searches count too** (Teams: NFL and NBA searches; Valencia; Madrid; Scratch). Products and companies don't (Max, Stake stay waves).
+- **Result:** Major League Baseball, DFB-Pokal, Tarjeta roja, Valencia, Madrid, Georgia, Budapest, Azerbaijan, Panama, International friendlies, Süper Lig, Pakistan Super League, Primera División (Argentina), Teams and Scratch are no longer waves. With junk this gives **360 wave topics**, 157 constant, 39 both.
+- **Side effect on moments:** the site pattern is part of the moment-level sport rule, so Tarjeta roja's 5 global moments are now sport (global sport 7,137, moment rule adds 1,055; shocks 622, 614 after junk and hidden). No sample-1 or sample-2 moment changed its sport flag.
+
+**3. Waves selection rule kept as is.** The themes are an editorial choice; the members of each theme are chosen by the rule. The new "other" and "events" series after the fixes are Classroom, Windy, Fast, 67 (meme), NATO, and Full moon, Solar eclipse, Papal conclave, Tomorrowland, Hong Kong fire.
+- **DeepSeek and Nasdaq** are wave topics (3 months each) but fall outside the top 5 of their themes (AI tools; markets and crypto). They are **not added by hand**.
+- **Tariffs** reached 15+ countries in only one month (April 2025): a one-month spike, not a wave. It stays out of the wave series; the existing daily series for 25 Mar – 20 Apr 2025 still covers it.
+
+### Step 9, round 7 (2026-11-16): junk allowlist
+
+- **`JUNK_ALLOW`** (`04_moments.py`, by topic_id) keeps real topics the junk rule would remove: **"V"** (BTS's V) and **"Translate"** (Google Translate). Junk is now 1,138 topics: bare number 646, single character 256, generic word 126, unknown 110. Wave topics are unchanged at 360.
+- **Other entries in the top 200 junk list that may be real topics** (reported, not allowlisted):
+  - **likely real:** "seek" (6 countries; probably the Seek job site), "444" (4, Claude type media; probably the Hungarian news site 444.hu), "are" (4; top search "åre", the Swedish ski resort);
+  - **tools, like Translate:** "Calculator" (7, Claude type product) and "Mail" (23, product);
+  - **ambiguous:** "808", "unl", "uta", "adrián", "Die" (media), "999", "1992", "more" ("møre").
+  - Everything else in the top 200 is single letters, digits, years, stopwords or generic words (news, sport, video, live TV, games, music, calendar, … in several languages).
 
 ## Open issues (need a decision)
 

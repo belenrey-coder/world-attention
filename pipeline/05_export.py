@@ -122,8 +122,12 @@ def visibility(t, meta):
     typ = meta["type"].reindex(tids).fillna("")
     skip = set(tids[(typ == "event") & name.str.lower().str.contains(WRAPPED_SKIP_RE, regex=True)])
     skip |= {x for x in tids if x.lower() in WRAPPED_SKIP_TOPICS or name.get(x, "").lower() in WRAPPED_SKIP_TOPICS}
+    # junk topics (step 4 `is_junk`: one character, bare number, Claude "unknown" without Wikidata, generic word) are
+    # hidden everywhere, whatever the sensitive decisions say (DECISIONS.md, Step 9 round 6)
+    junk = set(meta.index[meta.is_junk.astype(bool)]) & set(tids) if "is_junk" in meta else set()
+    hidden |= junk
     summary = {"hidden_by_default_rule": n_default, "decisions_keep": n_keep, "decisions_hide": n_hide,
-               "decisions_unmatched_topic_ids": unmatched, "hidden_total": len(hidden),
+               "decisions_unmatched_topic_ids": unmatched, "junk_hidden": len(junk), "hidden_total": len(hidden),
                "wrapped_skipped_topics": len(skip), "rule": f"SENSITIVE_RE match and reach <= {HIDE_MAX_REACH}"}
     return hidden, skip, summary
 
