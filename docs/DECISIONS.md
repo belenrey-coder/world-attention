@@ -680,6 +680,15 @@ Sample 1 (`docs/shock_validation_sample.csv`, 100 moments) is now the **tuning**
   - **ambiguous:** "808", "unl", "uta", "adrián", "Die" (media), "999", "1992", "more" ("møre").
   - Everything else in the top 200 is single letters, digits, years, stopwords or generic words (news, sport, video, live TV, games, music, calendar, … in several languages).
 
+### Step 9, round 8 (2026-11-16): allowlist rule
+
+- **Rule for `JUNK_ALLOW`:** a topic the junk rule removes is allowed back only if it names one specific thing (a person, product, site or place). Generic tools and ambiguous words stay junk.
+- **Allowed** (by topic_id): "V" (BTS's V), "Translate" (Google Translate), **"seek"** (Seek, the job site), **"444"** (444.hu, Hungarian news site) and **"are"** (Åre, the Swedish ski resort).
+- **Stay junk:**
+  - generic tools: "Calculator", "Mail";
+  - ambiguous: "808", "unl", "uta", "adrián", "Die", "999", "1992", "more".
+- **Result:** junk is 1,135 topics (bare number 645, single character 256, generic word 126, unknown 108). Wave topics are unchanged at 360.
+
 ## Open issues (need a decision)
 
 _Updated 2026-11-09, after the short-string, sport, 19:00 UTC and Wrapped fixes (rerun from combine: combine, link, validation, moments, export, profile, checks)._

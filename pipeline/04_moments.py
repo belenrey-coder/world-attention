@@ -150,8 +150,10 @@ JUNK_WORDS = {
     "una", "do", "da", "na", "se", "por", "para", "com", "le", "les", "des", "du", "et", "der", "die", "das", "und"}
 
 
-# real topics the junk rule would remove (topic_id): BTS's V, Google Translate (DECISIONS.md, Step 9 round 7)
-JUNK_ALLOW = {"V", "Translate"}
+# real topics the junk rule would remove (topic_id). Rule: allow only topics that name one specific thing (a person,
+# product, site or place), not generic tools or ambiguous words (DECISIONS.md, Step 9 rounds 7-8):
+# BTS's V, Google Translate, Seek (job site), 444.hu (Hungarian news site), Åre (Swedish ski resort)
+JUNK_ALLOW = {"V", "Translate", "seek", "444", "are"}
 
 
 def junk_topics(mi: pd.DataFrame, ritual: pd.Series) -> pd.Series:
