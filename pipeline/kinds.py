@@ -35,6 +35,40 @@ def load_shock_labels(path):
     return out
 
 
+# Hand labels override Claude (DECISIONS.md, Step 9 round 10): every moment labelled by hand in the validation
+# samples or the chart verification sheets uses the hand scheduled_label / event_type_label. Files are local
+# (git-ignored); without them nothing is overridden.
+HAND_SHEETS = [("shock_validation_sample.csv", "shock_validation_key.csv"),
+               ("shock_validation_sample2.csv", "shock_validation_key2.csv")]
+VERIFY_GLOB = "shock_chart_verification*.csv"
+
+
+def verification_sheets(docs):
+    """[(sheet path, key path)] of the chart verification sheets, in order (sheet 1, _2, _3, ...)."""
+    out = []
+    for p in sorted(docs.glob(VERIFY_GLOB), key=lambda x: (len(x.name), x.name)):
+        if p.name.endswith("_key.csv"):
+            continue
+        out.append((p, p.with_name(p.stem + "_key.csv")))
+    return out
+
+
+def load_hand_labels(docs):
+    """{moment key: (scheduled_label, event_type_label)} from every hand-labelled sheet with a key file."""
+    pairs = [(docs / a, docs / b) for a, b in HAND_SHEETS] + verification_sheets(docs)
+    out = {}
+    for sp, kp in pairs:
+        if not (sp.exists() and kp.exists()):
+            continue
+        d = pd.read_csv(sp, dtype=str).merge(pd.read_csv(kp, usecols=["sample_id", "key"], dtype=str), on="sample_id")
+        for k, sc, ty in zip(d.key, d.scheduled_label, d.event_type_label):
+            sc = str(sc).strip().lower()
+            if sc in ("scheduled", "unscheduled"):
+                ty = str(ty).strip().lower()
+                out[k] = (sc, ty if ty and ty != "nan" else "other")
+    return out
+
+
 def moment_key(topic_id, start):
     return f"{topic_id}|{pd.Timestamp(start).strftime('%Y-%m-%dT%H:%MZ')}"
 
@@ -71,7 +105,8 @@ def moment_kinds(m, ritual_topics):
     rit = m.topic_id.isin(ritual_topics)
     tn = m.drop_duplicates("topic_id").set_index("topic_id").topic_name.astype(str).str.lower()
     appoint_t = set(tn.index[tn.str.contains(APPOINT_RE)])
-    appoint = m.is_sport.astype(bool) | m.topic_id.isin(appoint_t) | m.claude_scheduled.eq("scheduled")
+    sched = m["scheduled_final"] if "scheduled_final" in m else m.claude_scheduled   # hand label, else Claude
+    appoint = m.is_sport.astype(bool) | m.topic_id.isin(appoint_t) | sched.eq("scheduled")
     kind = pd.Series("other", index=m.index)
     kind[appoint] = "appointment"
     kind[rit] = "ritual"

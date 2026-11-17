@@ -25,8 +25,8 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).parent))
 from common import CACHE, DOCS, INTERIM, WORK, save_json  # noqa: E402
-from kinds import (CONSTANT_MIN_MONTHS, SHOCK_MIN_CONF, SHOCK_PROMPT, WAVE_MIN_MONTHS, load_shock_labels,  # noqa: E402
-                   moment_kinds, shock_moments, topic_ritual, topic_summary_kind, wave_flags, wave_months)
+from kinds import (CONSTANT_MIN_MONTHS, SHOCK_MIN_CONF, SHOCK_PROMPT, WAVE_MIN_MONTHS, load_hand_labels,  # noqa: E402
+                   load_shock_labels, moment_key, moment_kinds, shock_moments, topic_ritual, topic_summary_kind, wave_flags, wave_months)
 
 SESSION_GAP_HOURS = 24
 BURST_GAP_HOURS = 6
@@ -202,9 +202,25 @@ def add_shock(m: pd.DataFrame) -> pd.DataFrame:
     """is_shock: kinds.shock_moments with the cached step-9 Claude labels (cache/claude/shocks/labels.jsonl).
     Moments without a label are not shocks; run `make shocks-label2` for them (the count is in moments_summary)."""
     labels = load_shock_labels(CACHE / "claude" / "shocks" / "labels.jsonl")
-    m["is_shock"], m["shock_labelled"], m["claude_scheduled"] = shock_moments(m, labels)
-    print(f"shock moments: {int(m.is_shock.sum()):,}; global non-sport moments without a label: "
-          f"{int((m.is_global & ~m.is_sport & ~m.shock_labelled).sum()):,}")
+    # the rule alone (Claude label, rule-based sport): kept as is_shock_rule for the step-9 estimate
+    m["is_shock_rule"], m["shock_labelled"], m["claude_scheduled"] = shock_moments(m, labels)
+    m["is_shock"] = m.is_shock_rule
+    m["scheduled_final"] = m.claude_scheduled
+    # hand labels (validation samples, chart verification sheets) override Claude and the sport rule
+    hand = load_hand_labels(DOCS)
+    keys = pd.Series([moment_key(a, b) if g else None for a, b, g in zip(m.topic_id, m.start_utc, m.is_global)],
+                     index=m.index)
+    hl = keys.map(lambda k: hand.get(k) if k else None)
+    hit = hl.notna()
+    m["hand_scheduled"] = hl.map(lambda x: x[0] if x else None)
+    m["hand_event_type"] = hl.map(lambda x: x[1] if x else None)
+    m.loc[hit, "is_sport"] = m.loc[hit, "hand_event_type"].eq("sport")
+    m.loc[hit, "is_shock"] = m.loc[hit, "hand_scheduled"].eq("unscheduled") & ~m.loc[hit, "is_sport"]
+    m.loc[hit, "scheduled_final"] = m.loc[hit, "hand_scheduled"]
+    m["is_shock"] = m.is_shock.astype(bool)
+    print(f"hand-labelled global moments: {int(hit.sum())} (of {len(hand)} hand labels); shock moments: "
+          f"{int(m.is_shock.sum()):,} (rule alone {int(m.is_shock_rule.sum()):,}); global non-sport moments without "
+          f"a Claude label: {int((m.is_global & ~m.is_sport & ~m.shock_labelled & ~hit).sum()):,}")
     return m
 
 
@@ -341,6 +357,8 @@ def main():
         "global_moments_sport_moment_rule_added": int((g.is_sport & ~g.is_sport_topic).sum()),
         "shock_rule": f"global non-sport moment, Claude {SHOCK_PROMPT} unscheduled with confidence >= {SHOCK_MIN_CONF}",
         "shock_moments": int(g.is_shock.sum()),
+        "shock_moments_rule_alone": int(g.is_shock_rule.sum()),
+        "hand_labelled_global_moments": int(g.hand_scheduled.notna().sum()),
         "moment_kinds": m.kind.value_counts().to_dict(),
         "global_moment_kinds": g.kind.value_counts().to_dict(),
         "topic_summary_kinds": meta.kind.value_counts().to_dict(),

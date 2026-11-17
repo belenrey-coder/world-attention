@@ -8,6 +8,8 @@
     python pipeline/09_validate_shocks.py label2       # Claude v2 labels: per-moment evidence, forced choice
     python pipeline/09_validate_shocks.py sample2      # test sample 2 (80 new moments) -> docs/shock_validation_sample2.csv
     python pipeline/09_validate_shocks.py score2       # after hand labelling sample 2 -> docs/SHOCK_VALIDATION_2.md
+    python pipeline/09_validate_shocks.py verify-sheet # next chart verification sheet (60 widest shocks, unlabelled ones)
+    python pipeline/09_validate_shocks.py estimate     # true number of shocks = flagged x precision / recall (+ 95% CI)
     python pipeline/09_validate_shocks.py sport-check  # proposed is_sport fix (pipeline/sport.py) on all candidates
 
 Candidates: every non-sport global moment (is_global, is_sport false, topic not hidden). "Current shocks" are the
@@ -793,6 +795,112 @@ def score2():
     print("\n".join(L))
 
 
+# ------------------------------------------------------------------ chart verification sheets and estimate
+CHART_N = 60
+BOOT_N = 5000
+
+
+def chart_pool(t, meta, m):
+    """Shock moments as shocks.json selects them (not hidden, named), widest first."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("export05", Path(__file__).parent / "05_export.py")
+    ex = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(ex)
+    hidden, _, _ = ex.visibility(t, meta)
+    lab = pd.read_parquet(WORK / "string_topics.parquet", columns=["topic_id", "canonical_en"])
+    named = set(lab[lab.canonical_en.notna() & (lab.canonical_en.str.lower() != "unknown")].topic_id)
+    ok = ~m.topic_id.isin(hidden) & m.topic_id.isin(named) & (m.topic_name.astype(str).str.len() > 2)
+    m = m.assign(key=[mkey(a, b) for a, b in zip(m.topic_id, m.start_utc)])
+    return m[ok & m.is_shock.astype(bool)].sort_values(["reach", "reach_60"], ascending=False), m[ok]
+
+
+def verify_sheet(t, meta, m):
+    """Next chart verification sheet: the CHART_N widest shocks (after hand-label overrides) that have no hand label
+    yet -> docs/shock_chart_verification.csv (then _2, _3, ...), same columns and helper links as the samples, empty
+    label columns, no Claude output; key next to it (git-ignored). Refuses while an earlier sheet is unlabelled.
+    Run `make moments` after labelling a sheet, so scheduled rows drop out and the next widest move up."""
+    from kinds import load_hand_labels, verification_sheets
+    sheets = verification_sheets(DOCS)
+    for sp, _ in sheets:
+        s_ = pd.read_csv(sp, dtype=str, keep_default_na=False)
+        if (s_.scheduled_label.str.strip() == "").any():
+            sys.exit(f"{sp.name} still has unlabelled rows: label it, run `make moments`, then run this again")
+    hand = load_hand_labels(DOCS)
+    pool, _ = chart_pool(t, meta, m)
+    top = pool.head(CHART_N)
+    todo = top[~top.key.isin(hand)]
+    print(f"chart set: {len(top)} widest shocks; already hand-labelled (verified): {len(top) - len(todo)}; to label: {len(todo)}")
+    if todo.empty:
+        print("all chart shocks are verified: no sheet written")
+        return
+    n = len(sheets) + 1
+    sp = DOCS / ("shock_chart_verification.csv" if n == 1 else f"shock_chart_verification_{n}.csv")
+    kp = sp.with_name(sp.stem + "_key.csv")
+    recs = records(todo, meta)
+    rank = {k: i + 1 for i, k in enumerate(top.key)}
+    out, key = [], []
+    for i, r in enumerate(todo.itertuples()):
+        rec = recs[r.key]
+        out.append({"sample_id": i, "name": rec["name"], "date_utc": f"{rec['date']} {rec['start_utc']}",
+                    "phrasings": "; ".join(rec["phrasings"]), "related_searches": "; ".join(rec["related"]),
+                    "scheduled_label": "", "event_type_label": ""})
+        key.append({"sample_id": i, "key": r.key, "topic_id": r.topic_id, "chart_rank": rank[r.key],
+                    "reach": int(r.reach), "claude_scheduled": r.claude_scheduled})
+    pd.DataFrame(out).to_csv(sp, index=False)
+    pd.DataFrame(key).to_csv(kp, index=False)
+    print(f"wrote {sp} ({len(out)} moments); key in {kp} (git-ignored)")
+    helpers(sp, kp)
+
+
+def estimate(t, meta, m):
+    """True number of shocks = flagged x precision / recall. flagged = moments the rule alone flags (is_shock_rule:
+    Claude unscheduled, conf >= 0.5, rule-based sport) among the shocks.json population (not hidden, named).
+    Precision and recall of that rule come from both hand samples: truth = hand unscheduled and not sport, prediction
+    = the current rule on that moment; rows weighted by stratum within their sample, each sample's weights scaled to
+    its row count; 95% interval from BOOT_N bootstrap resamples within sample x stratum. -> work/shock_estimate.json"""
+    _, pop_m = chart_pool(t, meta, m)
+    flagged = int(pop_m.is_shock_rule.astype(bool).sum())
+    rule = set(m.loc[m.is_shock_rule.astype(bool), ["topic_id", "start_utc"]].apply(lambda r: mkey(r.topic_id, r.start_utc), axis=1))
+    parts = []
+    for sp, kp, stf, tag in ((SAMPLE, KEY, "shock_sample_strata.json", 1), (SAMPLE2, KEY2, "shock_sample2_strata.json", 2)):
+        if not (sp.exists() and kp.exists()):
+            continue
+        d = pd.read_csv(sp).merge(pd.read_csv(kp, usecols=["sample_id", "key", "stratum"]), on="sample_id")
+        d["hs"] = d.scheduled_label.astype(str).str.strip().str.lower()
+        d["ht"] = d.event_type_label.astype(str).str.strip().str.lower()
+        d = d[d.hs.isin(SCHEDULED_V2)].copy()
+        popn = load_json(WORK / stf)["population"]
+        nn = d.stratum.value_counts()
+        d["w"] = d.stratum.map(lambda h: popn[h] / nn[h])
+        d["w"] *= len(d) / d.w.sum()
+        d["y"] = d.hs.eq("unscheduled") & d.ht.ne("sport")
+        d["p"] = d.key.isin(rule)
+        d["sample"] = tag
+        parts.append(d)
+    pool = pd.concat(parts, ignore_index=True)
+
+    def pr(d):
+        tp, fp, fn = (d.w * (d.p & d.y)).sum(), (d.w * (d.p & ~d.y)).sum(), (d.w * (~d.p & d.y)).sum()
+        return tp / (tp + fp), tp / (tp + fn)
+    P, R = pr(pool)
+    rng = np.random.default_rng(SEED)
+    groups = [g.index.values for _, g in pool.groupby(["sample", "stratum"])]
+    boot = []
+    for _ in range(BOOT_N):
+        b = pool.loc[np.concatenate([rng.choice(g, len(g), replace=True) for g in groups])]
+        p_, r_ = pr(b)
+        boot.append(flagged * p_ / r_ if r_ > 0 else np.nan)
+    lo, hi = np.nanpercentile(boot, [2.5, 97.5])
+    out = {"flagged": flagged, "precision": round(float(P), 3), "recall": round(float(R), 3),
+           "estimate": round(float(flagged * P / R), 1), "ci95": [round(float(lo), 1), round(float(hi), 1)],
+           "n_rows": int(len(pool)), "n_true": int(pool.y.sum()), "bootstrap": BOOT_N,
+           "method": "flagged x precision / recall; rule = Claude shock-v2 unscheduled conf >= 0.5 on rule-based "
+                     "non-sport global moments (not hidden, named); precision/recall from hand samples 1 and 2 "
+                     "(truth = hand unscheduled and not sport), stratum-weighted, bootstrap within sample x stratum"}
+    save_json(WORK / "shock_estimate.json", out)
+    print(json.dumps(out, indent=1))
+
+
 # ------------------------------------------------------------------ is_sport fix check
 def sport_check(cand, meta):
     """Proposed is_sport fix on all candidates: entity signal (sport.sport_fix) AND moment-level sporting-event
@@ -839,6 +947,13 @@ if __name__ == "__main__":
         score2()
     elif stage == "helpers":
         helpers()
+    elif stage in ("verify-sheet", "estimate"):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("export05", Path(__file__).parent / "05_export.py")
+        ex = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(ex)
+        t, meta, m = ex.load()
+        (verify_sheet if stage == "verify-sheet" else estimate)(t, meta, m)
     elif stage in ("thresholds", "label", "label2", "sample", "sample2", "sport-check"):
         t, meta, m, cand, n_cur = load()
         if stage == "thresholds":

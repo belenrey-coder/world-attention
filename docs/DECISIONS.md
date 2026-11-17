@@ -744,6 +744,33 @@ Sample 1 (`docs/shock_validation_sample.csv`, 100 moments) is now the **tuning**
 - **The five widest shocks** are now ChatGPT 23 Jan 2025 (121 countries), Diogo Jota, Hulk Hogan, Venezuela 3 Jan 2026 (117) and ChatGPT 11 Dec 2024 (116). Ozzy Osbourne, Michelle Trachtenberg and Eric Dane (110–112) are still shocks, just below the top 5.
 - **Not shocks under the new rule:** Bianca Censori (Grammys, Claude: scheduled) and Edoardo Bove. Claude v2 calls Bove's moment scheduled, while your sample-1 label is unscheduled: one of the rule's known errors.
 
+### Step 9, round 10 (2026-11-17): hand labels override, chart verification, true-shock estimate
+
+**1. Hand labels override Claude and the sport rule** (`kinds.load_hand_labels`, `04_moments.add_shock`, step 8)
+- **Source:** every moment labelled by hand, in sample 1, sample 2 and the chart verification sheets (local, git-ignored files; without them nothing is overridden).
+- **What the hand labels decide:**
+  - `is_shock` = hand unscheduled and hand event type ≠ sport;
+  - `is_sport` = hand event type is sport;
+  - the scheduled/unscheduled input of the moment kinds (`scheduled_final`);
+  - in step 8, the death / outage / other split: hand death → death, hand outage → outage, anything else → other. The sub-kind comes from the hand type: disaster → disaster or accident, politics_conflict → politics or conflict, launch, viral_celebrity → viral or celebrity, markets, other.
+- **The rule alone** is kept as `is_shock_rule` (used for the estimate below).
+- **Result:** all 180 hand labels apply to global moments. Shock moments are now 599; the rule alone gives 610.
+- `shocks.json` gets `verified` (true if hand-labelled unscheduled) and `kind_source` (hand label or rule).
+
+**2. Chart verification** (`09_validate_shocks.py verify-sheet`, `make shocks-verify`)
+- **The chart set** is the 60 widest shocks (countries, then countries within 60 min) among shocks.json's population (not hidden, named). `shocks.json` gets `chart_top60` (moment ids and the number verified).
+- **Sheet 1:** `docs/shock_chart_verification.csv` holds the 53 chart shocks without a hand label (7 of the 60 were already hand-labelled unscheduled, so verified). It has the same columns and helper links as the samples, empty label columns and no Claude output. Its key, `docs/shock_chart_verification_key.csv`, has the moment key, chart rank and Claude's label. Both are git-ignored.
+- **Loop:** after labelling a sheet, run `make moments`. Rows marked scheduled (or sport) stop being shocks and the next widest move up. Then `make shocks-verify` writes `_2` with the chart shocks still unlabelled, until all 60 are verified. It refuses while an earlier sheet has unlabelled rows.
+
+**3. Estimated true number of shocks** (`09_validate_shocks.py estimate` → `work/shock_estimate.json`; STORY_NUMBERS reads it on the next `make story`)
+- **Method:** estimate = flagged × precision / recall.
+  - flagged = **602** moments the rule alone flags among shocks.json's population;
+  - precision and recall of the current rule come from both hand samples (180 rows, 64 truly unscheduled non-sport). Truth = hand unscheduled and not sport; prediction = the current rule on that moment, so hand-sport rows count as false positives when flagged;
+  - rows are weighted by stratum within their sample, and each sample's weights are scaled to its row count;
+  - the 95% interval comes from 5,000 bootstrap resamples within sample × stratum.
+- **Result:** precision 0.706, recall 0.895. **Estimated true shocks: 475 [400, 548].**
+  - Precision is lower than the 0.75 reported in round 9 because sport rows now count: a leaked sport moment that the rule flags is a false positive here.
+
 ## Open issues (need a decision)
 
 _Updated 2026-11-09, after the short-string, sport, 19:00 UTC and Wrapped fixes (rerun from combine: combine, link, validation, moments, export, profile, checks)._

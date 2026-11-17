@@ -13,6 +13,8 @@ The pipeline writes a few hand-review files that are **not published** in this r
 | `docs/shock_validation_key.csv` | `pipeline/09_validate_shocks.py sample` | Answer key for the shock sample (strata, timing-rule flags, Claude's labels); open only after labeling |
 | `docs/shock_validation_sample2.csv` | `pipeline/09_validate_shocks.py sample2` | Test sample for the final shock and sport rules: 80 new global moments (40 the rule calls shocks, 40 others), none from the first sample |
 | `docs/shock_validation_key2.csv` | `pipeline/09_validate_shocks.py sample2` | Answer key for the test sample (strata, rule flags, Claude's labels); open only after labeling |
+| `docs/shock_chart_verification.csv` (then `_2`, `_3`, …) | `pipeline/09_validate_shocks.py verify-sheet` | The 60 widest shocks for the chart that have no hand label yet, to label (scheduled / unscheduled, event type); labels override Claude in step 4 |
+| `docs/shock_chart_verification_key.csv` (then `_2_key`, …) | `pipeline/09_validate_shocks.py verify-sheet` | Key for each verification sheet (moment key, chart rank, Claude's label); open only after labelling |
 | `pipeline/sensitive_decisions.csv` | by hand | Keep/hide decisions for sensitive topics, read by `pipeline/05_export.py` (columns `topic_id, decision, note`) |
 
 **Why they are not published:** they list raw Google Trends searches and small local topics, and those can contain the names of private individuals, such as people in local news about accidents, arrests or missing persons, or people who trended in only one or two countries. Publishing them would spread those names further than the original trend did. The validation answer keys are also kept private so the hand labeling stays blind.

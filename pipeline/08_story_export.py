@@ -32,7 +32,7 @@ import pandas as pd
 
 warnings.filterwarnings("ignore", message="This pattern is interpreted as a regular expression")
 sys.path.insert(0, str(Path(__file__).parent))
-from common import DOCS, INTERIM, REGION_TZ, ROOT, WORK  # noqa: E402
+from common import DOCS, INTERIM, REGION_TZ, ROOT, WORK, load_json  # noqa: E402
 
 EXPORT = ROOT / "data" / "export"
 OUT = EXPORT / "story"
@@ -342,6 +342,9 @@ def moment_own_terms(r):
 
 
 n_outage_word_elsewhere = 0
+HAND_SUB_KIND = {"disaster": "disaster or accident", "politics_conflict": "politics or conflict", "launch": "launch",
+                 "viral_celebrity": "viral or celebrity", "markets": "markets", "other": "other"}
+CHART_N = 60
 for r in gm.itertuples():
     cs = r.countries
     ph = list(dict.fromkeys(c["phrasing"].lower() for c in cs if c["phrasing"]))[:10]
@@ -351,21 +354,31 @@ for r in gm.itertuples():
     text = " ".join([str(r.topic_name)] + ph + w_.query_raw.str.lower().unique().tolist()
                     + [related_text.get(r.topic_id, "")]).lower()
     ev_out = outage_evidence(r)
-    if re.search(DEATH_RE, text):
-        k = "death"
-    elif ev_out:
-        k = "outage"
+    hand_t = getattr(r, "hand_event_type", None)
+    if isinstance(hand_t, str):
+        # hand label (validation samples / chart verification sheets) decides the split (Step 9 round 10)
+        k = hand_t if hand_t in ("death", "outage") else "other"
+        sk = HAND_SUB_KIND.get(hand_t, "other") if k == "other" else None
     else:
-        k = "other"
-        n_outage_word_elsewhere += bool(re.search(OUTAGE_RE, text, re.I))
-    sk = sub_kind(text, r.type) if k == "other" else None
+        if re.search(DEATH_RE, text):
+            k = "death"
+        elif ev_out:
+            k = "outage"
+        else:
+            k = "other"
+            n_outage_word_elsewhere += bool(re.search(OUTAGE_RE, text, re.I))
+        sk = sub_kind(text, r.type) if k == "other" else None
     mm = np.array([c["min_from_start"] for c in cs])
     shocks.append({"moment_id": int(r.moment_id), "topic_id": r.topic_id, "name": r.topic_name, "kind": k,
                    "sub_kind": sk, "claude_type": r.type, "outage_evidence": ev_out if k == "outage" else None,
+                   "verified": getattr(r, "hand_scheduled", None) == "unscheduled",
+                   "kind_source": "hand label" if isinstance(hand_t, str) else "rule",
                    "date_utc": iso(r.start_utc), "reach": int(r.reach), "reach_60": int(r.reach_60),
                    "minutes_to_half": int(r.minutes_to_half), "phrasings": ph,
                    "curve_first_3h": [[x, int((mm <= x).sum())] for x in range(0, 181, 10)]})
-shocks.sort(key=lambda d: -d["reach"])
+shocks.sort(key=lambda d: (-d["reach"], -d["reach_60"]))
+chart = shocks[:CHART_N]      # the chart set: the 60 widest shocks (verification sheets, Step 9 round 10)
+_est = load_json(WORK / "shock_estimate.json") if (WORK / "shock_estimate.json").exists() else None
 write("shocks.json", {"note": "Sport-free global moments (>= 15 countries within 60 min of the third country) that "
                                "Claude (shock-v2, the moment's own searches) calls unscheduled with confidence >= 0.5 "
                                "(DECISIONS.md, Step 9). curve_first_3h = [minutes from the moment's first trend, "
@@ -384,8 +397,20 @@ write("shocks.json", {"note": "Sport-free global moments (>= 15 countries within
                      "other_top40": [{k_: s_[k_] for k_ in ("name", "date_utc", "reach", "minutes_to_half", "claude_type",
                                                            "sub_kind", "phrasings")} | {"phrasings": s_["phrasings"][:5]}
                                      for s_ in [x for x in shocks if x["kind"] == "other"][:40]],
+                     "chart_top60": {"note": f"The {CHART_N} widest shocks (countries, then countries within 60 min). "
+                                             "verified = hand-labelled unscheduled; hand-labelled scheduled moments "
+                                             "are not shocks, so the next widest moves up.",
+                                     "moment_ids": [x["moment_id"] for x in chart],
+                                     "verified": sum(x["verified"] for x in chart)},
+                     "estimate_true_shocks": _est,
                      "moments": shocks})
 kc = pd.Series([s["kind"] for s in shocks]).value_counts().to_dict()
+num("Shocks", f"Chart set: {CHART_N} widest shocks, of which hand-verified", f"{sum(x['verified'] for x in chart)} of {len(chart)}",
+    "shocks.json", "chart_top60")
+num("Shocks", "Shocks verified by hand label (all)", sum(x["verified"] for x in shocks), "shocks.json", "moments[].verified")
+if _est:
+    num("Shocks", "Estimated true number of shocks (flagged x precision / recall, 95% bootstrap interval)",
+        f"{_est['estimate']:,.0f} [{_est['ci95'][0]:,.0f}, {_est['ci95'][1]:,.0f}]", "shocks.json", "estimate_true_shocks")
 num("Shocks", "Sport-free global shock moments", len(shocks), "shocks.json", "moments")
 for k_, v in kc.items():
     num("Shocks", f"... of kind {k_}", v, "shocks.json", "moments[].kind")
