@@ -36,7 +36,10 @@ SPORT_TERM_RE = re.compile(
 COMPETITION_NAME_RE = re.compile(r"\b(open|masters|trophy|championships?|grand prix|cup)( \d{4})?$|\btour de\b|"
                                  r"^(coppa|copa|coupe|taça|taca|pokal|supercopa|supercoppa|supercup)\b|"
                                  r"\bpokal\b|^major league\b|\b(league|liga|ligue|lig|serie [ab]|bundesliga)$|primera divisi[oó]n|"
-                                 r"\bfriendl(y|ies)\b", re.I)
+                                 r"\bfriendl(y|ies)\b|"
+                                 # league tables (2026-11-17): "Spanish football league standings", "ترتيب الدوري"
+                                 r"\bstandings\b|clasificaci[oó]n|\btabla\b(?! peri)|\bclassifica\b|\btabelle\b|"
+                                 r"ترتيب الدوري", re.I)
 RELATED_MIN = 3
 RELATED_MIN_PERSON = 2       # people: 2 sport related searches are enough (an athlete's are mostly fixtures)
 NO_RELATED_TYPES = {"place"}  # a country's related searches can be full of its team's fixtures: never by "related"
@@ -161,7 +164,8 @@ COMP_TERM_RE = re.compile(
     r"tour de france|giro|vuelta|ufc|nations league|super bowl|playoffs?|euro 20\d\d|club world cup|"
     r"copa|coupe|coppa|pokal|campeonato|torneo|torneio|mundial de clubes|copa do mundo|"
     r"كاس|كأس|دوري|بطولة|مونديال|кубок|чемпионат|лига|турнир|олимпиад\w*|olimpiyat|şampiyonlar|jo 20\d\d|jeux olympiques|"
-    r"giochi olimpici|milano cortina)\b", re.I)
+    r"giochi olimpici|milano cortina|standings|clasificaci[oó]n|tabla de posiciones|classifica|tabelle)\b|"
+    r"ترتيب الدوري", re.I)
 SUPPORT_MIN_RELATED = 2
 FIXTURE_BEFORE_H = 12      # a fixture counts as "that day" if it started up to 12 h before the athlete's moment ...
 FIXTURE_AFTER_H = 3        # ... or up to 3 h after it (pre-match lineups)

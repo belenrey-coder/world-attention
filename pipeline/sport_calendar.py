@@ -8,6 +8,9 @@ Sources (English Wikipedia, read 2026-11-13; see DECISIONS.md, Step 9):
   F1      "2024/2025/2026 Formula One World Championship" (race dates). A race weekend is Friday .. race Sunday.
           The 2026 Saudi Arabian GP (cancelled) and Bahrain GP (moved to October 2026) are not in this range.
   golf    "2025 PGA Tour", "2026 PGA Tour" (final-round dates of the men's majors). A major is Thursday .. Sunday.
+  cricket "2025 Indian Premier League" (22 Mar - 3 Jun 2025; suspended 9-16 May, resumed 17 May), "2026 Indian
+          Premier League" (28 Mar - 31 May 2026), "2025 ICC Champions Trophy" (19 Feb - 9 Mar 2025), "2026 ICC Men's
+          T20 World Cup" (7 Feb - 8 Mar 2026); read 2026-11-17. For cricketers.
   winter  "2026 Winter Olympics" (read 2026-11-16): 6-22 February 2026, first competitions on 4 February. For winter
           athletes (figure skaters, skiers, ...), whose season otherwise has no event in this calendar.
 Moments are matched on their UTC start date, from the window's first day to one day after its last day (late
@@ -78,9 +81,14 @@ GOLF = {k: (D(v) - timedelta(days=3), D(v)) for k, v in GOLF_FINALS.items()}
 
 WINTER = {"Winter Olympics 2026": (D("2026-02-04"), D("2026-02-22"))}
 
-CALENDAR = {"tennis": TENNIS, "f1": F1, "golf": GOLF, "winter": WINTER}
+CRICKET = {"IPL 2025": (D("2025-03-22"), D("2025-05-08")), "IPL 2025 (resumed)": (D("2025-05-17"), D("2025-06-03")),
+           "IPL 2026": (D("2026-03-28"), D("2026-05-31")),
+           "ICC Champions Trophy 2025": (D("2025-02-19"), D("2025-03-09")),
+           "ICC Men's T20 World Cup 2026": (D("2026-02-07"), D("2026-03-08"))}
+
+CALENDAR = {"tennis": TENNIS, "f1": F1, "golf": GOLF, "winter": WINTER, "cricket": CRICKET}
 SPORT_OF_DESC = [("tennis", r"tennis player"), ("f1", r"racing driver|formula one|formula 1|f1 driver"),
-                 ("golf", r"golfer"),
+                 ("golf", r"golfer"), ("cricket", r"cricketer"),
                  ("winter", r"figure skater|ice dancer|speed skater|skier|ski jumper|snowboarder|biathlete|luger|"
                             r"bobsledder|skeleton racer|curler|ice hockey player")]
 

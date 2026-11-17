@@ -689,6 +689,61 @@ Sample 1 (`docs/shock_validation_sample.csv`, 100 moments) is now the **tuning**
   - ambiguous: "808", "unl", "uta", "adrián", "Die", "999", "1992", "more".
 - **Result:** junk is 1,135 topics (bare number 645, single character 256, generic word 126, unknown 108). Wave topics are unchanged at 360.
 
+### Step 9, round 9 (2026-11-17): test sample scored, threshold revisited, cricket, story rebuilt
+
+**1. Sample 2 (test) results** (`make shocks-score2` → `docs/SHOCK_VALIDATION_2.md`, local; 80 moments, none junk)
+- **Claude v2 vs hand:** accuracy 0.738, kappa 0.496 (without sport rows 0.765 / 0.529). Claude called 19 of the 46 scheduled moments unscheduled, mostly at confidence ≤ 0.6.
+- **Chosen rule (conf ≥ 0.5):** precision 0.70, recall 0.82; weighted 0.70 / 0.92. Without sport rows: 0.72 / 0.82; weighted 0.72 / 0.90.
+- **Other rules:** conf ≥ 0.6: 0.91 / 0.62 (weighted 0.91 / 0.69). conf ≥ 0.7: 0.93 / 0.41. Timing rule 15 alone: 0.61 / 0.50. Old shocks.json: 0.71 / 0.59.
+- **Sport the rule still missed:** 12 of 80 (weighted 9.7%), 11 of them in the non-shock half; 7 were cricketers.
+
+**2. Threshold revisited after the test sample.** On sample 2, conf ≥ 0.6 beat 0.5 on precision. Because looking at the test sample and then choosing is tuning on it, the rule was decided on sample 1 only: switch to 0.6 only if it also beats 0.5 on precision there without a large recall loss.
+
+| Sample (non-sport rows) | conf ≥ 0.5 P / R (weighted) | conf ≥ 0.6 P / R (weighted) | conf ≥ 0.7 P / R (weighted) |
+|---|---|---|---|
+| Sample 1 (n = 46) | 0.81 / 0.87 (0.81 / 0.88) | 0.86 / 0.60 (0.83 / 0.51) | 0.94 / 0.50 (0.97 / 0.41) |
+| Sample 2 (n = 68) | 0.72 / 0.82 (0.72 / 0.90) | 0.91 / 0.62 (0.91 / 0.67) | 0.93 / 0.41 (0.93 / 0.45) |
+
+- **Sample 1 decides it:** 0.6 gains only 0.05 precision (0.02 weighted) and loses 0.27 recall (0.37 weighted). **`is_shock` stays at conf ≥ 0.5.**
+- **Pooled over both samples** (114 non-sport rows, 64 unscheduled). Rows are weighted by stratum within their own sample, and each sample's weights are scaled to its row count; 95% CIs come from 5,000 bootstrap resamples within sample × stratum.
+  - conf ≥ 0.5: precision **0.75 [0.64, 0.86]**, recall **0.89 [0.81, 0.96]**;
+  - conf ≥ 0.6: 0.88 [0.75, 0.98], 0.60 [0.47, 0.74];
+  - conf ≥ 0.7: 0.95 [0.84, 1.00], 0.43 [0.30, 0.57].
+- **What it means:** about one shock in four is a scheduled event that Claude misread, and the rule finds about nine in ten real ones.
+
+**3. Cricket and league tables** (`sport_calendar.py`, `sport.py`). These are the only two changes made after the test sample.
+- **Cricket calendar** (English Wikipedia, read 2026-11-17):
+  - "2025 Indian Premier League": 22 Mar – 3 Jun 2025, suspended 9–16 May (India–Pakistan crisis) and resumed 17 May, so two windows;
+  - "2026 Indian Premier League": 28 Mar – 31 May 2026;
+  - "2025 ICC Champions Trophy": 19 Feb – 9 Mar 2025;
+  - "2026 ICC Men's T20 World Cup": 7 Feb – 8 Mar 2026.
+  - It applies to athletes whose Wikidata description says "cricketer".
+- **League-table phrases** count as competition names (topic names) and as competition evidence in a moment's searches: "standings", "clasificación", "tabla" (not "tabla periódica"), "tabla de posiciones", "classifica", "tabelle", "ترتيب الدوري".
+- **Diagnostic only (no further retuning on sample 2):**
+  - **7 of the 12** sample-2 sport misses are now caught: Sarfaraz Khan, Allah Ghazanfar, Naman Dhir, Ishant Sharma (IPL), Abhishek Sharma (T20 World Cup), and "Spanish football league standings" × 2.
+  - **Still missed:** Shahbaz Ahmed, Shubham Dubey, Wrocław, Eric García, Emma Raducanu.
+  - No non-sport sample-2 row moved to sport.
+- **All global moments:** 34 more are sport (moment rule now adds 1,095; global non-sport 837), 6 of them former shocks. Shock moments: 610 in moments.parquet, 602 in shocks.json (hidden and unnamed topics left out).
+
+**4. `make export` and `make story` run** (2026-11-17). Changes in `docs/STORY_NUMBERS.md` against the previous version (old timing rule, topic kinds, no junk filter):
+
+| Number | Before | After |
+|---|---:|---:|
+| Shock moments | 535 | 602 |
+| … deaths | 98 | 111 |
+| … outages | 28 | 64 |
+| … other | 409 | 427 |
+| Topics in 1 country | 580,756 (84.8%; 33.9% of trends) | 579,959 (84.9%; 34.0%) |
+| Topics in 15+ countries | 11,301 (1.7%; 40.3% of trends) | 11,234 (1.6%; 40.2%) |
+| Median single-country share | 21.2% | 21.3% |
+| Most local country | Japan 92.3% | Japan 92.4% |
+| Wave topics | — | 360 |
+| Timeline peaks | 8,014 | 7,999 |
+
+- **Wrapped mean shares:** shock 2.1% → 1.1%, appointment 40.4% → 47.5%, ritual 5.2% → 5.1%, "other" 46.2% (new), local share 58.6% (now a reach measure; it was the "local" kind at 45.2%), "wave" kind gone (was 7.2%).
+- **The five widest shocks** are now ChatGPT 23 Jan 2025 (121 countries), Diogo Jota, Hulk Hogan, Venezuela 3 Jan 2026 (117) and ChatGPT 11 Dec 2024 (116). Ozzy Osbourne, Michelle Trachtenberg and Eric Dane (110–112) are still shocks, just below the top 5.
+- **Not shocks under the new rule:** Bianca Censori (Grammys, Claude: scheduled) and Edoardo Bove. Claude v2 calls Bove's moment scheduled, while your sample-1 label is unscheduled: one of the rule's known errors.
+
 ## Open issues (need a decision)
 
 _Updated 2026-11-09, after the short-string, sport, 19:00 UTC and Wrapped fixes (rerun from combine: combine, link, validation, moments, export, profile, checks)._
