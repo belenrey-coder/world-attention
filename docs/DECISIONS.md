@@ -889,6 +889,57 @@ Sample 1 (`docs/shock_validation_sample.csv`, 100 moments) is now the **tuning**
 - **Their event-group candidates:** `docs/event_groups_review_extra.csv` (112 rows: 60 to review, 52 no-effect). It is kept apart so the finished review stays complete and step 8 keeps using it.
 - **Undecided:** whether the chart set should then be re-chosen by event reach (it is still the 60 widest by moment reach). Not changed.
 
+### Step 9, round 15 (2026-11-17): first-hour figures count from the third country
+
+- **Decision:** for the opening and the chart shocks, "within 60 min" and "minutes to half" now count from the **third country's first trend** in the event window, the same reference as the global-moment rule. Event reach (countries in the window) is unchanged. Rows before the reference count as minute 0.
+- **Why:** with the moment start as reference, 17 chart shocks looked slow only because one or two countries trended early. Examples: Chuck Norris 2 of 116 within 60 min (81 countries by 3 h), ChatGPT 18 Nov 2025 1 of 100, Rob Reiner 4 of 99, Roblox 1 of 96 (round 14).
+- **Code:** `events.from_third` / `events.metrics`. In `opening.json`, `within_60_min` and `minutes_to_half` use the third country, a new field `third_country_utc` gives the reference, and `by_country[].minutes_from_first` and `cumulative_by_10_min` stay relative to the first trend. `shocks.json` → `chart_top60.reach_basis` states the basis.
+- **The opening should not change:** 20 countries were already trending at the first scrape (07:50 UTC), so the third country's first trend is also 07:50.
+- **`make story` is not rerun yet,** so the files on disk still show the round-14 figures.
+- **Next, after your review of the 14 extra shocks and their event groups:**
+  1. re-choose the chart's 60 by event reach (among the verified shocks with reviewed event groups);
+  2. rerun `make story`;
+  3. show the new top 20.
+- **METHODOLOGY.md** ("Moment reach and event reach") states the third-country reference, with Chuck Norris as the example.
+
+### Step 9, round 16 (2026-11-17): the 14 extra shocks reviewed, chart re-chosen by event reach
+
+- **Sheet 3** (`docs/shock_chart_verification_3.csv`, 14 rows): 13 unscheduled. 1 scheduled, Elon Musk 20 Jan 2025 (inauguration day), which is no longer a shock. After `make moments`: 250 hand labels apply; shock moments 595 (610 by the rule alone).
+- **Extra event groups** (`docs/event_groups_review_extra.csv`): 41 accepted, 19 rejected, 52 no-effect. Step 8 now reads every `event_groups_review*.csv` file and switches to event reach only when all of them are fully decided.
+- **Chart re-chosen by event reach:** the 60 hand-verified shocks with the largest event reach, among the 100 widest by moment reach. Ranks 61–100 were checked in round 14; only the 14 extra shocks could reach the old 60th place, and they are now verified and grouped. Ties go to event reach within 60 min, then moment reach. All 60 are hand-verified.
+  - **Entered (8):** ChatGPT 10 Jun 2025 (80), Iran 5 Apr 2026 (77), GTA 6 (73), Taylor Swift 26 Aug 2025 (72), PlayStation Network 7 Feb 2025 (71), Kristi Noem (69), Tomorrowland (68), Jorge Costa (67).
+  - **Left (8):** Roblox 19 Dec 2025 (65), Air India crash (65), Enhypen (65), Felix Baumgartner (65), Character.AI (64), Joe Biden (64), New Orleans (64), YouTube outage 15 Oct 2025 (62).
+  - The 60th is now Jorge Costa (67).
+- **`make story` rerun** (first-hour figures from the third country, round 15).
+  - **Opening:** 120 countries, 109 within 60 min, 10 minutes to half (third country at 07:50 UTC, the same as the first trend).
+  - **Shocks:** 587 in shocks.json (death 115, outage 74, other 398); 130 hand-verified.
+- **Top 20 by event reach** (event reach / within 60 min / minutes to half, moment reach in brackets):
+
+  | # | Shock | Date | Event reach | Within 60 min | Min to half | Moment reach |
+  |---:|---|---|---:|---:|---:|---:|
+  | 1 | ChatGPT | 2025-01-23 | 123 | 120 | 10 | (121) |
+  | 2 | Diogo Jota | 2025-07-03 | 122 | 111 | 20 | (120) |
+  | 3 | Pope Francis | 2025-04-21 | 120 | 109 | 10 | (101) |
+  | 4 | ChatGPT | 2024-12-11 | 119 | 117 | 10 | (116) |
+  | 5 | Venezuela | 2026-01-03 | 119 | 55 | 70 | (117) |
+  | 6 | Hulk Hogan | 2025-07-24 | 118 | 106 | 10 | (118) |
+  | 7 | Chuck Norris | 2026-03-20 | 116 | 106 | 20 | (91) |
+  | 8 | Eric Dane | 2026-02-20 | 112 | 61 | 50 | (112) |
+  | 9 | Ozzy Osbourne | 2025-07-22 | 110 | 104 | 10 | (110) |
+  | 10 | Michelle Trachtenberg | 2025-02-26 | 110 | 95 | 30 | (110) |
+  | 11 | Jimmy Carter | 2024-12-29 | 109 | 79 | 30 | (109) |
+  | 12 | Val Kilmer | 2025-04-02 | 109 | 64 | 40 | (109) |
+  | 13 | Gene Hackman | 2025-02-27 | 107 | 57 | 60 | (106) |
+  | 14 | Diane Keaton | 2025-10-11 | 102 | 78 | 30 | (101) |
+  | 15 | ChatGPT | 2025-11-18 | 100 | 55 | 40 | (86) |
+  | 16 | David Lynch | 2025-01-16 | 99 | 89 | 20 | (99) |
+  | 17 | Cloudflare outage | 2025-11-18 | 99 | 80 | 20 | (95) |
+  | 18 | Rob Reiner | 2025-12-15 | 99 | 18 | 110 | (99) |
+  | 19 | Google Gemini | 2025-01-23 | 96 | 90 | 10 | (96) |
+  | 20 | Roblox | 2025-08-23 | 96 | 21 | 80 | (96) |
+
+- **Not covered:** shocks below the 100 widest by moment reach (moment reach ≤ 52) were not checked for event reach. To reach 67 they would need 15+ extra countries from split topics.
+
 ## Open issues (need a decision)
 
 _Updated 2026-11-09, after the short-string, sport, 19:00 UTC and Wrapped fixes (rerun from combine: combine, link, validation, moments, export, profile, checks)._

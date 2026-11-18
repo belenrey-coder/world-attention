@@ -174,11 +174,16 @@ ctry = [{"country_code": c, "country_name": cname.get(c), "first_trend_utc": iso
          "minutes_from_first": max(0, int(round((ts - t0).total_seconds() / 60))), "top_phrasing": phr.get(c)}
         for c, ts in first.items()]
 mins = np.array([c["minutes_from_first"] for c in ctry])
-half = int(np.sort(mins)[math.ceil(len(mins) / 2) - 1])
+# "within 60 min" and "minutes to half" count from the third country's first trend (global-moment rule, Step 9
+# round 15); minutes_from_first and the cumulative curve stay relative to the first trend
+ref3, mins3 = EV.from_third(first)
+half = EV.half_minutes(mins3)
 opening = {"event": "Death of Pope Francis (announced 2025-04-21 07:47 UTC)", "basis": opening_basis,
            "topics": sorted(pope & set(pr.topic_id)), "window_utc": [iso(lo), iso(hi)],
-           "first_trend_utc": iso(t0), "countries": len(ctry), "minutes_to_half": half,
-           "within_60_min": int((mins <= 60).sum()), "by_country": ctry,
+           "first_trend_utc": iso(t0), "third_country_utc": iso(ref3), "countries": len(ctry),
+           "minutes_to_half": half, "within_60_min": int((mins3 <= 60).sum()),
+           "timing_basis": "within_60_min and minutes_to_half count from the third country's first trend",
+           "by_country": ctry,
            "cumulative_by_10_min": [[k, int((mins <= k).sum())] for k in range(0, 24 * 60 + 1, 10)]}
 write("opening.json", opening)
 num("Opening", "First Pope Francis trend (UTC)", opening["first_trend_utc"], "opening.json", "first_trend_utc")
@@ -392,14 +397,19 @@ for r in gm.itertuples():
                    "curve_first_3h": [[x, int((mm <= x).sum())] for x in range(0, 181, 10)]})
 shocks.sort(key=lambda d: (-d["reach"], -d["reach_60"]))
 chart = shocks[:CHART_N]      # the chart set: the 60 widest shocks (verification sheets, Step 9 round 10)
-# readers see EVENT reach for the chart shocks (Step 9 round 12): main topic + accepted topics about the same event
+# readers see EVENT reach for the chart shocks (Step 9 round 12): main topic + accepted topics about the same event.
+# Since round 16 the chart's 60 are chosen BY event reach: among the hand-verified shocks in the CHART_POOL_N widest
+# by moment reach (ranks 61-100 were checked: only 14 could reach the old 60th, and those were verified and grouped)
+CHART_POOL_N = 100
 if EVENT_GROUPS is not None:
-    for x in chart:
+    pool_ = [x for x in shocks[:CHART_POOL_N] if x["verified"]]
+    for x in pool_:
         grp = {x["topic_id"]} | EVENT_GROUPS.get(x["moment_id"], set())
         em = EV.metrics(t, grp, pd.Timestamp(x["date_utc"].replace("Z", ""), tz="UTC"))
         x.update(event_reach=em["event_reach"], event_reach_60=em["event_reach_60"],
                  event_minutes_to_half=em["event_minutes_to_half"],
                  event_topics=sorted(name.get(g, g) for g in grp))
+    chart = sorted(pool_, key=lambda d: (-d["event_reach"], -d["event_reach_60"], -d["reach"]))[:CHART_N]
 chart_by_event = sorted(chart, key=lambda d: (-d.get("event_reach", d["reach"]), -d.get("event_reach_60", d["reach_60"])))
 _est = load_json(WORK / "shock_estimate.json") if (WORK / "shock_estimate.json").exists() else None
 write("shocks.json", {"note": "Sport-free global moments (>= 15 countries within 60 min of the third country) that "
@@ -420,13 +430,16 @@ write("shocks.json", {"note": "Sport-free global moments (>= 15 countries within
                      "other_top40": [{k_: s_[k_] for k_ in ("name", "date_utc", "reach", "minutes_to_half", "claude_type",
                                                            "sub_kind", "phrasings")} | {"phrasings": s_["phrasings"][:5]}
                                      for s_ in [x for x in shocks if x["kind"] == "other"][:40]],
-                     "chart_top60": {"note": f"The {CHART_N} widest shocks (countries, then countries within 60 min). "
-                                             "verified = hand-labelled unscheduled; hand-labelled scheduled moments "
-                                             "are not shocks, so the next widest moves up.",
+                     "chart_top60": {"note": (f"The {CHART_N} hand-verified shocks with the largest event reach, chosen "
+                                              f"among the {CHART_POOL_N} widest by moment reach" if EVENT_GROUPS is not None
+                                              else f"The {CHART_N} widest shocks (countries, then countries within 60 min)")
+                                             + ". verified = hand-labelled unscheduled; hand-labelled scheduled moments "
+                                               "are not shocks.",
                                      "moment_ids": [x["moment_id"] for x in chart],
                                      "verified": sum(x["verified"] for x in chart),
                                      "reach_basis": "event reach (main topic + accepted topics about the same event, "
-                                                    "moment start - 2 h to + 24 h)" if EVENT_GROUPS is not None
+                                                    "moment start - 2 h to + 24 h; within 60 min and minutes to half from the third "
+                                                    "country's first trend)" if EVENT_GROUPS is not None
                                                     else "moment reach (event groups not reviewed yet)",
                                      "by_event_reach": [{"moment_id": x["moment_id"], "name": x["name"],
                                                          "date_utc": x["date_utc"],
@@ -437,7 +450,7 @@ write("shocks.json", {"note": "Sport-free global moments (>= 15 countries within
                      "estimate_true_shocks": _est,
                      "moments": shocks})
 kc = pd.Series([s["kind"] for s in shocks]).value_counts().to_dict()
-num("Shocks", f"Chart set: {CHART_N} widest shocks, of which hand-verified", f"{sum(x['verified'] for x in chart)} of {len(chart)}",
+num("Shocks", f"Chart set: {CHART_N} shocks (by event reach once event groups are reviewed), of which hand-verified", f"{sum(x['verified'] for x in chart)} of {len(chart)}",
     "shocks.json", "chart_top60")
 num("Shocks", "Shocks verified by hand label (all)", sum(x["verified"] for x in shocks), "shocks.json", "moments[].verified")
 if _est:

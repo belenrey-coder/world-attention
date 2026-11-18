@@ -8,6 +8,9 @@ EVENT_BEFORE_H before the moment start to EVENT_AFTER_H after it. Two things mak
   - running sessions: countries already trending the topic (Pope Francis at Easter, 19-20 Apr 2025) continue a
     session from an earlier moment, so they do not count as joining the new burst.
 
+"Within 60 min" and "minutes to half" are counted from the third country's first trend in the window, as in the
+global-moment rule (one or two early countries would otherwise make a spike look slow).
+
 Each event's topic group = the main topic + the candidates accepted by hand in docs/event_groups_review.csv
 (git-ignored). Name matching only proposes candidates; nothing is accepted automatically, except that a candidate
 which can never change a shown number is marked accept = "no-effect": all its countries already trended the main
@@ -102,12 +105,19 @@ def _first_minutes(rows, start):
     return {c: max(0, int(round((v - pd.Timestamp(start)).total_seconds() / 60))) for c, v in f.items()}
 
 
+REVIEW_GLOB = "event_groups_review*.csv"   # the main review file plus extra ones (event_groups_review_extra.csv)
+
+
+def review_files(docs):
+    return sorted(docs.glob(REVIEW_GLOB))
+
+
 def load_groups(docs):
-    """{event moment_id: set of accepted candidate topic_ids} from the reviewed file; None if there is no file."""
-    p = docs / REVIEW_FILE
-    if not p.exists():
+    """{event moment_id: set of accepted candidate topic_ids} from every review file; None if there is none."""
+    files = review_files(docs)
+    if not files:
         return None
-    d = pd.read_csv(p, dtype=str, keep_default_na=False)
+    d = pd.concat([pd.read_csv(p, dtype=str, keep_default_na=False) for p in files], ignore_index=True)
     ok = d.accept.str.strip().str.lower().isin(ACCEPT_VALUES)
     out = {}
     for mid, tid in zip(d.event_moment_id[ok], d.candidate_topic_id[ok]):
@@ -116,22 +126,35 @@ def load_groups(docs):
 
 
 def reviewed(docs):
-    """True once every candidate row has an accept decision (any non-empty value)."""
-    p = docs / REVIEW_FILE
-    if not p.exists():
+    """True once every candidate row in every review file has an accept decision (any non-empty value)."""
+    files = review_files(docs)
+    if not files:
         return False
-    d = pd.read_csv(p, dtype=str, keep_default_na=False)
+    d = pd.concat([pd.read_csv(p, dtype=str, keep_default_na=False) for p in files], ignore_index=True)
     return bool(len(d)) and (d.accept.str.strip() != "").all()
 
 
+def from_third(first):
+    """Reference time and minutes for 'within 60 min' and 'minutes to half': counted from the THIRD country's first
+    trend, as in the global-moment rule (2026-11-17), so one or two early countries don't make a spike look slow.
+    first: Series of per-country first times, sorted. -> (reference time, minutes clipped at 0)."""
+    ref = first.iloc[min(2, len(first) - 1)]
+    return ref, np.clip(((first - ref).dt.total_seconds() / 60).round().astype(int).values, 0, None)
+
+
+def half_minutes(mins):
+    return int(np.sort(mins)[int(np.ceil(len(mins) / 2)) - 1]) if len(mins) else None
+
+
 def metrics(t, topic_ids, start):
-    """Event reach, countries within 60 min and minutes to half, counted from the moment start (rows before the
-    start, up to EVENT_BEFORE_H earlier, count as minute 0). -> dict with the per-country first times."""
+    """Event reach (countries in the window), countries within 60 min and minutes to half, both counted from the
+    third country's first trend in the window (from_third). -> dict with the per-country first times."""
     lo, hi = window(start)
-    s = pd.Timestamp(start)
     w = t[t.topic_id.isin(topic_ids) & (t.start_time_utc >= lo) & (t.start_time_utc < hi)]
     first = w.groupby("country_code").start_time_utc.min().sort_values()
-    mins = np.clip(((first - s).dt.total_seconds() / 60).round().astype(int).values, 0, None)
-    half = int(np.sort(mins)[int(np.ceil(len(mins) / 2)) - 1]) if len(mins) else None
+    if first.empty:
+        return {"event_reach": 0, "event_reach_60": 0, "event_minutes_to_half": None, "first": first,
+                "minutes": np.array([]), "reference_utc": None}
+    ref, mins = from_third(first)
     return {"event_reach": int(len(first)), "event_reach_60": int((mins <= 60).sum()),
-            "event_minutes_to_half": half, "first": first, "minutes": mins}
+            "event_minutes_to_half": half_minutes(mins), "first": first, "minutes": mins, "reference_utc": ref}
