@@ -858,7 +858,7 @@ def event_groups(t, meta, m):
     matching proposes, the hand review accepts (column accept). Refuses to overwrite a file with decisions."""
     import events as ev
     p = DOCS / ev.REVIEW_FILE
-    if p.exists() and (pd.read_csv(p, dtype=str, keep_default_na=False).accept.str.strip() != "").any():
+    if p.exists() and (~pd.read_csv(p, dtype=str, keep_default_na=False).accept.str.strip().isin(["", "no-effect"])).any():
         sys.exit(f"{p} already has accept decisions: not overwritten (move it away to rebuild)")
     pool, _ = chart_pool(t, meta, m)
     top = pool.head(CHART_N)

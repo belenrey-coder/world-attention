@@ -814,6 +814,15 @@ Sample 1 (`docs/shock_validation_sample.csv`, 100 moments) is now the **tuning**
 
 **METHODOLOGY.md:** new section "Moment reach and event reach" with the Pope Francis example. "Moments" and "Kinds" are updated to the current rules (moment-level sport, moment kinds, the validated shock rule, waves as a topic pattern, junk topics).
 
+### Step 9, round 13 (2026-11-17): no-effect candidates marked automatically
+
+- **Rule:** a candidate topic is marked `accept = "no-effect"` when accepting it can never change a number we show (event reach, event reach within 60 min, event minutes to half). That holds when every country it trended in the event window also trended the main topic, and never earlier than the main topic did. Minutes count from the moment start and are clipped at 0, so rows up to 2 h before the start tie at minute 0.
+- **Why this is safe:** the main topic is always in the group, so such a row can't lower any country's first time, whatever else is accepted. No-effect rows count as decided but are not added to the group; they don't affect any result either way.
+- **Check:** for every event, accepting all candidates and accepting all except the no-effect ones give identical numbers.
+- **Result:** of the 435 candidates, **317 are no-effect** and **118 remain to review**, in 24 events; the other 29 events with candidates have none left to review.
+  - Biggest groups to review: Iran 22 Jun 2025 (54), Pope Francis 21 Apr 2025 and 22 Feb 2025 (7 each), Facebook 11 Dec 2024 (7), Venezuela 3 Jan 2026 (6), Anthony Joshua (6).
+- **Columns and order:** the file adds `earlier_countries` (countries where the candidate trended before the main topic) and `can_change`. Rows that can change a number come first, grouped by event in chart order (most countries added first); the no-effect rows follow.
+
 ## Open issues (need a decision)
 
 _Updated 2026-11-09, after the short-string, sport, 19:00 UTC and Wrapped fixes (rerun from combine: combine, link, validation, moments, export, profile, checks)._

@@ -9,7 +9,10 @@ EVENT_BEFORE_H before the moment start to EVENT_AFTER_H after it. Two things mak
     session from an earlier moment, so they do not count as joining the new burst.
 
 Each event's topic group = the main topic + the candidates accepted by hand in docs/event_groups_review.csv
-(git-ignored). Name matching only proposes candidates; nothing is accepted automatically.
+(git-ignored). Name matching only proposes candidates; nothing is accepted automatically, except that a candidate
+which can never change a shown number is marked accept = "no-effect": all its countries already trended the main
+topic, and never earlier than the main topic did (minutes clipped at the moment start). Since the main topic is
+always in the group, such a row cannot lower any country's first time, whatever else is accepted.
 """
 import re
 
@@ -58,23 +61,45 @@ def candidates(events, t, meta):
         lo, hi = window(e.start_utc)
         w = t[(t.start_time_utc >= lo) & (t.start_time_utc < hi)]
         main_cc = set(w[w.topic_id == e.topic_id].country_code)
+        main_first = _first_minutes(w[w.topic_id == e.topic_id], e.start_utc)
         mname, mtype = meta.topic_name.get(e.topic_id, e.topic_id), meta["type"].get(e.topic_id)
         found = []
         for tid, g in w[(w.topic_id != e.topic_id) & ~w.topic_id.isin(junk)].groupby("topic_id"):
             mk = match_kind(mname, mtype, meta.topic_name.get(tid, tid))
             if mk:
                 cc = set(g.country_code)
+                cf = _first_minutes(g, e.start_utc)
+                earlier = [c for c, mn in cf.items() if c in main_first and mn < main_first[c]]
+                can = bool(cc - main_cc) or bool(earlier)
                 found.append({"event": f"{mname} ({pd.Timestamp(e.start_utc):%Y-%m-%d})", "event_moment_id": int(e.moment_id),
                               "event_topic_id": e.topic_id, "event_countries_main_topic": len(main_cc),
                               "candidate_topic_id": tid, "candidate_topic": meta.topic_name.get(tid, tid),
                               "match": mk, "phrasings": "; ".join(g.query_raw.str.lower().value_counts().head(3).index),
                               "countries_in_window": len(cc), "countries_added": len(cc - main_cc),
-                              "added_countries": ", ".join(sorted(cc - main_cc)), "accept": ""})
+                              "added_countries": ", ".join(sorted(cc - main_cc)),
+                              "earlier_countries": ", ".join(sorted(earlier)),
+                              "can_change": can, "accept": "" if can else "no-effect"})
         note = f"generic: {len(found)} candidates, review each" if len(found) > MANY_CANDIDATES else ""
-        for f in sorted(found, key=lambda x: (-x["countries_added"], -x["countries_in_window"])):
+        for f in found:
             f["note"] = "; ".join(x for x in (note, "surname only: check it is the same person" if f["match"] == "surname only" else "") if x)
             rows.append(f)
-    return pd.DataFrame(rows)
+    d = pd.DataFrame(rows)
+    if d.empty:
+        return d
+    # rows that could change a number first, grouped by event in chart order; then the no-effect rows
+    order = {mid: i for i, mid in enumerate(dict.fromkeys(events.moment_id))}
+    d["_ev"] = d.event_moment_id.map(order)
+    d = d.sort_values(["can_change", "_ev", "countries_added", "countries_in_window"],
+                      ascending=[False, True, False, False]).drop(columns=["_ev"])
+    return d.reset_index(drop=True)
+
+
+def _first_minutes(rows, start):
+    """{country: minutes from the moment start to its first row, clipped at 0} (minute 0 = at or before start)."""
+    if rows.empty:
+        return {}
+    f = rows.groupby("country_code").start_time_utc.min()
+    return {c: max(0, int(round((v - pd.Timestamp(start)).total_seconds() / 60))) for c, v in f.items()}
 
 
 def load_groups(docs):
