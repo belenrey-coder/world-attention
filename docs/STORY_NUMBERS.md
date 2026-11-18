@@ -48,11 +48,11 @@ Conventions: national feeds; UTC unless a local hour is named; a moment is one t
 | ... 'other' shocks of sub-kind launch (all / in the top 40) | 62 / 6 | `shocks.json` | `moments[].sub_kind, other_top40` |
 | ... 'other' shocks of sub-kind disaster or accident (all / in the top 40) | 38 / 5 | `shocks.json` | `moments[].sub_kind, other_top40` |
 | ... 'other' shocks of sub-kind markets (all / in the top 40) | 6 / 0 | `shocks.json` | `moments[].sub_kind, other_top40` |
-| ChatGPT (2025-01-23): countries / minutes to half | 121 / 10 | `shocks.json` | `moments[ChatGPT]` |
-| Diogo Jota (2025-07-03): countries / minutes to half | 120 / 60 | `shocks.json` | `moments[Diogo Jota]` |
-| Hulk Hogan (2025-07-24): countries / minutes to half | 118 / 20 | `shocks.json` | `moments[Hulk Hogan]` |
-| Venezuela (2026-01-03): countries / minutes to half | 117 / 70 | `shocks.json` | `moments[Venezuela]` |
-| ChatGPT (2024-12-11): countries / minutes to half | 116 / 20 | `shocks.json` | `moments[ChatGPT]` |
+| ChatGPT (2025-01-23): event reach / within 60 min / minutes to half | 123 / 120 / 10 | `shocks.json` | `chart_top60.by_event_reach` |
+| Diogo Jota (2025-07-03): event reach / within 60 min / minutes to half | 122 / 90 / 60 | `shocks.json` | `chart_top60.by_event_reach` |
+| Pope Francis (2025-04-21): event reach / within 60 min / minutes to half | 120 / 109 / 10 | `shocks.json` | `chart_top60.by_event_reach` |
+| ChatGPT (2024-12-11): event reach / within 60 min / minutes to half | 119 / 116 / 20 | `shocks.json` | `chart_top60.by_event_reach` |
+| Venezuela (2026-01-03): event reach / within 60 min / minutes to half | 119 / 55 / 70 | `shocks.json` | `chart_top60.by_event_reach` |
 
 ## Appointments
 

@@ -823,6 +823,72 @@ Sample 1 (`docs/shock_validation_sample.csv`, 100 moments) is now the **tuning**
   - Biggest groups to review: Iran 22 Jun 2025 (54), Pope Francis 21 Apr 2025 and 22 Feb 2025 (7 each), Facebook 11 Dec 2024 (7), Venezuela 3 Jan 2026 (6), Anthony Joshua (6).
 - **Columns and order:** the file adds `earlier_countries` (countries where the candidate trended before the main topic) and `can_change`. Rows that can change a number come first, grouped by event in chart order (most countries added first); the no-effect rows follow.
 
+### Step 9, round 14 (2026-11-17): event groups reviewed, story on event reach
+
+**Review result** (`docs/event_groups_review.csv`): all 118 rows that can change a number are decided, 72 accepted and 46 rejected; 317 stay no-effect.
+- **Accepted, per event:**
+  - **Pope Francis, 21 Apr 2025:** Death of…, Quotes of…, Last appearance of…, Pope Francis Vatican, Name of…, Pope Francis death, and a second "Pope Francis" topic.
+  - **Iran, 22 Jun 2025:** 15 topics on the US strikes, among them US strikes on Iran, United States attacks Iran, Iran–United States conflict and USA vs Iran.
+  - **Facebook, 11 Dec 2024:** 7 outage and login topics.
+  - **Anthony Joshua:** 5 car-crash topics.
+  - **Chuck Norris:** 4 death topics.
+  - **Venezuela, 3 Jan 2026:** 5 topics.
+  - Smaller groups for the other events.
+
+**`make story` rerun on event reach.**
+- **Opening** (`opening.json`, basis "event reach"): Pope Francis main topic + 7 accepted topics, window 21 Apr 05:50 – 22 Apr 07:50 UTC. **120 countries, 109 within 60 min, 10 minutes to half**, first trend 07:50 UTC. Unchanged from the name-pattern version.
+- **Chart, top 20 by event reach** (event reach / within 60 min / minutes to half; moment reach in brackets):
+
+  | # | Shock | Date | Event reach | Within 60 min | Min to half | Moment reach |
+  |---:|---|---|---:|---:|---:|---:|
+  | 1 | ChatGPT | 2025-01-23 | 123 | 120 | 10 | (121) |
+  | 2 | Diogo Jota | 2025-07-03 | 122 | 90 | 60 | (120) |
+  | 3 | Pope Francis | 2025-04-21 | 120 | 109 | 10 | (101) |
+  | 4 | ChatGPT | 2024-12-11 | 119 | 116 | 20 | (116) |
+  | 5 | Venezuela | 2026-01-03 | 119 | 55 | 70 | (117) |
+  | 6 | Hulk Hogan | 2025-07-24 | 118 | 106 | 20 | (118) |
+  | 7 | Chuck Norris | 2026-03-20 | 116 | 2 | 140 | (91) |
+  | 8 | Eric Dane | 2026-02-20 | 112 | 58 | 60 | (112) |
+  | 9 | Ozzy Osbourne | 2025-07-22 | 110 | 104 | 10 | (110) |
+  | 10 | Michelle Trachtenberg | 2025-02-26 | 110 | 95 | 30 | (110) |
+  | 11 | Jimmy Carter | 2024-12-29 | 109 | 76 | 40 | (109) |
+  | 12 | Val Kilmer | 2025-04-02 | 109 | 60 | 50 | (109) |
+  | 13 | Gene Hackman | 2025-02-27 | 107 | 51 | 70 | (106) |
+  | 14 | Diane Keaton | 2025-10-11 | 102 | 77 | 40 | (101) |
+  | 15 | ChatGPT | 2025-11-18 | 100 | 1 | 200 | (86) |
+  | 16 | David Lynch | 2025-01-16 | 99 | 89 | 20 | (99) |
+  | 17 | Cloudflare outage | 2025-11-18 | 99 | 76 | 30 | (95) |
+  | 18 | Rob Reiner | 2025-12-15 | 99 | 4 | 160 | (99) |
+  | 19 | Google Gemini | 2025-01-23 | 96 | 90 | 10 | (96) |
+  | 20 | Roblox | 2025-08-23 | 96 | 1 | 490 | (96) |
+
+  The 60th chart shock by event reach is the YouTube outage of 15 Oct 2025 (62).
+- **STORY_NUMBERS.md:** the top five now quote event reach / within 60 min / minutes to half (`chart_top60.by_event_reach`). Pope Francis enters at 3rd and Hulk Hogan drops out of the five.
+
+**Open: "within 60 min" counts from the first trend.** For 17 chart shocks, one or two countries trended early and the main spike came hours later, so "within 60 min" is tiny. Examples: Chuck Norris 2 of 116 (81 countries by 3 h), ChatGPT 18 Nov 2025 1 of 100, Rob Reiner 4 of 99, Roblox 1 of 96, Google Gemini 11 Dec 2024 1 of 74, El Mencho, Kim Sae-ron, Frank Caprio, Pam Bondi, New Orleans. The global-moment rule avoids this by counting from the third country. Counting the event figures the same way would fix it; that is not changed yet and is a decision for you.
+
+**Ranks 61–100 by moment reach, checked for event reach.** Two bounds for each: the main topic alone, and every name-matched candidate that can change a number accepted.
+- **14 could beat the 60th chart shock (62)** under the upper bound:
+  - Taylor Swift 26 Aug 2025 (61–72);
+  - Jorge Costa (64–67);
+  - Elon Musk 20 Jan 2025 (66–68);
+  - Kristi Noem (69–70);
+  - Michail Antonio (62–65);
+  - Iran 5 Apr 2026 (64–82);
+  - ChatGPT 10 Jun 2025 (59–81);
+  - GTA 6 (57–73);
+  - Flightradar24 (59–63);
+  - Cloudflare outage 5 Dec 2025 (54–63);
+  - PlayStation Network (54–71);
+  - Nintendo Switch 2 (59–63);
+  - OPEC (54–63);
+  - Tomorrowland (53–68).
+- **4 beat it on their main topic alone:** Jorge Costa, Elon Musk, Kristi Noem, Iran.
+- None of the 14 was hand-labelled.
+- **Verification sheet:** `docs/shock_chart_verification_3.csv` (14 rows, same columns and links, empty labels; key `_3_key` with both bounds). It is part of the verification-sheet loop, so its labels override Claude after `make moments`.
+- **Their event-group candidates:** `docs/event_groups_review_extra.csv` (112 rows: 60 to review, 52 no-effect). It is kept apart so the finished review stays complete and step 8 keeps using it.
+- **Undecided:** whether the chart set should then be re-chosen by event reach (it is still the 60 widest by moment reach). Not changed.
+
 ## Open issues (need a decision)
 
 _Updated 2026-11-09, after the short-string, sport, 19:00 UTC and Wrapped fixes (rerun from combine: combine, link, validation, moments, export, profile, checks)._
