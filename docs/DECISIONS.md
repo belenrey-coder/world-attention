@@ -771,6 +771,19 @@ Sample 1 (`docs/shock_validation_sample.csv`, 100 moments) is now the **tuning**
 - **Result:** precision 0.706, recall 0.895. **Estimated true shocks: 475 [400, 548].**
   - Precision is lower than the 0.75 reported in round 9 because sport rows now count: a leaked sport moment that the rule flags is a false positive here.
 
+### Step 9, round 11 (2026-11-17): chart verified, story rebuilt
+
+- **Sheet 1** (`docs/shock_chart_verification.csv`, 53 rows): all labelled. 50 unscheduled, 3 scheduled (Robert Francis Prevost, Travis Scott, Olivia Rodrigo), none sport. Event types: death 27, outage 14, politics_conflict 6, viral_celebrity 3, other 3.
+- **After `make moments`:** the three scheduled moments are no longer shocks, and the next three widest moved into the chart set.
+- **Sheet 2** (`docs/shock_chart_verification_2.csv`, 3 rows): Joe Biden (unscheduled, viral_celebrity), New Orleans (unscheduled, disaster) and the YouTube outage (unscheduled, outage).
+- **All 60 chart shocks are hand-verified.** `make shocks-verify` writes no further sheet. 236 hand labels now override Claude. Shock moments: 596 in moments.parquet (610 by the rule alone).
+- **`make story` rerun.** `shocks.json` has **588 shocks**: death 115, outage 74, other 399. 117 are hand-verified, including the 60 in `chart_top60`. Before the verification labels, it had 602: death 111, outage 64, other 427.
+  - **Why the counts moved:** fewer shocks because some hand labels say scheduled; more outages because the hand labels now decide the death / outage / other split (14 outages in sheet 1 alone).
+- **STORY_NUMBERS.md** adds:
+  - chart set verified: 60 of 60;
+  - shocks verified by hand label: 117;
+  - estimated true number of shocks: **475 [400, 548]** (flagged 602 by the rule alone; precision 0.706, recall 0.895; round 10).
+
 ## Open issues (need a decision)
 
 _Updated 2026-11-09, after the short-string, sport, 19:00 UTC and Wrapped fixes (rerun from combine: combine, link, validation, moments, export, profile, checks)._

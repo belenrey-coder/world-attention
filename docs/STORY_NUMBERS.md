@@ -35,15 +35,19 @@ Conventions: national feeds; UTC unless a local hour is named; a moment is one t
 
 | number | value | file | key |
 |---|---|---|---|
-| Sport-free global shock moments | 602 | `shocks.json` | `moments` |
-| ... of kind other | 427 | `shocks.json` | `moments[].kind` |
-| ... of kind death | 111 | `shocks.json` | `moments[].kind` |
-| ... of kind outage | 64 | `shocks.json` | `moments[].kind` |
-| ... 'other' shocks of sub-kind viral or celebrity (all / in the top 40) | 173 / 14 | `shocks.json` | `moments[].sub_kind, other_top40` |
-| ... 'other' shocks of sub-kind other (all / in the top 40) | 72 / 3 | `shocks.json` | `moments[].sub_kind, other_top40` |
-| ... 'other' shocks of sub-kind politics or conflict (all / in the top 40) | 70 / 9 | `shocks.json` | `moments[].sub_kind, other_top40` |
-| ... 'other' shocks of sub-kind launch (all / in the top 40) | 70 / 7 | `shocks.json` | `moments[].sub_kind, other_top40` |
-| ... 'other' shocks of sub-kind disaster or accident (all / in the top 40) | 42 / 7 | `shocks.json` | `moments[].sub_kind, other_top40` |
+| Chart set: 60 widest shocks, of which hand-verified | 60 of 60 | `shocks.json` | `chart_top60` |
+| Shocks verified by hand label (all) | 117 | `shocks.json` | `moments[].verified` |
+| Estimated true number of shocks (flagged x precision / recall, 95% bootstrap interval) | 475 [400, 548] | `shocks.json` | `estimate_true_shocks` |
+| Sport-free global shock moments | 588 | `shocks.json` | `moments` |
+| ... of kind other | 399 | `shocks.json` | `moments[].kind` |
+| ... of kind death | 115 | `shocks.json` | `moments[].kind` |
+| ... of kind outage | 74 | `shocks.json` | `moments[].kind` |
+| ... 'other' shocks of sub-kind viral or celebrity (all / in the top 40) | 145 / 8 | `shocks.json` | `moments[].sub_kind, other_top40` |
+| ... 'other' shocks of sub-kind other (all / in the top 40) | 76 / 6 | `shocks.json` | `moments[].sub_kind, other_top40` |
+| ... 'other' shocks of sub-kind politics or conflict (all / in the top 40) | 72 / 15 | `shocks.json` | `moments[].sub_kind, other_top40` |
+| ... 'other' shocks of sub-kind launch (all / in the top 40) | 62 / 6 | `shocks.json` | `moments[].sub_kind, other_top40` |
+| ... 'other' shocks of sub-kind disaster or accident (all / in the top 40) | 38 / 5 | `shocks.json` | `moments[].sub_kind, other_top40` |
+| ... 'other' shocks of sub-kind markets (all / in the top 40) | 6 / 0 | `shocks.json` | `moments[].sub_kind, other_top40` |
 | ChatGPT (2025-01-23): countries / minutes to half | 121 / 10 | `shocks.json` | `moments[ChatGPT]` |
 | Diogo Jota (2025-07-03): countries / minutes to half | 120 / 60 | `shocks.json` | `moments[Diogo Jota]` |
 | Hulk Hogan (2025-07-24): countries / minutes to half | 118 / 20 | `shocks.json` | `moments[Hulk Hogan]` |
@@ -128,7 +132,7 @@ Conventions: national feeds; UTC unless a local hour is named; a moment is one t
 | Countries with a card | 125 | `wrapped/index.json` | `countries` |
 | Cards flagged low_data | 5 | `wrapped/index.json` | `countries[].low_data` |
 | Mean share of trends that are shock | 1.1% | `wrapped/<CC>.json` | `kind_shares.shock` |
-| Mean share of trends that are appointment | 47.5% | `wrapped/<CC>.json` | `kind_shares.appointment` |
+| Mean share of trends that are appointment | 47.6% | `wrapped/<CC>.json` | `kind_shares.appointment` |
 | Mean share of trends that are ritual | 5.1% | `wrapped/<CC>.json` | `kind_shares.ritual` |
 | Mean share of trends that are other | 46.2% | `wrapped/<CC>.json` | `kind_shares.other` |
 | Mean share of trends whose moment reached < 15 countries | 58.6% | `wrapped/<CC>.json` | `local_share` |
@@ -140,43 +144,43 @@ From `shocks.json` → `other_top40`. Sub-kinds are keyword rules (see `sub_kind
 | # | topic | date (UTC) | countries | min to half | Claude type | sub-kind | top phrasings |
 |---|---|---|---|---|---|---|---|
 | 1 | Venezuela | 2026-01-03 | 117 | 70 | place | politics or conflict | venezuela; венесуэла; فنزويلا |
-| 2 | Google Gemini | 2025-01-23 | 96 | 10 | product | launch | gemini; gemini ai |
-| 3 | Roblox | 2025-08-23 | 96 | 490 | product | launch | roblox |
-| 4 | Google Gemini | 2026-02-03 | 91 | 30 | product | launch | gemini |
-| 5 | James Van Der Beek | 2026-02-11 | 91 | 30 | person | viral or celebrity | james van der beek; james vanderbeek; джеймс ван дер бик |
-| 6 | El Mencho | 2026-02-22 | 89 | 260 | person | viral or celebrity | el mencho; эль менчо; nemesio oseguera cervantes |
-| 7 | ChatGPT | 2025-11-18 | 86 | 220 | product | launch | chat |
-| 8 | Travis Scott | 2025-05-11 | 83 | 50 | person | viral or celebrity | travis scott; camisa barcelona travis scott; cactus jack |
-| 9 | Luigi Mangione | 2024-12-09 | 81 | 100 | person | disaster or accident | luigi mangione; luigi |
-| 10 | Luka Dončić | 2025-02-02 | 79 | 70 | person | viral or celebrity | luka doncic; doncic; лука дончич |
-| 11 | Google Gemini | 2024-12-11 | 74 | 290 | product | launch | gemini; gemini ai |
-| 12 | Malcolm-Jamal Warner | 2025-07-21 | 73 | 100 | person | viral or celebrity | malcolm jamal warner; malcolm jamal; malcolm-jamal warner |
-| 13 | Pam Bondi | 2026-04-02 | 68 | 200 | person | viral or celebrity | pam bondi; fiscal general pam bondi; بام بوندي |
-| 14 | Robert Francis Prevost | 2025-05-08 | 67 | 50 | person | other | robert francis prevost; robert prevost; robert françois prevost |
-| 15 | Donald Trump | 2026-04-26 | 67 | 40 | person | politics or conflict | trump; donald trump; дональд трамп |
-| 16 | Air India crash | 2025-06-12 | 65 | 40 | event | disaster or accident | air india; air india crash; acidente avião air india sobrevivente |
-| 17 | Character.AI | 2025-01-06 | 64 | 10 | company | other | character ai |
-| 18 | Enhypen | 2026-03-10 | 64 | 150 | media | viral or celebrity | enhypen |
-| 19 | Anthony Joshua | 2025-12-29 | 63 | 80 | person | disaster or accident | anthony joshua; энтони джошуа |
-| 20 | New Orleans | 2025-01-01 | 62 | 190 | place | disaster or accident | new orleans; новый орлеан; новий орлеан |
-| 21 | Joe Biden | 2025-05-18 | 62 | 40 | person | politics or conflict | joe biden; байден; biden |
-| 22 | Iran | 2025-06-22 | 62 | 40 | place | politics or conflict | iran; ايران; ira |
-| 23 | Virginia Giuffre | 2025-04-26 | 61 | 140 | person | disaster or accident | virginia giuffre |
-| 24 | Taylor Swift | 2025-08-26 | 61 | 30 | person | viral or celebrity | taylor swift; тейлор свифт; تايلور سويفت |
-| 25 | Magdeburg Christmas market attack | 2024-12-20 | 60 | 110 | event | politics or conflict | magdeburg; maagdenburg |
-| 26 | Elon Musk | 2025-01-20 | 60 | 40 | person | politics or conflict | elon musk; ايلون ماسك |
-| 27 | Kristi Noem | 2026-03-05 | 60 | 80 | person | disaster or accident | kristi noem; kristie noem; кристи ноэм |
-| 28 | Michail Antonio | 2024-12-07 | 59 | 70 | person | disaster or accident | michail antonio |
-| 29 | Iran | 2026-04-05 | 59 | 40 | place | politics or conflict | irã; iran; إيران |
-| 30 | Tel Aviv | 2025-06-13 | 58 | 30 | place | politics or conflict | tel aviv; تل ابيب; тель авив |
-| 31 | Lyme disease | 2025-07-31 | 58 | 130 | other | other | lyme disease; болезнь лайма; enfermedad de lyme |
-| 32 | Millie Bobby Brown | 2025-08-21 | 58 | 50 | person | viral or celebrity | millie bobby brown; милли бобби браун |
-| 33 | John Ternus | 2026-04-20 | 58 | 50 | person | viral or celebrity | john ternus; джон тернус; john ternus apple |
-| 34 | GTA 6 | 2025-05-02 | 56 | 40 | product | launch | gta 6; гта 6 |
-| 35 | Rihanna | 2025-05-05 | 56 | 260 | person | viral or celebrity | rihanna; рианна |
-| 36 | Flightradar24 | 2025-06-23 | 56 | 90 | product | launch | flight radar; flightradar24 |
-| 37 | Prince Andrew | 2026-02-19 | 56 | 50 | person | politics or conflict | prince andrew; principe andres; andrew prince |
-| 38 | Terence Stamp | 2025-08-17 | 55 | 100 | person | viral or celebrity | terence stamp; actor terence stamp |
-| 39 | CNN | 2025-06-12 | 54 | 60 | media | viral or celebrity | cnn |
-| 40 | Christian Horner | 2025-07-09 | 54 | 30 | person | viral or celebrity | christian horner |
+| 2 | El Mencho | 2026-02-22 | 89 | 260 | person | politics or conflict | el mencho; эль менчо; nemesio oseguera cervantes |
+| 3 | Edoardo Bove | 2024-12-01 | 84 | 30 | person | other | bove; edoardo bove; fiorentina edoardo bove |
+| 4 | Luigi Mangione | 2024-12-09 | 81 | 100 | person | politics or conflict | luigi mangione; luigi |
+| 5 | Luka Dončić | 2025-02-02 | 79 | 70 | person | other | luka doncic; doncic; лука дончич |
+| 6 | Google Gemini | 2024-12-11 | 74 | 290 | product | launch | gemini; gemini ai |
+| 7 | Pope Francis | 2025-02-22 | 74 | 230 | person | other | le pape françois; pope francis; papa francesco |
+| 8 | Pam Bondi | 2026-04-02 | 68 | 200 | person | politics or conflict | pam bondi; fiscal general pam bondi; بام بوندي |
+| 9 | Donald Trump | 2026-04-26 | 67 | 40 | person | politics or conflict | trump; donald trump; дональд трамп |
+| 10 | Air India crash | 2025-06-12 | 65 | 40 | event | disaster or accident | air india; air india crash; acidente avião air india sobrevivente |
+| 11 | Enhypen | 2026-03-10 | 64 | 150 | media | viral or celebrity | enhypen |
+| 12 | Iran | 2025-06-22 | 62 | 40 | place | politics or conflict | iran; ايران; ira |
+| 13 | Joe Biden | 2025-05-18 | 62 | 40 | person | viral or celebrity | joe biden; байден; biden |
+| 14 | New Orleans | 2025-01-01 | 62 | 190 | place | disaster or accident | new orleans; новый орлеан; новий орлеан |
+| 15 | Taylor Swift | 2025-08-26 | 61 | 30 | person | viral or celebrity | taylor swift; тейлор свифт; تايلور سويفت |
+| 16 | Elon Musk | 2025-01-20 | 60 | 40 | person | politics or conflict | elon musk; ايلون ماسك |
+| 17 | Kristi Noem | 2026-03-05 | 60 | 80 | person | disaster or accident | kristi noem; kristie noem; кристи ноэм |
+| 18 | Magdeburg Christmas market attack | 2024-12-20 | 60 | 110 | event | politics or conflict | magdeburg; maagdenburg |
+| 19 | Michail Antonio | 2024-12-07 | 59 | 70 | person | disaster or accident | michail antonio |
+| 20 | Iran | 2026-04-05 | 59 | 40 | place | politics or conflict | irã; iran; إيران |
+| 21 | Tel Aviv | 2025-06-13 | 58 | 30 | place | politics or conflict | tel aviv; تل ابيب; тель авив |
+| 22 | Millie Bobby Brown | 2025-08-21 | 58 | 50 | person | viral or celebrity | millie bobby brown; милли бобби браун |
+| 23 | John Ternus | 2026-04-20 | 58 | 50 | person | viral or celebrity | john ternus; джон тернус; john ternus apple |
+| 24 | Lyme disease | 2025-07-31 | 58 | 130 | other | other | lyme disease; болезнь лайма; enfermedad de lyme |
+| 25 | Prince Andrew | 2026-02-19 | 56 | 50 | person | politics or conflict | prince andrew; principe andres; andrew prince |
+| 26 | GTA 6 | 2025-05-02 | 56 | 40 | product | launch | gta 6; гта 6 |
+| 27 | Flightradar24 | 2025-06-23 | 56 | 90 | product | launch | flight radar; flightradar24 |
+| 28 | Rihanna | 2025-05-05 | 56 | 260 | person | viral or celebrity | rihanna; рианна |
+| 29 | Terence Stamp | 2025-08-17 | 55 | 100 | person | viral or celebrity | terence stamp; actor terence stamp |
+| 30 | Instagram | 2025-07-09 | 54 | 40 | product | launch | instagram |
+| 31 | Christian Horner | 2025-07-09 | 54 | 30 | person | other | christian horner |
+| 32 | CNN | 2025-06-12 | 54 | 60 | media | viral or celebrity | cnn |
+| 33 | Nintendo Switch 2 | 2025-01-16 | 53 | 20 | product | launch | switch2; nintendo switch 2; switch 2 |
+| 34 | BBC | 2025-06-22 | 53 | 20 | media | politics or conflict | bbc |
+| 35 | OPEC | 2026-04-28 | 53 | 40 | company | other | opec |
+| 36 | Ross Ulbricht | 2025-01-21 | 53 | 130 | person | politics or conflict | ross ulbricht; росса ульбрихта; росс ульбрихт |
+| 37 | Dean Huijsen | 2025-06-05 | 53 | 70 | person | politics or conflict | dean huijsen; huijsen |
+| 38 | Tomorrowland | 2025-07-16 | 53 | 90 | event | disaster or accident | tomorrowland |
+| 39 | Google Maps | 2026-03-26 | 52 | 30 | product | launch | maps |
+| 40 | Dean Huijsen | 2025-06-08 | 52 | 50 | person | politics or conflict | dean huijsen; دین هویسن; huijsen |
 
