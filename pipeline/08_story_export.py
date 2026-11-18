@@ -147,21 +147,35 @@ def top_phrasings(rows, k=8):
 
 # ------------------------------------------------------------------ 1 opening
 print("opening ...", flush=True)
-pope = topics_where(r"pope francis|death of pope francis")
-lo = pd.Timestamp("2025-04-21 06:00", tz="UTC")
-hi = lo + pd.Timedelta(hours=24)
+# Event reach (Step 9 round 12): once docs/event_groups_review.csv is fully reviewed, the opening counts the Pope's
+# event group (main topic + accepted topics) from 2 h before the moment start to 24 h after; before that, the older
+# name pattern and fixed window.
+import events as EV  # noqa: E402
+EVENT_GROUPS = EV.load_groups(DOCS) if EV.reviewed(DOCS) else None
+OPENING_TOPIC, OPENING_DAY = "Q450675", "2025-04-21"
+_pm = m[(m.topic_id == OPENING_TOPIC) & m.is_global & (m.start_utc.dt.strftime("%Y-%m-%d") == OPENING_DAY)]
+if EVENT_GROUPS is not None and len(_pm):
+    _pm = _pm.sort_values("reach", ascending=False).iloc[0]
+    pope = {OPENING_TOPIC} | EVENT_GROUPS.get(int(_pm.moment_id), set())
+    lo, hi = EV.window(_pm.start_utc)
+    opening_basis = "event reach: event group from docs/event_groups_review.csv, moment start - 2 h to + 24 h"
+else:
+    pope = topics_where(r"pope francis|death of pope francis")
+    lo = pd.Timestamp("2025-04-21 06:00", tz="UTC")
+    hi = lo + pd.Timedelta(hours=24)
+    opening_basis = "name pattern 'pope francis' and 21 Apr 06:00 - 22 Apr 06:00 UTC (event groups not reviewed yet)"
 pr = t[t.topic_id.isin(pope) & (t.start_time_utc >= lo) & (t.start_time_utc < hi)]
 first = pr.groupby("country_code").start_time_utc.min().sort_values()
-t0 = first.iloc[0]
+t0 = _pm.start_utc if EVENT_GROUPS is not None and not isinstance(_pm, pd.DataFrame) else first.iloc[0]
 phr = (pr.groupby(["country_code", "query_raw"]).size().reset_index(name="k")
        .sort_values(["country_code", "k"], ascending=[True, False]).drop_duplicates("country_code")
        .set_index("country_code").query_raw)
 ctry = [{"country_code": c, "country_name": cname.get(c), "first_trend_utc": iso(ts),
-         "minutes_from_first": int(round((ts - t0).total_seconds() / 60)), "top_phrasing": phr.get(c)}
+         "minutes_from_first": max(0, int(round((ts - t0).total_seconds() / 60))), "top_phrasing": phr.get(c)}
         for c, ts in first.items()]
 mins = np.array([c["minutes_from_first"] for c in ctry])
 half = int(np.sort(mins)[math.ceil(len(mins) / 2) - 1])
-opening = {"event": "Death of Pope Francis (announced 2025-04-21 07:47 UTC)",
+opening = {"event": "Death of Pope Francis (announced 2025-04-21 07:47 UTC)", "basis": opening_basis,
            "topics": sorted(pope & set(pr.topic_id)), "window_utc": [iso(lo), iso(hi)],
            "first_trend_utc": iso(t0), "countries": len(ctry), "minutes_to_half": half,
            "within_60_min": int((mins <= 60).sum()), "by_country": ctry,
@@ -378,6 +392,15 @@ for r in gm.itertuples():
                    "curve_first_3h": [[x, int((mm <= x).sum())] for x in range(0, 181, 10)]})
 shocks.sort(key=lambda d: (-d["reach"], -d["reach_60"]))
 chart = shocks[:CHART_N]      # the chart set: the 60 widest shocks (verification sheets, Step 9 round 10)
+# readers see EVENT reach for the chart shocks (Step 9 round 12): main topic + accepted topics about the same event
+if EVENT_GROUPS is not None:
+    for x in chart:
+        grp = {x["topic_id"]} | EVENT_GROUPS.get(x["moment_id"], set())
+        em = EV.metrics(t, grp, pd.Timestamp(x["date_utc"].replace("Z", ""), tz="UTC"))
+        x.update(event_reach=em["event_reach"], event_reach_60=em["event_reach_60"],
+                 event_minutes_to_half=em["event_minutes_to_half"],
+                 event_topics=sorted(name.get(g, g) for g in grp))
+chart_by_event = sorted(chart, key=lambda d: (-d.get("event_reach", d["reach"]), -d.get("event_reach_60", d["reach_60"])))
 _est = load_json(WORK / "shock_estimate.json") if (WORK / "shock_estimate.json").exists() else None
 write("shocks.json", {"note": "Sport-free global moments (>= 15 countries within 60 min of the third country) that "
                                "Claude (shock-v2, the moment's own searches) calls unscheduled with confidence >= 0.5 "
@@ -401,7 +424,16 @@ write("shocks.json", {"note": "Sport-free global moments (>= 15 countries within
                                              "verified = hand-labelled unscheduled; hand-labelled scheduled moments "
                                              "are not shocks, so the next widest moves up.",
                                      "moment_ids": [x["moment_id"] for x in chart],
-                                     "verified": sum(x["verified"] for x in chart)},
+                                     "verified": sum(x["verified"] for x in chart),
+                                     "reach_basis": "event reach (main topic + accepted topics about the same event, "
+                                                    "moment start - 2 h to + 24 h)" if EVENT_GROUPS is not None
+                                                    else "moment reach (event groups not reviewed yet)",
+                                     "by_event_reach": [{"moment_id": x["moment_id"], "name": x["name"],
+                                                         "date_utc": x["date_utc"],
+                                                         "event_reach": x.get("event_reach"),
+                                                         "event_reach_60": x.get("event_reach_60"),
+                                                         "event_minutes_to_half": x.get("event_minutes_to_half"),
+                                                         "moment_reach": x["reach"]} for x in chart_by_event]},
                      "estimate_true_shocks": _est,
                      "moments": shocks})
 kc = pd.Series([s["kind"] for s in shocks]).value_counts().to_dict()
@@ -418,9 +450,15 @@ oth = [x for x in shocks if x["kind"] == "other"]
 for k_, v in pd.Series([x["sub_kind"] for x in oth]).value_counts().items():
     num("Shocks", f"... 'other' shocks of sub-kind {k_} (all / in the top 40)",
         f"{v} / {sum(1 for x in oth[:40] if x['sub_kind'] == k_)}", "shocks.json", "moments[].sub_kind, other_top40")
-for s_ in shocks[:5]:
-    num("Shocks", f"{s_['name']} ({s_['date_utc'][:10]}): countries / minutes to half",
-        f"{s_['reach']} / {s_['minutes_to_half']}", "shocks.json", f"moments[{s_['name']}]")
+if EVENT_GROUPS is not None:
+    for s_ in chart_by_event[:5]:
+        num("Shocks", f"{s_['name']} ({s_['date_utc'][:10]}): event reach / within 60 min / minutes to half",
+            f"{s_['event_reach']} / {s_['event_reach_60']} / {s_['event_minutes_to_half']}", "shocks.json",
+            "chart_top60.by_event_reach")
+else:
+    for s_ in shocks[:5]:
+        num("Shocks", f"{s_['name']} ({s_['date_utc'][:10]}): countries / minutes to half",
+            f"{s_['reach']} / {s_['minutes_to_half']}", "shocks.json", f"moments[{s_['name']}]")
 
 # ------------------------------------------------------------------ 4 appointments
 print("appointments ...", flush=True)

@@ -784,6 +784,36 @@ Sample 1 (`docs/shock_validation_sample.csv`, 100 moments) is now the **tuning**
   - shocks verified by hand label: 117;
   - estimated true number of shocks: **475 [400, 548]** (flagged 602 by the rule alone; precision 0.706, recall 0.895; round 10).
 
+### Step 9, round 12 (2026-11-17): event reach for readers
+
+**Two counts, and why they differ (Pope Francis, 21 Apr 2025).** `opening.json` said 120 countries in 24 h, 109 within 60 min. `shocks.json` said reach 101, reach_60 92.
+- **The opening** counts 15 topics matching "pope francis" over a fixed window, 21 Apr 06:00 – 22 Apr 06:00 UTC.
+- **The shock** counts one topic (Q450675) and only the countries whose session of it *starts* in the burst that began 07:50 UTC.
+- **The 19 countries in the opening but not the shock:**
+  - **6 through other topics only:** Argentina ("murio el papa"), Kazakhstan ("папа римский умер"), Lithuania ("pope died") and Kenya ("pope francis death"), all through "Death of Pope Francis"; Colombia ("Quotes of Pope Francis"); Costa Rica ("Pope Francis Vatican", 22 Apr 01:30).
+  - **13 through the Easter overlap:** France, Romania, Switzerland, Slovakia, Belgium, Italy, Poland, Hungary, Croatia, Bulgaria, Brazil, the United States and Mexico. They were trending the Pope from Easter weekend (sessions from 19–20 Apr), so their searches on the 21st belong to the Easter moment.
+- **The first-hour gap** (109 vs 92) has the same 17 countries behind it: all of them are missing from the shock moment entirely.
+- **The same 24 h count (name-matched topics) for the top shocks:** ChatGPT 23 Jan 2025 123, Diogo Jota 122, **Pope Francis 120**, Venezuela 120 (a loose match), ChatGPT 11 Dec 2024 119, Hulk Hogan 118. Pope Francis ranks 3rd by that measure, 6th by its own topic over 24 h (114), and about 13th by moment reach (101).
+
+**Definition** (`pipeline/events.py`):
+- **Event reach** = countries where any topic in the event's group trended from 2 h before the moment start to 24 h after.
+- **Event reach within 60 min** and **event minutes to half** are counted from the moment start; rows up to 2 h earlier count as minute 0. This differs from the moment's `reach_60`, which counts from the third country's first trend.
+- **The event group** = the moment's topic + the candidate topics accepted by hand.
+- **Event reach is what readers see** for the opening and the 60 chart shocks. **Moment reach stays internal:** shock detection, the global-moment rule, the time machine.
+- **The chart set itself is still chosen by moment reach** (the 60 widest verified shocks) and then shown and ranked by event reach. A shock outside the 60 could have a larger event reach.
+
+**Candidates** (`09_validate_shocks.py event-groups` → `docs/event_groups_review.csv`, git-ignored):
+- **What counts as a candidate:** for each chart shock, every non-junk topic that trended in the event window and whose name matches. That means the same name, a name containing the event's name ("Death of Pope Francis"), a multi-word name inside it, or, for people, the surname (flagged "surname only: check it is the same person").
+- **Columns:** event, candidate topic, match kind, top phrasings in the window, countries in the window, countries added (those that didn't trend the main topic) and their codes, and an empty `accept`.
+- **Nothing is auto-accepted.** Events with more than 25 candidates are flagged "generic". Result: 435 candidates for 53 of the 60 events (7 have none), 95 of which add at least one country. Generic: Iran 22 Jun 2025 (84 candidates) and Venezuela 3 Jan 2026 (39).
+
+**After the review** (not done yet):
+- `make story` uses the accepted groups once every row has a decision. `opening.json` and `shocks.json` → `chart_top60.by_event_reach` then carry event reach, event reach within 60 min and event minutes to half, and STORY_NUMBERS lists the top five by event reach.
+- Until then, step 8 keeps the old opening (name pattern, fixed window) and moment reach.
+- A dry run with only full-name matches accepted reproduced the opening's 120 / 109 / 10 minutes.
+
+**METHODOLOGY.md:** new section "Moment reach and event reach" with the Pope Francis example. "Moments" and "Kinds" are updated to the current rules (moment-level sport, moment kinds, the validated shock rule, waves as a topic pattern, junk topics).
+
 ## Open issues (need a decision)
 
 _Updated 2026-11-09, after the short-string, sport, 19:00 UTC and Wrapped fixes (rerun from combine: combine, link, validation, moments, export, profile, checks)._

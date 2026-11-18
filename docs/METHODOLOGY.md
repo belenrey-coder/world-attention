@@ -43,18 +43,30 @@ Each step is a script in [`pipeline/`](../pipeline); `make` targets run them in 
 4. **Moments** (`04_moments.py`).
    - **Moment:** one topic in one burst of attention. In each country, a topic's trends form one session until the country goes 24 hours without it. A new moment starts when the next session starts more than 6 hours after the previous one.
    - **Global moment:** a moment in which **at least 15 countries had started trending the topic within 60 minutes of the third country's first trend**. Measuring from the third country keeps one or two early outliers from hiding a real global spike.
-   - **Sport:** each moment carries `is_sport`. That's matches and teams in Claude's labels, plus leagues and competitions by name; athletes are not counted.
+   - **Sport:** each moment carries `is_sport`. A moment is sport if its topic is a match, team, league or competition. For global moments it is also sport if it is an athlete, club, sport site or club city on a competition day: a fixture in the moment's own searches, a club's match within hours, or a major event of the athlete's sport (tennis, F1, golf, cricket, the 2026 Winter Olympics). Deaths, health emergencies, crime and announcements (transfers, firings) are never sport, even on match days (DECISIONS.md, Step 9).
    - **How many:** 8,014 global moments in total (STORY_NUMBERS.md, "Time machine").
-5. **Kinds** (`08_story_export.py`, the same rules as [`STORY_CANDIDATES.md`](STORY_CANDIDATES.md)). Each topic gets one of five kinds, by rule, from Claude's type and its timing:
-   - **ritual:** weather, holidays, lotteries, prayer times, daily puzzles and prices, or a product or company that keeps coming back (15+ separate moments of 10+ countries, outside sport);
-   - **appointment:** scheduled in advance: sport, finals, awards, elections, releases, launches, draws, and people who trend in 10+ separate moments (athletes, performers);
-   - **shock:** sudden and unscheduled. Half of its countries are reached within 3 hours, in 20+ countries, with at most 4 days in 10+ countries. Mostly deaths and outages;
-   - **wave:** spreads more slowly or lasts longer (AI products, long news stories);
-   - **local:** its biggest moment reached fewer than 15 countries (unless it's a ritual).
+5. **Kinds and shocks** (`kinds.py`, used by `04_moments.py` and `08_story_export.py`).
+   - **Each moment gets a kind:**
+     - **shock:** a global, non-sport moment whose cause nobody could have known in advance. Claude reads the moment's own searches and decides scheduled or unscheduled; shock = unscheduled with confidence ≥ 0.5. Every moment we labelled by hand (two validation samples and the 60 widest shocks) uses our label instead.
+     - **appointment:** scheduled: sport, a scheduled-event name (final, awards, election, launch, …), or Claude says scheduled.
+     - **ritual:** the topic is recurring by nature: weather, holidays, lotteries, prayer times, daily prices, or a product or company that keeps coming back.
+     - **other:** everything else.
+   - **Validation of the shock rule:** two hand-labelled samples, the second a test set never used for tuning. Pooled over both, about **three in four** moments the rule calls shocks really are unscheduled, and it finds about **nine in ten** real ones (precision 0.75 [0.64, 0.86], recall 0.89 [0.81, 0.96], non-sport rows, weighted). That puts the true number of shocks at about **475 [400, 548]** (STORY_NUMBERS.md, "Shocks").
+   - **Waves are a topic pattern, not a kind.** A topic is a wave if it trended in 15+ countries in at least 3 separate months (sport, athletes, rituals and junk excluded), and *constant* if it did so in 12+ months.
+   - **Junk topics** (single letters, bare numbers, stopwords, generic words such as "news" or "video") are left out everywhere.
 
-   These are reading aids, not ground truth. The sub-labels for shocks (death, outage, disaster, politics, …) are keyword rules too, and some are wrong; STORY_NUMBERS.md lists the biggest so they can be checked.
-6. **Checks** (`07_checks.py` → [`CHECKS.md`](CHECKS.md)): known events, time zones, collection artifacts, sensitivity to thresholds, collection gaps, and the integrity of the exported files.
-7. **Story export** (`08_story_export.py` → `data/export/story/` and [`STORY_NUMBERS.md`](STORY_NUMBERS.md)): one data file per chapter, plus every number the article quotes with the file and key it comes from.
+   These are reading aids, not ground truth. The death / outage / other split of shocks is a keyword rule (an outage needs "down", "not working" or similar in the moment's own searches), except where we labelled the moment by hand.
+6. **Moment reach and event reach.** The article uses two ways of counting a moment's countries:
+   - **Moment reach** (internal: shock detection, the time machine) counts the countries whose session of **one topic** starts in **one burst**.
+   - **Event reach** (what readers see in the opening and the chart of the 60 widest shocks) counts the countries where **any topic about the same event** trended from **2 hours before to 24 hours after** the moment started. Each event's topics were proposed by name matching and accepted or rejected by hand. Its "within 60 minutes" and "minutes to half" are counted from the moment's start.
+
+   **Why they differ: Pope Francis, 21 April 2025.** Moment reach is 101 countries; event reach is 120. Two reasons:
+   - **Split topics.** In some countries people searched mostly "murió el papa", "pope died" or "frases del papa francisco". Those became separate topics ("Death of Pope Francis", "Quotes of Pope Francis"), so Argentina, Kazakhstan, Lithuania, Kenya, Colombia and Costa Rica never trended the main "Pope Francis" topic in that window.
+   - **Easter overlap.** Italy, France, Poland, the United States, Mexico, Brazil and seven other countries were already trending the Pope from Easter weekend (19–20 April). Their searches on the 21st continue that session, so the moment rule counts them in the Easter moment, not as joining the new spike.
+
+   Event reach also explains the first-hour gap: 109 countries within 60 minutes by event reach, 92 by moment reach. For most other big shocks the two counts are nearly the same, because nobody was already searching for them.
+7. **Checks** (`07_checks.py` → [`CHECKS.md`](CHECKS.md)): known events, time zones, collection artifacts, sensitivity to thresholds, collection gaps, and the integrity of the exported files.
+8. **Story export** (`08_story_export.py` → `data/export/story/` and [`STORY_NUMBERS.md`](STORY_NUMBERS.md)): one data file per chapter, plus every number the article quotes with the file and key it comes from.
 
 ## Limitations
 

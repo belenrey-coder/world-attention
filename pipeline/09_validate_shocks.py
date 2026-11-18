@@ -10,6 +10,7 @@
     python pipeline/09_validate_shocks.py score2       # after hand labelling sample 2 -> docs/SHOCK_VALIDATION_2.md
     python pipeline/09_validate_shocks.py verify-sheet # next chart verification sheet (60 widest shocks, unlabelled ones)
     python pipeline/09_validate_shocks.py estimate     # true number of shocks = flagged x precision / recall (+ 95% CI)
+    python pipeline/09_validate_shocks.py event-groups # candidate topics per chart event -> docs/event_groups_review.csv
     python pipeline/09_validate_shocks.py sport-check  # proposed is_sport fix (pipeline/sport.py) on all candidates
 
 Candidates: every non-sport global moment (is_global, is_sport false, topic not hidden). "Current shocks" are the
@@ -852,6 +853,26 @@ def verify_sheet(t, meta, m):
     helpers(sp, kp)
 
 
+def event_groups(t, meta, m):
+    """Candidate topics for each chart shock's event group -> docs/event_groups_review.csv (git-ignored): name
+    matching proposes, the hand review accepts (column accept). Refuses to overwrite a file with decisions."""
+    import events as ev
+    p = DOCS / ev.REVIEW_FILE
+    if p.exists() and (pd.read_csv(p, dtype=str, keep_default_na=False).accept.str.strip() != "").any():
+        sys.exit(f"{p} already has accept decisions: not overwritten (move it away to rebuild)")
+    pool, _ = chart_pool(t, meta, m)
+    top = pool.head(CHART_N)
+    tt = pd.read_parquet(INTERIM / "topics.parquet", columns=["topic_id", "country_code", "level", "start_time_utc", "query_raw"])
+    tt = tt[(tt.level == "country") & tt.topic_id.notna()]
+    rows = ev.candidates(top[["topic_id", "moment_id", "start_utc"]].assign(event=top.topic_name), tt, meta)
+    rows.to_csv(p, index=False)
+    per = rows.groupby("event", sort=False).size() if len(rows) else pd.Series(dtype=int)
+    print(f"wrote {p}: {len(rows)} candidate topics for {per.size} of {len(top)} chart events "
+          f"(no candidates: {len(top) - per.size}); generic events (> {ev.MANY_CANDIDATES} candidates): "
+          f"{', '.join(f'{k} {v}' for k, v in per[per > ev.MANY_CANDIDATES].items()) or 'none'}")
+    print("fill `accept` with yes or no for every row (yes = the topic is about the same event)")
+
+
 def estimate(t, meta, m):
     """True number of shocks = flagged x precision / recall. flagged = moments the rule alone flags (is_shock_rule:
     Claude unscheduled, conf >= 0.5, rule-based sport) among the shocks.json population (not hidden, named).
@@ -947,13 +968,13 @@ if __name__ == "__main__":
         score2()
     elif stage == "helpers":
         helpers()
-    elif stage in ("verify-sheet", "estimate"):
+    elif stage in ("verify-sheet", "estimate", "event-groups"):
         import importlib.util
         spec = importlib.util.spec_from_file_location("export05", Path(__file__).parent / "05_export.py")
         ex = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(ex)
         t, meta, m = ex.load()
-        (verify_sheet if stage == "verify-sheet" else estimate)(t, meta, m)
+        {"verify-sheet": verify_sheet, "estimate": estimate, "event-groups": event_groups}[stage](t, meta, m)
     elif stage in ("thresholds", "label", "label2", "sample", "sample2", "sport-check"):
         t, meta, m, cand, n_cur = load()
         if stage == "thresholds":

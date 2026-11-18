@@ -26,6 +26,7 @@ docs/shock_validation_key.csv
 docs/shock_validation_sample2.csv
 docs/shock_validation_key2.csv
 docs/shock_chart_verification*.csv
+docs/event_groups_review.csv
 
 # R session history
 docs/.Rhistory

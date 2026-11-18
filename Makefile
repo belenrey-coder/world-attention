@@ -1,7 +1,7 @@
 PY := .venv/bin/python
 T  := pipeline/03_topics.py
 
-.PHONY: setup download clean-data strings typos embed semantic combine link validation topics moments export profile checks story shocks-thresholds shocks-label shocks-label2 shocks-sample shocks-sample2 shocks-score shocks-score2 shocks-verify shocks-estimate after-topics score
+.PHONY: setup download clean-data strings typos embed semantic combine link validation topics moments export profile checks story shocks-thresholds shocks-label shocks-label2 shocks-sample shocks-sample2 shocks-score shocks-score2 shocks-verify shocks-estimate event-groups after-topics score
 
 setup:
 	python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
@@ -29,6 +29,7 @@ shocks-score:      ; $(PY) pipeline/09_validate_shocks.py score
 shocks-score2:     ; $(PY) pipeline/09_validate_shocks.py score2
 shocks-verify:     ; $(PY) pipeline/09_validate_shocks.py verify-sheet
 shocks-estimate:   ; $(PY) pipeline/09_validate_shocks.py estimate
+event-groups:      ; $(PY) pipeline/09_validate_shocks.py event-groups
 score:             ; $(PY) pipeline/score_validation.py
 
 # Step 3 without any paid API call (Claude labels are read from cache/claude/)
