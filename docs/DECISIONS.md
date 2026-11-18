@@ -940,6 +940,75 @@ Sample 1 (`docs/shock_validation_sample.csv`, 100 moments) is now the **tuning**
 
 - **Not covered:** shocks below the 100 widest by moment reach (moment reach ≤ 52) were not checked for event reach. To reach 67 they would need 15+ extra countries from split topics.
 
+### Step 9, round 17 (2026-11-18): Appointments chapter, preparation
+
+**Scope:** every global moment of kind appointment (`pipeline/appointments.py`; `09_validate_shocks.py appointments`, `make appointments-prep`; step 8 chapter `appointments.json`, not run).
+
+**Figures per moment**, the same definition as the shock chart:
+- **Event reach:** main topic + accepted topics about the same event, from 2 h before the moment start to 24 h after.
+- **Within 60 min and minutes to half:** from the third country's first trend.
+- **Event curve:** countries started every 10 min for 6 h, from the same reference.
+- **Until the appointment event groups are reviewed,** event reach uses the main topic only.
+
+**Category rule** (first match wins):
+- **Sport moments:**
+  - **other sport:** the name or sport evidence matches NBA, NFL, NHL, MLB, UFC, boxing, WWE, cricket / IPL / T20, tennis (ATP, WTA, the Slams), F1 / Grand Prix, MotoGP, golf, the Olympics, rugby, cycling, darts, basketball, …; or a Wikidata description of the topic or of either side of the fixture names a non-football sport (basketball, American football, baseball, ice hockey, cricket, tennis, racing, golf, …);
+  - **football:** every other sport moment.
+- **Non-sport moments,** read on the name + Claude's one-line summary (shock-v2) + the moment's own searches:
+  - **religious:** conclave, pope, Vatican, Ramadan, Eid, Easter, …;
+  - **award/ceremony:** Oscars, Grammys, Golden Globes, Emmys, Nobel, Eurovision, Ballon d'Or, The Game Awards, "awards", "ceremony", nominations;
+  - **election/politics:** elections, votes, inaugurations, speeches, debates, summits, budgets, White House / Oval Office meetings, press conferences;
+  - **holiday:** Christmas, New Year, Halloween, Valentine's, Mother's Day, Black Friday, carnival, …;
+  - **launch/release:** product events, film / series / game / album releases, trailers, premieres;
+  - **other:** the rest.
+- **First version fixed:** "olimpi…" matched the club Olimpia (Paraguay), so the Olympics now need "olympics / olimpiadas / juegos olímpicos / …"; meetings and press conferences were added to politics.
+- **Holidays are mostly rituals** (type holiday), so they rarely become appointments.
+
+**Counts** (shown moments: not hidden, named):
+- **7,286 appointments = 91.1% of the 7,999 global moments;** sport 7,120, non-sport 166.
+- **By category:** football 5,880, other sport 1,240, holiday 3, award/ceremony 42, election/politics 11, launch/release 49, religious 2, other 59.
+
+**Top 10 per category** (event reach, main topic only):
+- **football:** Barcelona vs Inter 6 May 2025 (125), PSG vs Arsenal 7 May 2025 (124), Real Madrid vs Rayo Vallecano 1 Feb 2026 (123), Sevilla vs Barcelona (123), Alavés vs Real Madrid 14 Dec 2025 (123), Barcelona vs Alavés (122), Real Madrid vs Rayo 9 Mar 2025 (122), Atlético vs Barcelona 2 Apr 2025 (122), Real Madrid vs Leganés 5 Feb 2025 (122), Talavera vs Real Madrid (122).
+- **other sport:** Carlos Alcaraz 8 Jun 2025 (96), NBA 20 Jun 2025 (94), Formula One 25 May 2025 (92), NBA 22 Jun 2025 (87), Jannik Sinner 13 Jul 2025 (87), Formula One 29 Jun 2025 (86), Sinner 8 Jun 2025 (82), Roland Garros 8 Jun 2025 (81), Formula One 6 Jul 2025 (81), Formula One 4 May 2025 (79).
+- **holiday (3 in all):** Riccardo Muti 1 Jan 2025 (30) and Yannick Nézet-Séguin 1 Jan 2026 (26), both Vienna New Year's Concert conductors; Green Day 8 Feb 2026 (21).
+- **award/ceremony:** Bianca Censori (Grammys, 102), María Corina Machado (Nobel, 67), Amy Madigan (51), No Other Land (45), Timothée Chalamet (42), Elden Ring Nightreign (42), Flow (film) (40), Olivia Dean (39), Astro Bot (39), Emilia Pérez (36).
+- **election/politics:** Elon Musk 20 Jan 2025 (66), CDU/CSU 23 Feb 2025 (56), Kash Patel (42), Carrie Underwood (inauguration, 41), AfD (40), Die Linke (35), Greens (31), BSW (27), Donald Trump 16 Jun 2025 (26), Bill Clinton (inauguration, 22).
+- **launch/release:** iPhone 16e (84), BTS 4 Mar 2026 (65), Samsung 30 Dec 2025 (63), Epic Games 15 May 2025 (56), Shrek 5 (56), Spotify 4 Dec 2024 (54), Steam Machine (53), Netflix 26 Nov 2025 (48), iPhone 17e (46), Epic Games 29 Apr 2025 (41).
+- **religious (2 in all):** Robert Francis Prevost 8 May 2025 (68), Pope Benedict XVI 8 May 2025 (19).
+- **other:** Travis Scott 11 May 2025 (83), Olivia Rodrigo 10 May 2026 (71), MetLife Stadium 13 and 9 Jul 2025 (55, 51), Pizza (51), Bibi (48), Perplexity AI (45), Volodymyr Zelensky 28 Feb 2025 (43), Heidi Klum 5 Dec 2025 (38), CNN 21 Apr 2025 (33).
+- **Things to check:**
+  - Green Day under holiday;
+  - MetLife Stadium (Club World Cup final days) and Zelensky's Oval Office meeting under other;
+  - Elon Musk 20 Jan 2025 under politics (hand-labelled scheduled: inauguration day).
+
+**Top 20 by event reach** are all football. The widest is Barcelona vs Inter, 6 May 2025 (125). Football's first-hour figures are low (Barcelona vs Inter: 17 within 60 min, 90 minutes to half), because a fixture trends for hours before kickoff and countries join gradually.
+
+**Chart set**, stratified: the top 10 football and the top 5 of each other category (holiday and religious have only 3 and 2), 40 moments.
+- **Event-group candidates:** `docs/event_groups_review_appointments.csv` (git-ignored). Same format and no-effect rule as the shocks; 164 candidates, **77 to review**, 87 no-effect.
+- **The two chapters switch separately:** the shock chapter now reads only its own review files (`events.SHOCK_REVIEW_FILES`) and the appointments chapter only `event_groups_review_appointments.csv` (`events.APPOINTMENT_REVIEW_FILES`), so an unreviewed appointments file can't switch the shocks back to moment reach.
+- **Verification:** 12 of the 40 are already hand-labelled (verified). `docs/appointment_chart_verification.csv` (git-ignored, same columns and helper links, empty labels) holds the other **28**; its key `appointment_chart_verification_key.csv` has the category and Claude's label. Its labels join the hand-label overrides (`kinds.HAND_SHEETS`) on the next `make moments`.
+- **`appointments.json`** (dry run only): counts, category rule, the chart set with curves, and the top 20 by event reach; monthly files `appointments/YYYY-MM.json` carry every moment with its curve (19 files, largest 108 kB). `verified` = hand-labelled scheduled. STORY_NUMBERS gets an "Appointments" section on the next `make story`.
+
+**Surprise inside an appointment** (`work/appointment_surprises.csv`, local): 29 global moments hand-labelled scheduled with type viral_celebrity or other.
+- **How the appointment is matched:** an appointment-kind moment (reach ≥ 10) starting from 12 h before to 6 h after, whose name the moment's own searches or Claude's summary contain. No guessing by time.
+- **Matched (8):**
+  - Travis Scott 11 May 2025 → FC Barcelona (El Clásico day);
+  - Olivia Rodrigo 10 May 2026 → FC Barcelona;
+  - Flow (film) → Oscars 2025;
+  - Mick Jagger → Oscars 2025;
+  - Adam Sandler → Timothée Chalamet (Oscars night);
+  - Taylor Swift 9 Feb 2025 → Super Bowl;
+  - Iceland at Eurovision 2025 → Eurovision 2025;
+  - Erika Vikman → Eurovision.
+- **Not matched (21),** among them:
+  - Robert Francis Prevost: the papal election is the moment itself;
+  - María Corina Machado (Nobel day);
+  - Amy Madigan, Robert Redford and Diane Keaton on 15–16 Mar 2026 (Oscars night);
+  - Heidi Klum, Rio Ferdinand and Nicole Scherzinger on 5 Dec 2025 (World Cup draw);
+  - "2026 Grammy Award nominations".
+  - Their ceremonies either have no appointment moment of reach ≥ 10 or aren't named in their searches; the list keeps Claude's summary for checking.
+
 ## Open issues (need a decision)
 
 _Updated 2026-11-09, after the short-string, sport, 19:00 UTC and Wrapped fixes (rerun from combine: combine, link, validation, moments, export, profile, checks)._

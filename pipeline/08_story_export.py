@@ -624,6 +624,76 @@ for k, rows in daily.items():
     b = max(rows, key=lambda d: d[1])
     num("Waves", f"{k}: peak day Mar-Apr 2025 and countries", f"{b[0]}: {b[1]}", "waves.json", f"daily.{k}")
 
+# ------------------------------------------------------------------ 5b appointments
+print("appointments ...", flush=True)
+# every global moment of kind appointment (Step 9 round 17; pipeline/appointments.py): category, event reach
+# (main topic + accepted topics about the same event once docs/event_groups_review_appointments.csv is reviewed),
+# within 60 min and minutes to half from the third country, and a 10-minute curve over 6 h
+import appointments as AP  # noqa: E402
+APPT_GROUPS = EV.load_groups(DOCS, EV.APPOINTMENT_REVIEW_FILES) if EV.reviewed(DOCS, EV.APPOINTMENT_REVIEW_FILES) else None
+_ns_t = set(m[m.is_global & m.kind.eq("appointment") & ~m.is_sport.astype(bool)].topic_id)
+_tr = pd.read_parquet(INTERIM / "topics.parquet", columns=["topic_id", "level", "start_time_utc", "query_raw", "related"],
+                      filters=[("topic_id", "in", sorted(_ns_t))])
+_tr = _tr[_tr.level == "country"]
+_app_t = set(m[m.is_global & m.kind.eq("appointment")].topic_id) | {x for v in (APPT_GROUPS or {}).values() for x in v}
+appt = AP.build(m, meta, t[t.topic_id.isin(_app_t)][["topic_id", "country_code", "start_time_utc"]], _tr,
+                ROOT / "cache" / "claude" / "shocks" / "labels.jsonl", APPT_GROUPS)
+appt = appt[~appt.topic_id.isin(hidden) & appt.topic_id.isin(set(_named)) & (appt.name.astype(str).str.len() > 2)]
+appt["verified"] = appt.moment_id.map(m.set_index("moment_id").hand_scheduled).eq("scheduled")
+appt = appt.sort_values(["event_reach", "event_reach_60", "moment_reach"], ascending=False)
+APPT_CHART = pd.concat([appt[appt.category == "football"].head(10)] +
+                       [appt[appt.category == c].head(5) for c in AP.CATEGORIES if c != "football"])
+
+
+def _appt_item(r, curve=True):
+    d = {"moment_id": int(r.moment_id), "topic_id": r.topic_id, "name": r.name, "date_utc": r.date_utc,
+         "is_sport": bool(r.is_sport), "category": r.category, "event_reach": int(r.event_reach),
+         "event_reach_60": int(r.event_reach_60), "event_minutes_to_half": r.event_minutes_to_half,
+         "moment_reach": int(r.moment_reach), "verified": bool(r.verified),
+         "event_topics": [name.get(x, x) for x in r.event_topics]}
+    if curve:
+        d["curve"] = r.curve
+    return d
+
+
+appt_files = []
+for mo, g in appt.assign(month=appt.date_utc.str[:7]).groupby("month"):
+    rel = f"appointments/{mo}.json"
+    write(rel, {"month": mo, "fields": ["moment_id", "name", "date_utc", "is_sport", "category", "event_reach",
+                                        "event_reach_60", "event_minutes_to_half", "moment_reach", "verified", "curve"],
+                "rows": [[int(r.moment_id), r.name, r.date_utc, int(r.is_sport), r.category, int(r.event_reach),
+                          int(r.event_reach_60), r.event_minutes_to_half, int(r.moment_reach), int(r.verified),
+                          [c for _, c in r.curve]] for r in g.itertuples()]})
+    appt_files.append(rel)
+_g_all = int((m.is_global & ~m.topic_id.isin(hidden)).sum())
+write("appointments.json", {
+    "note": "Global moments of kind appointment (scheduled: sport, ceremonies, elections, launches, religious "
+            "events). Event reach = countries where any topic about the same event trended from 2 h before to 24 h "
+            "after the moment start; within 60 min, minutes to half and the curve count from the third country's "
+            "first trend (curve = [minute, countries] every 10 min for 6 h). verified = hand-labelled scheduled. "
+            "Per-moment rows with curves are in the monthly files.",
+    "reach_basis": "event reach with reviewed event groups" if APPT_GROUPS is not None
+                   else "event reach, main topic only (event groups not reviewed yet)",
+    "categories": AP.CATEGORIES, "category_rule": AP.__doc__.split("Category rule, first match wins:")[1].strip(),
+    "counts": {"appointments": len(appt), "global_moments": _g_all, "share_of_global": round(len(appt) / _g_all, 4),
+               "sport": int(appt.is_sport.sum()), "non_sport": int((~appt.is_sport).sum()),
+               "by_category": appt.category.value_counts().reindex(AP.CATEGORIES, fill_value=0).to_dict()},
+    "chart": {"rule": "top 10 football + top 5 of each other category, by event reach",
+              "verified": int(APPT_CHART.verified.sum()), "moments": [_appt_item(r) for r in APPT_CHART.itertuples()]},
+    "top20_by_event_reach": [_appt_item(r, curve=False) for r in appt.head(20).itertuples()],
+    "files": appt_files})
+num("Appointments", "Global appointment moments (share of all global moments)",
+    f"{len(appt):,} ({len(appt) / _g_all:.1%})", "appointments.json", "counts")
+num("Appointments", "... sport / non-sport", f"{int(appt.is_sport.sum()):,} / {int((~appt.is_sport).sum()):,}",
+    "appointments.json", "counts")
+for c_, v_ in appt.category.value_counts().reindex(AP.CATEGORIES, fill_value=0).items():
+    num("Appointments", f"... category {c_}", int(v_), "appointments.json", "counts.by_category")
+for r in appt.head(5).itertuples():
+    num("Appointments", f"{r.name} ({r.date_utc[:10]}): event reach / within 60 min / minutes to half",
+        f"{r.event_reach} / {r.event_reach_60} / {r.event_minutes_to_half}", "appointments.json", "top20_by_event_reach")
+num("Appointments", "Chart set (stratified), of which hand-verified", f"{int(APPT_CHART.verified.sum())} of {len(APPT_CHART)}",
+    "appointments.json", "chart")
+
 # ------------------------------------------------------------------ 6 rituals
 print("rituals ...", flush=True)
 cz = json.load(open(INTERIM / "country_timezones.json"))

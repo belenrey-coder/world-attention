@@ -873,6 +873,115 @@ def event_groups(t, meta, m):
     print("fill `accept` with yes or no for every row (yes = the topic is about the same event)")
 
 
+APPT_FOOTBALL_N = 10
+APPT_PER_CATEGORY_N = 5
+APPT_SHEET = DOCS / "appointment_chart_verification.csv"
+APPT_KEY = DOCS / "appointment_chart_verification_key.csv"
+
+
+def appointments_stage(t, meta, m):
+    """Appointments chapter, preparation (Step 9 round 17): category and event figures for every global appointment
+    moment (work/appointments_preview.parquet), the stratified chart set (top APPT_FOOTBALL_N football + top
+    APPT_PER_CATEGORY_N of each other category by event reach, main topic only until the groups are reviewed), its
+    event-group candidates (docs/event_groups_review_appointments.csv) and verification sheet
+    (docs/appointment_chart_verification.csv), and the 'surprise inside an appointment' list."""
+    import appointments as AP
+    import events as ev
+    from kinds import load_hand_labels
+    _, shown = chart_pool(t, meta, m)
+    shown_ids = set(shown.moment_id)
+    app_topics = set(m[m.is_global & m.kind.eq("appointment")].topic_id)
+    rows = t[["topic_id", "country_code", "start_time_utc"]]
+    ns_topics = set(m[m.is_global & m.kind.eq("appointment") & ~m.is_sport.astype(bool)].topic_id)
+    tr = pd.read_parquet(INTERIM / "topics.parquet", columns=["topic_id", "level", "start_time_utc", "query_raw", "related"],
+                         filters=[("topic_id", "in", sorted(ns_topics))])
+    tr = tr[tr.level == "country"]
+    groups = ev.load_groups(DOCS, ev.APPOINTMENT_REVIEW_FILES) if ev.reviewed(DOCS, ev.APPOINTMENT_REVIEW_FILES) else None
+    a = AP.build(m, meta, rows[rows.topic_id.isin(app_topics)], tr, SDIR / "labels.jsonl", groups)
+    a["shown"] = a.moment_id.isin(shown_ids)
+    a.to_parquet(WORK / "appointments_preview.parquet", index=False)
+    s = a[a.shown].sort_values(["event_reach", "event_reach_60", "moment_reach"], ascending=False)
+    g_all = int(m.is_global.sum())
+    print(f"global appointments: {len(a):,} of {g_all:,} global moments ({len(a) / g_all:.1%}); shown (not hidden, named): "
+          f"{len(s):,}; sport {int(s.is_sport.sum()):,}, non-sport {int((~s.is_sport).sum()):,}")
+    print("per category (shown):", s.category.value_counts().reindex(AP.CATEGORIES, fill_value=0).to_dict())
+    for c in AP.CATEGORIES:
+        top = s[s.category == c].head(10)
+        print(f"\n## {c}: " + "; ".join(f"{r.name} {r.date_utc[:10]} ({r.event_reach})" for r in top.itertuples()))
+    # chart set, stratified
+    chart = pd.concat([s[s.category == "football"].head(APPT_FOOTBALL_N)] +
+                      [s[s.category == c].head(APPT_PER_CATEGORY_N) for c in AP.CATEGORIES if c != "football"])
+    chart.to_parquet(WORK / "appointments_chart.parquet", index=False)
+    print(f"\nchart set: {len(chart)} ({chart.category.value_counts().to_dict()})")
+    # event-group candidates (same format and no-effect rule as the shocks)
+    p = DOCS / ev.APPOINTMENT_REVIEW_FILES[0]
+    if p.exists() and (~pd.read_csv(p, dtype=str, keep_default_na=False).accept.str.strip().isin(["", "no-effect"])).any():
+        print(f"{p.name} already has decisions: not overwritten")
+    else:
+        tt = pd.read_parquet(INTERIM / "topics.parquet", columns=["topic_id", "country_code", "level", "start_time_utc", "query_raw"])
+        tt = tt[(tt.level == "country") & tt.topic_id.notna() & ~tt.topic_id.isin(set(meta.index[meta.is_junk]))]
+        mm = m.set_index("moment_id").loc[chart.moment_id].reset_index()
+        cand = ev.candidates(mm[["topic_id", "moment_id", "start_utc"]].assign(event=mm.topic_name), tt, meta)
+        cand.to_csv(p, index=False)
+        print(f"wrote {p.name}: {len(cand)} candidates, {int((cand.accept == '').sum()) if len(cand) else 0} to review, "
+              f"{int((cand.accept == 'no-effect').sum()) if len(cand) else 0} no-effect")
+    # verification sheet
+    hand = load_hand_labels(DOCS)
+    todo = chart[~chart.key.isin(hand)]
+    print(f"chart rows already hand-labelled (verified): {len(chart) - len(todo)}; to label: {len(todo)}")
+    if APPT_SHEET.exists() and (pd.read_csv(APPT_SHEET, dtype=str, keep_default_na=False).scheduled_label.str.strip() != "").any():
+        print(f"{APPT_SHEET.name} already has labels: not overwritten")
+    elif len(todo):
+        mm = m.set_index("moment_id").loc[todo.moment_id].reset_index()
+        mm["key"] = [mkey(x, y) for x, y in zip(mm.topic_id, mm.start_utc)]
+        recs = records(mm, meta)
+        cat = dict(zip(todo.moment_id, todo.category))
+        out, key = [], []
+        for i, r in enumerate(mm.itertuples()):
+            rec = recs[r.key]
+            out.append({"sample_id": i, "name": rec["name"], "date_utc": f"{rec['date']} {rec['start_utc']}",
+                        "phrasings": "; ".join(rec["phrasings"]), "related_searches": "; ".join(rec["related"]),
+                        "scheduled_label": "", "event_type_label": ""})
+            key.append({"sample_id": i, "key": r.key, "topic_id": r.topic_id, "moment_id": int(r.moment_id),
+                        "category": cat[r.moment_id], "reach": int(r.reach), "claude_scheduled": r.claude_scheduled})
+        pd.DataFrame(out).to_csv(APPT_SHEET, index=False)
+        pd.DataFrame(key).to_csv(APPT_KEY, index=False)
+        helpers(APPT_SHEET, APPT_KEY)
+    # surprise inside an appointment: hand-labelled scheduled, type viral_celebrity or other. The appointment is the
+    # one the moment's own searches or Claude's summary name: an appointment-kind moment (any reach >= 10) starting
+    # 12 h before to 6 h after, whose name tokens appear in that text; none if nothing is named (no guessing by time)
+    sur = {k: v for k, v in hand.items() if v[0] == "scheduled" and v[1] in ("viral_celebrity", "other")}
+    mk = m.assign(key=[mkey(x, y) for x, y in zip(m.topic_id, m.start_utc)])
+    sm = mk[mk.key.isin(sur) & mk.is_global]
+    apps = mk[mk.kind.eq("appointment") & (mk.reach >= 10) & ~mk.topic_id.isin(set(meta.index[meta.is_junk]))]
+    summ = {x["key"]: x["what_happened"] for x in load_labels(PROMPT_VERSION_V2).values()}
+    trs = pd.read_parquet(INTERIM / "topics.parquet", columns=["topic_id", "level", "start_time_utc", "query_raw", "related"],
+                          filters=[("topic_id", "in", sorted(set(sm.topic_id)))])
+    trs = {k_: g for k_, g in trs[trs.level == "country"].groupby("topic_id")}
+    stop = {"live", "news", "match", "today", "2025", "2026", "film", "with", "from", "that", "this", "vs"}
+    res = []
+    for r in sm.itertuples():
+        text = (summ.get(r.key, "") + " | " + " | ".join(AP.moment_terms(trs, r, k=80))).lower()
+        near = apps[(apps.start_utc >= r.start_utc - pd.Timedelta(hours=12)) & (apps.start_utc <= r.start_utc + pd.Timedelta(hours=6))
+                    & (apps.topic_id != r.topic_id)].sort_values("reach", ascending=False)
+        hit = None
+        for x in near.itertuples():
+            toks = [w for w in re.findall(r"\w+", str(x.topic_name).lower()) if len(w) >= 4 and w not in stop]
+            if toks and all(re.search(rf"\b{re.escape(w)}\b", text) for w in toks[:2]):
+                hit = x
+                break
+        res.append({"moment": r.topic_name, "date_utc": f"{r.start_utc:%Y-%m-%d %H:%M}", "hand_type": sur[r.key][1],
+                    "reach": int(r.reach), "appointment": getattr(hit, "topic_name", None),
+                    "appointment_utc": f"{hit.start_utc:%Y-%m-%d %H:%M}" if hit is not None else None,
+                    "appointment_reach": int(hit.reach) if hit is not None else None,
+                    "claude_summary": summ.get(r.key)})
+    sr = pd.DataFrame(res).sort_values("reach", ascending=False)
+    sr.to_csv(WORK / "appointment_surprises.csv", index=False)
+    print(f"\nsurprises inside appointments: {len(sr)} hand-labelled scheduled viral/other global moments; "
+          f"appointment named in their searches: {int(sr.appointment.notna().sum())}")
+    print(sr.drop(columns=["claude_summary"]).to_string(index=False))
+
+
 def estimate(t, meta, m):
     """True number of shocks = flagged x precision / recall. flagged = moments the rule alone flags (is_shock_rule:
     Claude unscheduled, conf >= 0.5, rule-based sport) among the shocks.json population (not hidden, named).
@@ -968,13 +1077,14 @@ if __name__ == "__main__":
         score2()
     elif stage == "helpers":
         helpers()
-    elif stage in ("verify-sheet", "estimate", "event-groups"):
+    elif stage in ("verify-sheet", "estimate", "event-groups", "appointments"):
         import importlib.util
         spec = importlib.util.spec_from_file_location("export05", Path(__file__).parent / "05_export.py")
         ex = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(ex)
         t, meta, m = ex.load()
-        {"verify-sheet": verify_sheet, "estimate": estimate, "event-groups": event_groups}[stage](t, meta, m)
+        {"verify-sheet": verify_sheet, "estimate": estimate, "event-groups": event_groups,
+         "appointments": appointments_stage}[stage](t, meta, m)
     elif stage in ("thresholds", "label", "label2", "sample", "sample2", "sport-check"):
         t, meta, m, cand, n_cur = load()
         if stage == "thresholds":

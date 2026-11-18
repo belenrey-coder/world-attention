@@ -105,16 +105,18 @@ def _first_minutes(rows, start):
     return {c: max(0, int(round((v - pd.Timestamp(start)).total_seconds() / 60))) for c, v in f.items()}
 
 
-REVIEW_GLOB = "event_groups_review*.csv"   # the main review file plus extra ones (event_groups_review_extra.csv)
+# review files per chapter: the shocks' (main + extra) and the appointments' are decided and switched on separately
+SHOCK_REVIEW_FILES = ["event_groups_review.csv", "event_groups_review_extra.csv"]
+APPOINTMENT_REVIEW_FILES = ["event_groups_review_appointments.csv"]
 
 
-def review_files(docs):
-    return sorted(docs.glob(REVIEW_GLOB))
+def review_files(docs, names=None):
+    return [docs / n for n in (names or SHOCK_REVIEW_FILES) if (docs / n).exists()]
 
 
-def load_groups(docs):
-    """{event moment_id: set of accepted candidate topic_ids} from every review file; None if there is none."""
-    files = review_files(docs)
+def load_groups(docs, names=None):
+    """{event moment_id: set of accepted candidate topic_ids} from the chapter's review files; None if none exist."""
+    files = review_files(docs, names)
     if not files:
         return None
     d = pd.concat([pd.read_csv(p, dtype=str, keep_default_na=False) for p in files], ignore_index=True)
@@ -125,9 +127,9 @@ def load_groups(docs):
     return out
 
 
-def reviewed(docs):
-    """True once every candidate row in every review file has an accept decision (any non-empty value)."""
-    files = review_files(docs)
+def reviewed(docs, names=None):
+    """True once every candidate row in the chapter's review files has an accept decision (any non-empty value)."""
+    files = review_files(docs, names)
     if not files:
         return False
     d = pd.concat([pd.read_csv(p, dtype=str, keep_default_na=False) for p in files], ignore_index=True)
