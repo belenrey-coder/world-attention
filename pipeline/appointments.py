@@ -251,14 +251,34 @@ CATALOGUE = [
 ]
 
 
-def assign_events(a):
+# a hand-labelled scheduled moment joins a catalogue window only if its hand event type fits the event's category
+HAND_TYPE_FITS = {"other": {"award/ceremony", "religious", "election/politics"},
+                  "viral_celebrity": {"award/ceremony", "religious", "election/politics"},
+                  "politics_conflict": {"election/politics"}, "launch": {"launch/release"},
+                  "markets": set(), "sport": {"football", "other sport"}}
+
+
+def assign_events(a, hand_scheduled_types=None):
     """a: build() output (with `text`). -> Series event_id per moment (catalogue id, 'm<moment_id>' for a moment
-    that is its own unit, None for unassigned: holiday, or a non-sport moment of category 'other')."""
+    that is its own unit, None for unassigned: holiday, or a non-sport moment of category 'other').
+    hand_scheduled_types: {moment_id: hand event type} for moments hand-labelled scheduled. After the pattern pass,
+    such a moment that starts inside a catalogue window joins that event even without the event's name in its text,
+    if its hand type fits the event's category (HAND_TYPE_FITS; a sport moment only joins an event of its own sport
+    category) and the sport / non-sport restriction allows it. First fitting window in catalogue order."""
     start = pd.to_datetime(a.date_utc, utc=True)
     ev = pd.Series(None, index=a.index, dtype=object)
     for eid, _n, cat, (lo, hi), rx in CATALOGUE:
         hit = ev.isna() & (start >= lo) & (start < hi) & a.text.str.contains(rx, case=False, regex=True)
         if cat not in ("football", "other sport"):     # ceremonies, elections, launches, religious: no sport moments
+            hit &= ~a.is_sport.astype(bool)
+        ev[hit] = eid
+    ht = a.moment_id.map(hand_scheduled_types or {})
+    for eid, _n, cat, (lo, hi), _rx in CATALOGUE:
+        fits = ht.map(lambda x: isinstance(x, str) and cat in HAND_TYPE_FITS.get(x, set()))
+        if cat in ("football", "other sport"):
+            fits &= a.category.eq(cat)
+        hit = ev.isna() & fits & (start >= lo) & (start < hi)
+        if cat not in ("football", "other sport"):
             hit &= ~a.is_sport.astype(bool)
         ev[hit] = eid
     own = ev.isna() & ~a.category.isin(["holiday"]) & (a.is_sport | ~a.category.eq("other"))

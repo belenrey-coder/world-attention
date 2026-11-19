@@ -900,7 +900,8 @@ def appointments_stage(t, meta, m):
     a = AP.build(m, meta, rows[rows.topic_id.isin(app_topics)], tr, SDIR / "labels.jsonl")
     a["shown"] = a.moment_id.isin(shown_ids)
     a = a[a.shown].copy()
-    a["event_id"] = AP.assign_events(a).values
+    _hs = m[m.hand_scheduled.eq("scheduled")] if "hand_scheduled" in m else m.iloc[:0]
+    a["event_id"] = AP.assign_events(a, dict(zip(_hs.moment_id, _hs.hand_event_type))).values
     rows_by_topic = {k_: g for k_, g in rows.groupby("topic_id")}
     units = AP.event_units(a, rows_by_topic, groups)
     units = units.sort_values(["event_reach", "event_reach_60"], ascending=False).reset_index(drop=True)

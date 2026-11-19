@@ -1049,6 +1049,21 @@ Sample 1 (`docs/shock_validation_sample.csv`, 100 moments) is now the **tuning**
 
 **Step 8** (`appointments.json` and monthly `appointments/YYYY-MM.json`, dry run only) now works by event: counts, the catalogue, the chart events with curves, and the top 20 events. A dry run gave 7,165 events (catalogue fix applied after it) and `appointments.json` at 40 kB.
 
+### Step 9, round 19 (2026-11-18): hand-labelled scheduled moments join catalogue events
+
+- **Rule** (`appointments.assign_events`): after the pattern pass, a moment hand-labelled **scheduled** that starts inside a catalogue event's window joins that event even without the event's name in its searches, but only if its hand event type fits the event's category (`HAND_TYPE_FITS`):
+  - other and viral_celebrity → award/ceremony, religious, election/politics;
+  - politics_conflict → election/politics;
+  - launch → launch/release;
+  - sport → football or other sport, and only an event of the moment's own sport category.
+  - The sport / non-sport restriction still applies. If windows overlap, the first fitting event in catalogue order wins.
+- **Why the type check:** without it, the window alone also pulled in Isco and Álex Baena (hand type sport, the Nations League final night) into the Roland Garros final, Epic Games (launch) into Eurovision 2025 semi-final 2, Perplexity AI (launch) into the Oscar nominations 2025, and Donald Trump on 8 May 2025 (politics_conflict) into the Conclave.
+- **Result, 4 moments join:**
+  - Oscars 2026: Robert Redford and Diane Keaton (3 moments, reach 51 → 53);
+  - Eurovision 2026 final: Moldova (7 moments, reach 35 → 36);
+  - Champions League final 2025: "William Saliba vs Pacho", a hand-labelled football moment that night (13 moments, reach stays 93).
+- **The chart set is unchanged** (the same 31 events, members and reach), so `docs/event_groups_review_appointments.csv` and `docs/appointment_chart_verification.csv` were **not regenerated**.
+
 ## Open issues (need a decision)
 
 _Updated 2026-11-09, after the short-string, sport, 19:00 UTC and Wrapped fixes (rerun from combine: combine, link, validation, moments, export, profile, checks)._

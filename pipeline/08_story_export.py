@@ -641,7 +641,8 @@ appt = AP.build(m, meta, t[t.topic_id.isin(_app_t)][["topic_id", "country_code",
 appt = appt[~appt.topic_id.isin(hidden) & appt.topic_id.isin(set(_named)) & (appt.name.astype(str).str.len() > 2)].copy()
 # the unit is the scheduled EVENT (Step 9 round 18): catalogue events group the moments of one ceremony, election,
 # final or draw; other moments are their own unit; holidays (in Rituals) and unclear non-sport moments are left out
-appt["event_id"] = AP.assign_events(appt).values
+_hs = m[m.hand_scheduled.eq("scheduled")]
+appt["event_id"] = AP.assign_events(appt, dict(zip(_hs.moment_id, _hs.hand_event_type))).values
 _hand_sched = m.set_index("moment_id").hand_scheduled
 _rbt = {k_: g_ for k_, g_ in t[t.topic_id.isin(_app_t | {x for v in (APPT_GROUPS or {}).values() for x in v})]
         [["topic_id", "country_code", "start_time_utc"]].groupby("topic_id")}
