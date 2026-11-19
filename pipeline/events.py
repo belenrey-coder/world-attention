@@ -122,6 +122,10 @@ def load_groups(docs, names=None):
     d = pd.concat([pd.read_csv(p, dtype=str, keep_default_na=False) for p in files], ignore_index=True)
     ok = d.accept.str.strip().str.lower().isin(ACCEPT_VALUES)
     out = {}
+    if "event_id" in d.columns:          # appointments: one group per scheduled event (event_id)
+        for eid, tid in zip(d.event_id[ok], d.candidate_topic_id[ok]):
+            out.setdefault(str(eid), set()).add(tid)
+        return out
     for mid, tid in zip(d.event_moment_id[ok], d.candidate_topic_id[ok]):
         out.setdefault(int(mid), set()).add(tid)
     return out

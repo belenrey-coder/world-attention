@@ -1009,6 +1009,46 @@ Sample 1 (`docs/shock_validation_sample.csv`, 100 moments) is now the **tuning**
   - "2026 Grammy Award nominations".
   - Their ceremonies either have no appointment moment of reach ≥ 10 or aren't named in their searches; the list keeps Claude's summary for checking.
 
+### Step 9, round 18 (2026-11-18): appointments counted by scheduled event
+
+**Why:** by topic, the award top 5 were people and films, and the German election appeared as five parties. Non-sport appointments are now counted by **scheduled event** (`appointments.CATALOGUE`, `assign_events`, `event_units`).
+
+**Rule:**
+- **Catalogue:** a hand-made list of 38 scheduled events, each with a UTC window (the event day, or the night of a ceremony across midnight UTC), a category and a pattern.
+- **Assignment:** a moment joins an event when it starts inside the window and its text matches the pattern. The text is the name + Claude's one-line summary + the moment's own searches; for sport moments, the name + phrasings.
+- **Sport moments:** ceremony, election, launch and religious events take only non-sport moments; an "Olympique Lyonnais" match had joined the Olympics closing ceremony. Finals, draws and the Super Bowl take both.
+- **Finals and draws split across topics are grouped the same way:** the Champions League final 2025 is Doué, Hakimi, Kvaratskhelia, Mayulu, Donnarumma, Acerbi, Linkin Park and others; the World Cup 2026 draw is Heidi Klum, Rio Ferdinand and Nicole Scherzinger.
+- **Every other appointment moment is its own unit** (a match, a trailer).
+- **Left out:** holidays (in Rituals: the Vienna New Year's Concert × 2 and one other), and 48 non-sport moments of category "other" whose event is unclear (players on match days, earnings reports, Travis Scott and Olivia Rodrigo, MetLife Stadium on non-final days, Zelensky, Robert Redford and Diane Keaton on Oscars night 2026 without Oscars in their searches, …).
+- **Event reach:** countries where any topic of the event trended in its window; within 60 min, minutes to half and the 10-minute curve over 6 h from the third country's first trend.
+- **Other-sport rule extended:** NBA, NFL and IPL side names (Lakers, Celtics, Knicks, …, Chiefs, Eagles, …, Mumbai Indians, Delhi Capitals, …). "Celtics vs Lakers" and "Mumbai Indians vs Delhi Capitals" had been football; "New York Red Bulls" is excluded from "Bulls".
+
+**Counts:**
+- **7,236 appointment moments in events** = 90.3% of the 8,014 global moments (sport 7,120, non-sport 116). They make **7,165 events**: 38 catalogue events and 7,127 single-moment units.
+- **Events by category:** football 5,753, other sport 1,344, award/ceremony 21, election/politics 5, launch/release 41, religious 1, other 0.
+
+**Catalogue events found** (event reach; number of moments):
+- **football:** Club World Cup final 2025 113 (11), Europa League final 2025 98 (4), Champions League final 2025 93 (12), World Cup 2026 draw 47 (3).
+- **other sport:** Roland Garros men's final 2025 101 (3), Wimbledon men's final 2025 89 (2), Super Bowl LIX 57 (2), Super Bowl LX 46 (4).
+- **award/ceremony:** Grammys 2025 92 (2), Nobel Peace Prize 2025 67 (1), Oscars 2025 62 (7), Oscar nominations 2025 57 (2), The Game Awards 2024 54 (3), Oscars 2026 51 (1), Grammys 2026 41 (2), Eurovision 2026 final 35 (6), Grammy nominations 2026 34 (1), Nobel Literature 2025 32 (1), Eurovision 2025 semi-final 1 30 (2), Eurovision 2025 final 30 (5), Winter Olympics 2026 opening ceremony 29 (3), The Game Awards 2025 28 (3), Eurovision 2025 semi-final 2 23 (3), Eurovision 2026 semi-final 1 23 (1), Victoria's Secret Fashion Show 2025 21 (1), Eurovision 2026 semi-final 2 20 (2), Winter Olympics 2026 closing ceremony 19 (1).
+- **election/politics:** German federal election 2025 71 (5), Trump inauguration 2025 68 (3), G7 summit 2025 20 (1), Polish presidential election 2025 19 (1).
+- **launch/release:** Apple event Feb 2025 (iPhone 16e) 83 (1), Spotify Wrapped and year-end recaps 2024 63 (2), Stranger Things 5 release 48 (1), Apple event Mar 2026 (iPhone 17e) 47 (2), Spotify Wrapped and year-end recaps 2025 42 (2), Stranger Things 5 finale 31 (1).
+- **religious:** Conclave 2025 (Pope Leo XIV) 72 (2).
+
+**Top 10 per category** (all units):
+- **football:** Barcelona vs Inter 6 May 2025 (125), PSG vs Arsenal (124), Real Madrid vs Rayo 1 Feb 2026 (123), Sevilla vs Barcelona (123), Alavés vs Real Madrid 14 Dec 2025 (123), Barcelona vs Alavés (122), Real Madrid vs Rayo 9 Mar 2025 (122), Atlético vs Barcelona (122), Real Madrid vs Leganés (122), Talavera vs Real Madrid (122). The Club World Cup final (113) is below the top 10 single matches.
+- **other sport:** Roland Garros men's final 2025 (101), NBA 20 Jun 2025 (94), Formula One 25 May 2025 (92), Wimbledon men's final 2025 (89), NBA 22 Jun 2025 (87), Formula One 29 Jun (86), 6 Jul (81), 4 May (79), Warriors vs Timberwolves 13 May 2025 (79), Formula One 20 Apr (78).
+- **award/ceremony:** Grammys 2025 (92), Nobel Peace 2025 (67), Oscars 2025 (62), Oscar nominations 2025 (57), The Game Awards 2024 (54), Oscars 2026 (51), Grammys 2026 (41), Eurovision 2026 final (35), The Game Awards nominations 17 Nov 2025 (35), Grammy nominations 2026 (34).
+- **election/politics (5 in all):** German federal election 2025 (71), Trump inauguration 2025 (68), Kash Patel's confirmation vote (42), G7 summit 2025 (20), Polish presidential election 2025 (19).
+- **launch/release:** Apple Feb 2025 (83), BTS 4 Mar 2026 (65), Samsung 30 Dec 2025 (63), Spotify Wrapped 2024 (63), Epic Games 15 May 2025 (56), Shrek 5 trailer (56), Steam Machine (53), Stranger Things 5 release (48), Apple Mar 2026 (47), Spotify Wrapped 2025 (42).
+- **religious (1):** Conclave 2025 (72).
+
+**Chart set, by event:** the top 10 football events and the top 5 events of each other category (31 events: religious has 1, other none).
+- **`docs/event_groups_review_appointments.csv`** (regenerated, git-ignored): candidates per event (topics in the event window whose name matches any member topic, not already members), same format and no-effect rule. 215 candidates, **110 to review**, 105 no-effect. It is keyed by `event_id`; `events.load_groups` reads it per event.
+- **`docs/appointment_chart_verification.csv`** (regenerated, git-ignored): one row per chart event (its widest moment; catalogue events show the event name). 10 events already have a hand-labelled member (verified); **21 to label**. Existing labels would be kept (there were none). The key has `event_id`, the event, the category and its member moments.
+
+**Step 8** (`appointments.json` and monthly `appointments/YYYY-MM.json`, dry run only) now works by event: counts, the catalogue, the chart events with curves, and the top 20 events. A dry run gave 7,165 events (catalogue fix applied after it) and `appointments.json` at 40 kB.
+
 ## Open issues (need a decision)
 
 _Updated 2026-11-09, after the short-string, sport, 19:00 UTC and Wrapped fixes (rerun from combine: combine, link, validation, moments, export, profile, checks)._

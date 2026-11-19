@@ -897,56 +897,82 @@ def appointments_stage(t, meta, m):
                          filters=[("topic_id", "in", sorted(ns_topics))])
     tr = tr[tr.level == "country"]
     groups = ev.load_groups(DOCS, ev.APPOINTMENT_REVIEW_FILES) if ev.reviewed(DOCS, ev.APPOINTMENT_REVIEW_FILES) else None
-    a = AP.build(m, meta, rows[rows.topic_id.isin(app_topics)], tr, SDIR / "labels.jsonl", groups)
+    a = AP.build(m, meta, rows[rows.topic_id.isin(app_topics)], tr, SDIR / "labels.jsonl")
     a["shown"] = a.moment_id.isin(shown_ids)
-    a.to_parquet(WORK / "appointments_preview.parquet", index=False)
-    s = a[a.shown].sort_values(["event_reach", "event_reach_60", "moment_reach"], ascending=False)
+    a = a[a.shown].copy()
+    a["event_id"] = AP.assign_events(a).values
+    rows_by_topic = {k_: g for k_, g in rows.groupby("topic_id")}
+    units = AP.event_units(a, rows_by_topic, groups)
+    units = units.sort_values(["event_reach", "event_reach_60"], ascending=False).reset_index(drop=True)
+    a.drop(columns=["text"]).to_parquet(WORK / "appointments_preview.parquet", index=False)
+    units.drop(columns=["curve"]).to_parquet(WORK / "appointment_events.parquet", index=False)
     g_all = int(m.is_global.sum())
-    print(f"global appointments: {len(a):,} of {g_all:,} global moments ({len(a) / g_all:.1%}); shown (not hidden, named): "
-          f"{len(s):,}; sport {int(s.is_sport.sum()):,}, non-sport {int((~s.is_sport).sum()):,}")
-    print("per category (shown):", s.category.value_counts().reindex(AP.CATEGORIES, fill_value=0).to_dict())
+    dropped = a[a.event_id.isna()]
+    kept = a[a.event_id.notna()]
+    print(f"appointment moments shown: {len(a):,}; holiday dropped: {int((a.category == 'holiday').sum())}; "
+          f"unassigned non-sport 'other': {int((dropped.category == 'other').sum())}; in events: {len(kept):,} "
+          f"({len(kept) / g_all:.1%} of {g_all:,} global moments); sport {int(kept.is_sport.sum()):,}, non-sport "
+          f"{int((~kept.is_sport).sum()):,}")
+    print(f"events: {len(units):,} ({int(units.is_catalogue.sum())} from the catalogue, the rest single-moment units)")
+    print("events per category:", units.category.value_counts().reindex(AP.CATEGORIES, fill_value=0).to_dict())
     for c in AP.CATEGORIES:
-        top = s[s.category == c].head(10)
-        print(f"\n## {c}: " + "; ".join(f"{r.name} {r.date_utc[:10]} ({r.event_reach})" for r in top.itertuples()))
-    # chart set, stratified
-    chart = pd.concat([s[s.category == "football"].head(APPT_FOOTBALL_N)] +
-                      [s[s.category == c].head(APPT_PER_CATEGORY_N) for c in AP.CATEGORIES if c != "football"])
-    chart.to_parquet(WORK / "appointments_chart.parquet", index=False)
-    print(f"\nchart set: {len(chart)} ({chart.category.value_counts().to_dict()})")
-    # event-group candidates (same format and no-effect rule as the shocks)
+        if c == "holiday":
+            continue
+        top = units[units.category == c].head(10)
+        print(f"\n## {c}: " + "; ".join(f"{r.event} {r.first_utc[:10]} ({r.event_reach}"
+                                         + (f", {len(r.members)} moments" if len(r.members) > 1 else "") + ")"
+                                         for r in top.itertuples()))
+    cat_units = units[units.is_catalogue]
+    print("\n## catalogue events found: " + "; ".join(f"{r.event} [{r.category}] {r.event_reach} ({len(r.members)})"
+                                                   for r in cat_units.itertuples()))
+    print("catalogue events with no member:", [e[1] for e in AP.CATALOGUE if e[0] not in set(units.event_id)])
+    print("unassigned non-sport 'other':", "; ".join(f"{r.name} {r.date_utc[:10]}" for r in dropped[dropped.category == 'other'].itertuples()))
+    # chart set by event, stratified
+    chart = pd.concat([units[units.category == "football"].head(APPT_FOOTBALL_N)] +
+                      [units[units.category == c].head(APPT_PER_CATEGORY_N) for c in AP.CATEGORIES
+                       if c not in ("football", "holiday")])
+    chart.drop(columns=["curve"]).to_parquet(WORK / "appointments_chart.parquet", index=False)
+    print(f"\nchart set: {len(chart)} events ({chart.category.value_counts().to_dict()})")
+    # event-group candidates (same format and no-effect rule as the shocks), per event
     p = DOCS / ev.APPOINTMENT_REVIEW_FILES[0]
     if p.exists() and (~pd.read_csv(p, dtype=str, keep_default_na=False).accept.str.strip().isin(["", "no-effect"])).any():
         print(f"{p.name} already has decisions: not overwritten")
     else:
         tt = pd.read_parquet(INTERIM / "topics.parquet", columns=["topic_id", "country_code", "level", "start_time_utc", "query_raw"])
         tt = tt[(tt.level == "country") & tt.topic_id.notna() & ~tt.topic_id.isin(set(meta.index[meta.is_junk]))]
-        mm = m.set_index("moment_id").loc[chart.moment_id].reset_index()
-        cand = ev.candidates(mm[["topic_id", "moment_id", "start_utc"]].assign(event=mm.topic_name), tt, meta)
+        cand = AP.event_candidates(chart, tt, meta)
         cand.to_csv(p, index=False)
         print(f"wrote {p.name}: {len(cand)} candidates, {int((cand.accept == '').sum()) if len(cand) else 0} to review, "
               f"{int((cand.accept == 'no-effect').sum()) if len(cand) else 0} no-effect")
-    # verification sheet
+    # verification sheet: one row per chart event (its largest moment); an event with any hand-labelled member is
+    # verified. Existing labels are kept (rows matched by moment key).
     hand = load_hand_labels(DOCS)
-    todo = chart[~chart.key.isin(hand)]
-    print(f"chart rows already hand-labelled (verified): {len(chart) - len(todo)}; to label: {len(todo)}")
-    if APPT_SHEET.exists() and (pd.read_csv(APPT_SHEET, dtype=str, keep_default_na=False).scheduled_label.str.strip() != "").any():
-        print(f"{APPT_SHEET.name} already has labels: not overwritten")
-    elif len(todo):
-        mm = m.set_index("moment_id").loc[todo.moment_id].reset_index()
-        mm["key"] = [mkey(x, y) for x, y in zip(mm.topic_id, mm.start_utc)]
-        recs = records(mm, meta)
-        cat = dict(zip(todo.moment_id, todo.category))
-        out, key = [], []
-        for i, r in enumerate(mm.itertuples()):
-            rec = recs[r.key]
-            out.append({"sample_id": i, "name": rec["name"], "date_utc": f"{rec['date']} {rec['start_utc']}",
-                        "phrasings": "; ".join(rec["phrasings"]), "related_searches": "; ".join(rec["related"]),
-                        "scheduled_label": "", "event_type_label": ""})
-            key.append({"sample_id": i, "key": r.key, "topic_id": r.topic_id, "moment_id": int(r.moment_id),
-                        "category": cat[r.moment_id], "reach": int(r.reach), "claude_scheduled": r.claude_scheduled})
-        pd.DataFrame(out).to_csv(APPT_SHEET, index=False)
-        pd.DataFrame(key).to_csv(APPT_KEY, index=False)
-        helpers(APPT_SHEET, APPT_KEY)
+    key_of = dict(zip(a.moment_id, a.key))
+    chart = chart.assign(verified=[any(key_of.get(x) in hand for x in mem) for mem in chart.members])
+    todo = chart[~chart.verified]
+    print(f"chart events already hand-labelled (verified): {int(chart.verified.sum())}; to label: {len(todo)}")
+    old = {}
+    if APPT_SHEET.exists() and APPT_KEY.exists():
+        o = pd.read_csv(APPT_SHEET, dtype=str, keep_default_na=False).merge(
+            pd.read_csv(APPT_KEY, dtype=str, keep_default_na=False)[["sample_id", "key"]], on="sample_id")
+        old = {k_: (s_, e_) for k_, s_, e_ in zip(o.key, o.scheduled_label, o.event_type_label) if s_.strip()}
+    mm = m.set_index("moment_id").loc[todo.largest_member].reset_index()
+    mm["key"] = [mkey(x, y) for x, y in zip(mm.topic_id, mm.start_utc)]
+    recs = records(mm, meta)
+    out, key = [], []
+    for i, (r, u) in enumerate(zip(mm.itertuples(), todo.itertuples())):
+        rec = recs[r.key]
+        lab = old.get(r.key, ("", ""))
+        out.append({"sample_id": i, "name": u.event if u.is_catalogue else rec["name"],
+                    "date_utc": f"{rec['date']} {rec['start_utc']}", "phrasings": "; ".join(rec["phrasings"]),
+                    "related_searches": "; ".join(rec["related"]), "scheduled_label": lab[0], "event_type_label": lab[1]})
+        key.append({"sample_id": i, "key": r.key, "topic_id": r.topic_id, "moment_id": int(r.moment_id),
+                    "event_id": u.event_id, "event": u.event, "category": u.category,
+                    "members": "; ".join(map(str, u.member_names)), "reach": int(r.reach), "claude_scheduled": r.claude_scheduled})
+    pd.DataFrame(out).to_csv(APPT_SHEET, index=False)
+    pd.DataFrame(key).to_csv(APPT_KEY, index=False)
+    helpers(APPT_SHEET, APPT_KEY)
+    print(f"kept {len(old)} existing labels")
     # surprise inside an appointment: hand-labelled scheduled, type viral_celebrity or other. The appointment is the
     # one the moment's own searches or Claude's summary name: an appointment-kind moment (any reach >= 10) starting
     # 12 h before to 6 h after, whose name tokens appear in that text; none if nothing is named (no guessing by time)
