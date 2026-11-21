@@ -208,17 +208,20 @@ def add_shock(m: pd.DataFrame) -> pd.DataFrame:
     m["scheduled_final"] = m.claude_scheduled
     # hand labels (validation samples, chart verification sheets) override Claude and the sport rule
     hand = load_hand_labels(DOCS)
-    keys = pd.Series([moment_key(a, b) if g else None for a, b, g in zip(m.topic_id, m.start_utc, m.is_global)],
+    # hand labels are recorded on every labelled moment (chart sheets can label a non-global member of a catalogue
+    # event); the sport and shock overrides apply to global moments only
+    hand_topics = {k.split("|")[0] for k in hand}
+    keys = pd.Series([moment_key(a, b) if a in hand_topics else None for a, b in zip(m.topic_id, m.start_utc)],
                      index=m.index)
     hl = keys.map(lambda k: hand.get(k) if k else None)
-    hit = hl.notna()
     m["hand_scheduled"] = hl.map(lambda x: x[0] if x else None)
     m["hand_event_type"] = hl.map(lambda x: x[1] if x else None)
+    hit = hl.notna() & m.is_global.astype(bool)
     m.loc[hit, "is_sport"] = m.loc[hit, "hand_event_type"].eq("sport")
     m.loc[hit, "is_shock"] = m.loc[hit, "hand_scheduled"].eq("unscheduled") & ~m.loc[hit, "is_sport"]
     m.loc[hit, "scheduled_final"] = m.loc[hit, "hand_scheduled"]
     m["is_shock"] = m.is_shock.astype(bool)
-    print(f"hand-labelled global moments: {int(hit.sum())} (of {len(hand)} hand labels); shock moments: "
+    print(f"hand-labelled moments: {int(hl.notna().sum())}, of which global {int(hit.sum())} (of {len(hand)} hand labels); shock moments: "
           f"{int(m.is_shock.sum()):,} (rule alone {int(m.is_shock_rule.sum()):,}); global non-sport moments without "
           f"a Claude label: {int((m.is_global & ~m.is_sport & ~m.shock_labelled & ~hit).sum()):,}")
     return m

@@ -1241,6 +1241,25 @@ Sample 1 (`docs/shock_validation_sample.csv`, 100 moments) is now the **tuning**
 - **Reading the table:** finals, Super Bowls, award nights and elections are mostly *anticipated*: most of their countries trend before the start, so half are reached before it begins (minutes to half 0). Announcements nobody can watch in advance are not: the conclave (16 before the white smoke, 103 within the hour), the Nobel prizes, the Apple event and the Oscar and Grammy nominations.
 - The Spotify Wrapped 2025 chart event has reach only (104).
 
+### Step 9, round 24 (2026-11-21): sheet 3 labelled; all 30 chart events verified
+
+- **Labels:**
+  - **Sheet 3:** Europa League final 2025, Grammys 2026 and Stranger Things 5 release and finale are scheduled. Spotify Wrapped 2025 is **unscheduled**, so it leaves Appointments (`rejected_events`).
+  - **Shrek 5** (sheet 2) is unscheduled, so it is dropped too; it was already outside the chart.
+  - **Review 3:** 45 accepted, 15 rejected, 637 no-effect.
+- **Fix:** step 4 recorded hand labels only on global moments, so four sheet-3 labels never applied: the widest member of a catalogue event can be a non-global moment (round 22). Step 4 now records `hand_scheduled` / `hand_event_type` on every labelled moment (277 of 277 labels; 272 global). The sport and shock overrides still apply to global moments only.
+- **Rebuilt** (`make moments`, appointments stage, `make story`):
+  - **Chart set:** 30 events, **all 30 verified**. **No new sheet:** the only chart events new to the review files (Sevilla vs Barcelona, Kash Patel) had no candidates, and none was unlabelled.
+  - **Launch/release:** BTS (65) replaces Spotify Wrapped 2025.
+  - **Final chart:**
+    - **football:** Barcelona vs Inter (125), Club World Cup final 2025 (125), Europa League final 2025 (125), PSG vs Arsenal (124), Champions League final 2025 (124), Real Madrid vs Rayo 1 Feb 2026 (123), Sevilla vs Barcelona (123), Alavés vs Real Madrid (123), Barcelona vs Alavés (122), Real Madrid vs Rayo 9 Mar 2025 (122).
+    - **other sport:** Winter Olympics 2026 (109 best day, 119 total), Super Bowl LIX (106), Roland Garros final (105), Wimbledon final (103), NBA 22 Jun 2025 (101).
+    - **award/ceremony:** Grammys 2025 (102), Grammys 2026 (84), Oscars 2026 (81), Eurovision 2025 final (74), Oscars 2025 (70).
+    - **election/politics:** Trump inauguration (78), German federal election (78), Kash Patel (42), Polish presidential election (20).
+    - **launch/release:** Stranger Things 5 finale (87), Stranger Things 5 release (86), Apple event Feb 2025 (85), Samsung 30 Dec 2025 (66), BTS 4 Mar 2026 (65).
+    - **religious:** Conclave 2025 (115).
+  - **Counts:** 7,236 global appointment moments (90.5%), plus 391 non-global members of catalogue events; 7,151 events (36 catalogue).
+
 ## Open issues (need a decision)
 
 _Updated 2026-11-09, after the short-string, sport, 19:00 UTC and Wrapped fixes (rerun from combine: combine, link, validation, moments, export, profile, checks)._

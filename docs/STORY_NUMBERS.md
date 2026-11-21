@@ -36,15 +36,15 @@ Conventions: national feeds; UTC unless a local hour is named; a moment is one t
 | number | value | file | key |
 |---|---|---|---|
 | Chart set: 60 shocks (by event reach once event groups are reviewed), of which hand-verified | 60 of 60 | `shocks.json` | `chart_top60` |
-| Shocks verified by hand label (all) | 132 | `shocks.json` | `moments[].verified` |
+| Shocks verified by hand label (all) | 133 | `shocks.json` | `moments[].verified` |
 | Estimated true number of shocks (flagged x precision / recall, 95% bootstrap interval) | 475 [400, 548] | `shocks.json` | `estimate_true_shocks` |
-| Sport-free global shock moments | 589 | `shocks.json` | `moments` |
-| ... of kind other | 400 | `shocks.json` | `moments[].kind` |
+| Sport-free global shock moments | 590 | `shocks.json` | `moments` |
+| ... of kind other | 401 | `shocks.json` | `moments[].kind` |
 | ... of kind death | 115 | `shocks.json` | `moments[].kind` |
 | ... of kind outage | 74 | `shocks.json` | `moments[].kind` |
 | ... 'other' shocks of sub-kind viral or celebrity (all / in the top 40) | 144 / 7 | `shocks.json` | `moments[].sub_kind, other_top40` |
-| ... 'other' shocks of sub-kind other (all / in the top 40) | 78 / 8 | `shocks.json` | `moments[].sub_kind, other_top40` |
-| ... 'other' shocks of sub-kind politics or conflict (all / in the top 40) | 74 / 16 | `shocks.json` | `moments[].sub_kind, other_top40` |
+| ... 'other' shocks of sub-kind other (all / in the top 40) | 79 / 9 | `shocks.json` | `moments[].sub_kind, other_top40` |
+| ... 'other' shocks of sub-kind politics or conflict (all / in the top 40) | 74 / 15 | `shocks.json` | `moments[].sub_kind, other_top40` |
 | ... 'other' shocks of sub-kind launch (all / in the top 40) | 61 / 5 | `shocks.json` | `moments[].sub_kind, other_top40` |
 | ... 'other' shocks of sub-kind disaster or accident (all / in the top 40) | 36 / 3 | `shocks.json` | `moments[].sub_kind, other_top40` |
 | ... 'other' shocks of sub-kind markets (all / in the top 40) | 7 / 1 | `shocks.json` | `moments[].sub_kind, other_top40` |
@@ -76,14 +76,14 @@ Conventions: national feeds; UTC unless a local hour is named; a moment is one t
 
 | number | value | file | key |
 |---|---|---|---|
-| Global appointment moments in events (share of all global moments) | 7,237 (90.5%) | `appointments.json` | `counts` |
-| ... sport / non-sport moments | 7,120 / 117 | `appointments.json` | `counts` |
-| Scheduled events (catalogue events / single-moment units) | 7,152 (37 / 7,115) | `appointments.json` | `counts` |
+| Global appointment moments in events (share of all global moments) | 7,236 (90.5%) | `appointments.json` | `counts` |
+| ... sport / non-sport moments | 7,120 / 116 | `appointments.json` | `counts` |
+| Scheduled events (catalogue events / single-moment units) | 7,151 (36 / 7,115) | `appointments.json` | `counts` |
 | ... events in category football | 5,752 | `appointments.json` | `counts.events_by_category` |
 | ... events in category other sport | 1,335 | `appointments.json` | `counts.events_by_category` |
 | ... events in category award/ceremony | 21 | `appointments.json` | `counts.events_by_category` |
 | ... events in category election/politics | 4 | `appointments.json` | `counts.events_by_category` |
-| ... events in category launch/release | 39 | `appointments.json` | `counts.events_by_category` |
+| ... events in category launch/release | 38 | `appointments.json` | `counts.events_by_category` |
 | ... events in category religious | 1 | `appointments.json` | `counts.events_by_category` |
 | ... events in category other | 0 | `appointments.json` | `counts.events_by_category` |
 | Barcelona vs Inter Milan (2025-05-06): event reach / by 60 min after start / minutes to half | 125 / — / — | `appointments.json` | `top20_by_event_reach` |
@@ -91,23 +91,23 @@ Conventions: national feeds; UTC unless a local hour is named; a moment is one t
 | Europa League final 2025 (2025-05-21): event reach / by 60 min after start / minutes to half | 125 / 124 / 0 | `appointments.json` | `top20_by_event_reach` |
 | Paris Saint-Germain vs Arsenal (2025-05-07): event reach / by 60 min after start / minutes to half | 124 / — / — | `appointments.json` | `top20_by_event_reach` |
 | Champions League final 2025 (PSG vs Inter) (2025-05-31): event reach / by 60 min after start / minutes to half | 124 / 122 / 0 | `appointments.json` | `top20_by_event_reach` |
-| Club World Cup final 2025 (Chelsea vs PSG): anticipation / by 60 min after the start (2025-07-13T19:00Z UTC) / minutes to half / event reach | 112 / 125 / 0 / 125 | `appointments.json` | `chart.events[]` |
+| Club World Cup final 2025 (Chelsea vs PSG): anticipation / by 60 min after the start (2025-07-13T19:00Z UTC) / minutes to half / event reach | 114 / 125 / 0 / 125 | `appointments.json` | `chart.events[]` |
 | Europa League final 2025: anticipation / by 60 min after the start (2025-05-21T19:00Z UTC) / minutes to half / event reach | 115 / 124 / 0 / 125 | `appointments.json` | `chart.events[]` |
 | Champions League final 2025 (PSG vs Inter): anticipation / by 60 min after the start (2025-05-31T19:00Z UTC) / minutes to half / event reach | 121 / 122 / 0 / 124 | `appointments.json` | `chart.events[]` |
-| Winter Olympics 2026 (4-22 Feb, multi-day): anticipation / by 60 min after the start (2026-02-06T19:00Z UTC) / minutes to half / event reach | 87 / 94 / 0 / 109 | `appointments.json` | `chart.events[]` |
+| Winter Olympics 2026 (4-22 Feb, multi-day): anticipation / by 60 min after the start (2026-02-06T19:00Z UTC) / minutes to half / event reach | 91 / 96 / 0 / 109 | `appointments.json` | `chart.events[]` |
 | Super Bowl LIX: anticipation / by 60 min after the start (2025-02-09T23:30Z UTC) / minutes to half / event reach | 97 / 106 / 0 / 106 | `appointments.json` | `chart.events[]` |
 | Roland Garros men's final 2025: anticipation / by 60 min after the start (2025-06-08T13:00Z UTC) / minutes to half / event reach | 22 / 81 / 20 / 105 | `appointments.json` | `chart.events[]` |
 | Wimbledon men's final 2025: anticipation / by 60 min after the start (2025-07-13T15:00Z UTC) / minutes to half / event reach | 32 / 96 / 10 / 103 | `appointments.json` | `chart.events[]` |
 | Grammys 2025: anticipation / by 60 min after the start (2025-02-03T01:00Z UTC) / minutes to half / event reach | 71 / 76 / 0 / 102 | `appointments.json` | `chart.events[]` |
 | Grammys 2026: anticipation / by 60 min after the start (2026-02-02T01:00Z UTC) / minutes to half / event reach | 63 / 70 / 0 / 84 | `appointments.json` | `chart.events[]` |
-| Oscars 2026: anticipation / by 60 min after the start (2026-03-15T23:00Z UTC) / minutes to half / event reach | 34 / 60 / 10 / 81 | `appointments.json` | `chart.events[]` |
-| Eurovision 2025 final: anticipation / by 60 min after the start (2025-05-17T19:00Z UTC) / minutes to half / event reach | 37 / 56 / 0 / 73 | `appointments.json` | `chart.events[]` |
+| Oscars 2026: anticipation / by 60 min after the start (2026-03-15T23:00Z UTC) / minutes to half / event reach | 34 / 61 / 10 / 81 | `appointments.json` | `chart.events[]` |
+| Eurovision 2025 final: anticipation / by 60 min after the start (2025-05-17T19:00Z UTC) / minutes to half / event reach | 40 / 57 / 0 / 74 | `appointments.json` | `chart.events[]` |
 | Oscars 2025: anticipation / by 60 min after the start (2025-03-03T00:00Z UTC) / minutes to half / event reach | 28 / 49 / 20 / 70 | `appointments.json` | `chart.events[]` |
 | Trump inauguration 2025: anticipation / by 60 min after the start (2025-01-20T17:00Z UTC) / minutes to half / event reach | 74 / 76 / 0 / 78 | `appointments.json` | `chart.events[]` |
 | German federal election 2025: anticipation / by 60 min after the start (2025-02-23T17:00Z UTC) / minutes to half / event reach | 47 / 67 / 0 / 78 | `appointments.json` | `chart.events[]` |
 | Polish presidential election 2025: anticipation / by 60 min after the start (2025-05-18T19:00Z UTC) / minutes to half / event reach | 11 / 20 / 0 / 20 | `appointments.json` | `chart.events[]` |
+| Stranger Things 5 finale: anticipation / by 60 min after the start (2026-01-01T01:00Z UTC) / minutes to half / event reach | 27 / 66 / 0 / 87 | `appointments.json` | `chart.events[]` |
 | Stranger Things 5 release: anticipation / by 60 min after the start (2025-11-27T01:00Z UTC) / minutes to half / event reach | 53 / 69 / 0 / 86 | `appointments.json` | `chart.events[]` |
-| Stranger Things 5 finale: anticipation / by 60 min after the start (2026-01-01T01:00Z UTC) / minutes to half / event reach | 23 / 63 / 0 / 85 | `appointments.json` | `chart.events[]` |
 | Apple event, Feb 2025 (iPhone 16e): anticipation / by 60 min after the start (2025-02-19T16:00Z UTC) / minutes to half / event reach | 6 / 55 / 40 / 85 | `appointments.json` | `chart.events[]` |
 | Conclave 2025 (Pope Leo XIV): anticipation / by 60 min after the start (2025-05-08T16:07Z UTC) / minutes to half / event reach | 16 / 103 / 3 / 115 | `appointments.json` | `chart.events[]` |
 | Winter Olympics 2026 (4-22 Feb, multi-day): best day (2026-02-11) / total over the window | 109 / 119.0 | `appointments.json` | `chart.events[].event_reach, event_reach_total` |
@@ -119,19 +119,19 @@ Conventions: national feeds; UTC unless a local hour is named; a moment is one t
 | Top 5 award/ceremony: Grammys 2025 (2025-02-02), event reach | 102 | `appointments.json` | `chart.events` |
 | Top 5 award/ceremony: Grammys 2026 (2026-02-01), event reach | 84 | `appointments.json` | `chart.events` |
 | Top 5 award/ceremony: Oscars 2026 (2026-03-15), event reach | 81 | `appointments.json` | `chart.events` |
-| Top 5 award/ceremony: Eurovision 2025 final (2025-05-17), event reach | 73 | `appointments.json` | `chart.events` |
+| Top 5 award/ceremony: Eurovision 2025 final (2025-05-17), event reach | 74 | `appointments.json` | `chart.events` |
 | Top 5 award/ceremony: Oscars 2025 (2025-03-02), event reach | 70 | `appointments.json` | `chart.events` |
 | Top 5 election/politics: Trump inauguration 2025 (2025-01-20), event reach | 78 | `appointments.json` | `chart.events` |
 | Top 5 election/politics: German federal election 2025 (2025-02-23), event reach | 78 | `appointments.json` | `chart.events` |
 | Top 5 election/politics: Kash Patel (2025-02-20), event reach | 42 | `appointments.json` | `chart.events` |
 | Top 5 election/politics: Polish presidential election 2025 (2025-05-18), event reach | 20 | `appointments.json` | `chart.events` |
-| Top 5 launch/release: Spotify Wrapped and year-end recaps 2025 (2025-12-03), event reach | 104 | `appointments.json` | `chart.events` |
+| Top 5 launch/release: Stranger Things 5 finale (2025-12-31), event reach | 87 | `appointments.json` | `chart.events` |
 | Top 5 launch/release: Stranger Things 5 release (2025-11-26), event reach | 86 | `appointments.json` | `chart.events` |
-| Top 5 launch/release: Stranger Things 5 finale (2025-12-31), event reach | 85 | `appointments.json` | `chart.events` |
 | Top 5 launch/release: Apple event, Feb 2025 (iPhone 16e) (2025-02-19), event reach | 85 | `appointments.json` | `chart.events` |
 | Top 5 launch/release: Samsung (2025-12-30), event reach | 66 | `appointments.json` | `chart.events` |
+| Top 5 launch/release: BTS (2026-03-04), event reach | 65 | `appointments.json` | `chart.events` |
 | Top 5 religious: Conclave 2025 (Pope Leo XIV) (2025-05-08), event reach | 115 | `appointments.json` | `chart.events` |
-| Chart set (stratified by event), of which hand-verified | 25 of 30 | `appointments.json` | `chart` |
+| Chart set (stratified by event), of which hand-verified | 30 of 30 | `appointments.json` | `chart` |
 
 ## Rituals
 
@@ -205,22 +205,22 @@ From `shocks.json` → `other_top40`. Sub-kinds are keyword rules (see `sub_kind
 | 20 | Tel Aviv | 2025-06-13 | 58 | 30 | place | politics or conflict | tel aviv; تل ابيب; тель авив |
 | 21 | Millie Bobby Brown | 2025-08-21 | 58 | 50 | person | viral or celebrity | millie bobby brown; милли бобби браун |
 | 22 | John Ternus | 2026-04-20 | 58 | 50 | person | viral or celebrity | john ternus; джон тернус; john ternus apple |
-| 23 | Lyme disease | 2025-07-31 | 58 | 130 | other | other | lyme disease; болезнь лайма; enfermedad de lyme |
-| 24 | Prince Andrew | 2026-02-19 | 56 | 50 | person | politics or conflict | prince andrew; principe andres; andrew prince |
-| 25 | GTA 6 | 2025-05-02 | 56 | 40 | product | other | gta 6; гта 6 |
-| 26 | Flightradar24 | 2025-06-23 | 56 | 90 | product | politics or conflict | flight radar; flightradar24 |
-| 27 | Rihanna | 2025-05-05 | 56 | 260 | person | viral or celebrity | rihanna; рианна |
-| 28 | Terence Stamp | 2025-08-17 | 55 | 100 | person | viral or celebrity | terence stamp; actor terence stamp |
-| 29 | Instagram | 2025-07-09 | 54 | 40 | product | launch | instagram |
-| 30 | Christian Horner | 2025-07-09 | 54 | 30 | person | other | christian horner |
-| 31 | Spotify | 2024-12-04 | 54 | 250 | company | launch | spotify |
-| 32 | CNN | 2025-06-12 | 54 | 60 | media | viral or celebrity | cnn |
-| 33 | Nintendo Switch 2 | 2025-01-16 | 53 | 20 | product | launch | switch2; nintendo switch 2; switch 2 |
-| 34 | BBC | 2025-06-22 | 53 | 20 | media | politics or conflict | bbc |
-| 35 | OPEC | 2026-04-28 | 53 | 40 | company | markets | opec |
-| 36 | Ross Ulbricht | 2025-01-21 | 53 | 130 | person | politics or conflict | ross ulbricht; росса ульбрихта; росс ульбрихт |
-| 37 | Dean Huijsen | 2025-06-05 | 53 | 70 | person | politics or conflict | dean huijsen; huijsen |
-| 38 | Tomorrowland | 2025-07-16 | 53 | 90 | event | disaster or accident | tomorrowland |
-| 39 | Google Maps | 2026-03-26 | 52 | 30 | product | launch | maps |
-| 40 | Dean Huijsen | 2025-06-08 | 52 | 50 | person | politics or conflict | dean huijsen; دین هویسن; huijsen |
+| 23 | Shrek 5 | 2025-02-27 | 58 | 130 | media | other | shrek 5; шрек 5 |
+| 24 | Lyme disease | 2025-07-31 | 58 | 130 | other | other | lyme disease; болезнь лайма; enfermedad de lyme |
+| 25 | Prince Andrew | 2026-02-19 | 56 | 50 | person | politics or conflict | prince andrew; principe andres; andrew prince |
+| 26 | GTA 6 | 2025-05-02 | 56 | 40 | product | other | gta 6; гта 6 |
+| 27 | Flightradar24 | 2025-06-23 | 56 | 90 | product | politics or conflict | flight radar; flightradar24 |
+| 28 | Rihanna | 2025-05-05 | 56 | 260 | person | viral or celebrity | rihanna; рианна |
+| 29 | Terence Stamp | 2025-08-17 | 55 | 100 | person | viral or celebrity | terence stamp; actor terence stamp |
+| 30 | Instagram | 2025-07-09 | 54 | 40 | product | launch | instagram |
+| 31 | Christian Horner | 2025-07-09 | 54 | 30 | person | other | christian horner |
+| 32 | Spotify | 2024-12-04 | 54 | 250 | company | launch | spotify |
+| 33 | CNN | 2025-06-12 | 54 | 60 | media | viral or celebrity | cnn |
+| 34 | Nintendo Switch 2 | 2025-01-16 | 53 | 20 | product | launch | switch2; nintendo switch 2; switch 2 |
+| 35 | BBC | 2025-06-22 | 53 | 20 | media | politics or conflict | bbc |
+| 36 | OPEC | 2026-04-28 | 53 | 40 | company | markets | opec |
+| 37 | Ross Ulbricht | 2025-01-21 | 53 | 130 | person | politics or conflict | ross ulbricht; росса ульбрихта; росс ульбрихт |
+| 38 | Dean Huijsen | 2025-06-05 | 53 | 70 | person | politics or conflict | dean huijsen; huijsen |
+| 39 | Tomorrowland | 2025-07-16 | 53 | 90 | event | disaster or accident | tomorrowland |
+| 40 | Google Maps | 2026-03-26 | 52 | 30 | product | launch | maps |
 
