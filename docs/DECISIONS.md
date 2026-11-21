@@ -1260,6 +1260,14 @@ Sample 1 (`docs/shock_validation_sample.csv`, 100 moments) is now the **tuning**
     - **religious:** Conclave 2025 (115).
   - **Counts:** 7,236 global appointment moments (90.5%), plus 391 non-global members of catalogue events; 7,151 events (36 catalogue).
 
+### Step 9, round 25 (2026-11-21): Appointments calendar (`appointments_daily.json`)
+
+- **File** (step 8; 32 kB): one row per UTC day of the archive, 537 days (27 Nov 2024 – 17 May 2026). Fields: `date`, `events` (appointment events that day), `widest_event`, `widest_category`, `widest_event_reach`, and `gap` (1 on the 51 collection-gap days, where counts are lower).
+- **Same events as `appointments.json`:** 7,151 in total. Each event counts once, on the UTC day of its cited scheduled start (`start_utc`), else of its first moment. The multi-day Winter Olympics counts on its opening-ceremony day (6 Feb 2026). The widest event that day is the one with the largest event reach (ties: the third-country count, as in the chart).
+- **Numbers** (STORY_NUMBERS): 484 of 537 days have at least one appointment event; the median is 13 per full-coverage day; the busiest day is 18 May 2025 (44 events).
+- **The widest days:** Europa League final (21 May 2025), Club World Cup final (13 Jul 2025) and Barcelona vs Inter (6 May 2025), each at 125 countries.
+- **Super Bowl days:** Super Bowl LIX's day (9 Feb 2025) is led by Plymouth Argyle vs Liverpool (117) ahead of the Super Bowl (106).
+
 ## Open issues (need a decision)
 
 _Updated 2026-11-09, after the short-string, sport, 19:00 UTC and Wrapped fixes (rerun from combine: combine, link, validation, moments, export, profile, checks)._

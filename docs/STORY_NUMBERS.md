@@ -76,6 +76,9 @@ Conventions: national feeds; UTC unless a local hour is named; a moment is one t
 
 | number | value | file | key |
 |---|---|---|---|
+| Calendar: archive days / days with at least one appointment event | 537 / 484 | `appointments_daily.json` | `days` |
+| Calendar: median appointment events per day (full-coverage days) | 13.0 | `appointments_daily.json` | `days[].events` |
+| Calendar: busiest day (most appointment events) | 2025-05-18: 44 | `appointments_daily.json` | `days` |
 | Global appointment moments in events (share of all global moments) | 7,236 (90.5%) | `appointments.json` | `counts` |
 | ... sport / non-sport moments | 7,120 / 116 | `appointments.json` | `counts` |
 | Scheduled events (catalogue events / single-moment units) | 7,151 (36 / 7,115) | `appointments.json` | `counts` |

@@ -683,6 +683,36 @@ write("appointments.json", {
     "top20_by_event_reach": [_unit_item(r, curve=False) for r in units.head(20).itertuples()],
     "catalogue_events": [_unit_item(r, curve=False) for r in units[units.is_catalogue.astype(bool)].itertuples()],
     "files": appt_files})
+# Appointments calendar: one row per archive day. Each event counts once, on the UTC day of its cited scheduled start
+# (start_utc), else of its first moment; the multi-day Winter Olympics counts on its opening-ceremony day.
+_u = units.copy()
+_u["day"] = [(st if isinstance(st, str) and st else fu)[:10] for st, fu in
+             zip(_u.get("start_utc", pd.Series([None] * len(_u), index=_u.index)), _u.first_utc)]
+_u = _u.sort_values(["event_reach", "rank_reach_60"], ascending=False)
+_by_day = {d: g for d, g in _u.groupby("day")}
+_days = pd.date_range(t.day.min(), t.day.max(), freq="D").strftime("%Y-%m-%d")
+_gap = set(gap_days)
+cal = []
+for d in _days:
+    g = _by_day.get(d)
+    w = g.iloc[0] if g is not None else None
+    cal.append([d, 0 if g is None else int(len(g)), None if w is None else w.event, None if w is None else w.category,
+                None if w is None else int(w.event_reach), int(d in _gap)])
+write("appointments_daily.json", {
+    "note": "One row per day of the archive (UTC). events = appointment events that day (the event-based units of "
+            "appointments.json; each event counts once, on the UTC day of its cited scheduled start, else of its first "
+            "moment; the multi-day Winter Olympics on its opening-ceremony day). widest = the event with the largest "
+            "event reach that day. gap = 1 if the day has a collection gap (counts are lower there).",
+    "fields": ["date", "events", "widest_event", "widest_category", "widest_event_reach", "gap"], "days": cal})
+_cal = pd.DataFrame(cal, columns=["date", "events", "widest_event", "widest_category", "widest_event_reach", "gap"])
+_full = _cal[_cal.gap == 0]
+num("Appointments", "Calendar: archive days / days with at least one appointment event",
+    f"{len(_cal)} / {int((_cal.events > 0).sum())}", "appointments_daily.json", "days")
+num("Appointments", "Calendar: median appointment events per day (full-coverage days)", float(_full.events.median()),
+    "appointments_daily.json", "days[].events")
+_bd = _cal.sort_values("events", ascending=False).iloc[0]
+num("Appointments", "Calendar: busiest day (most appointment events)", f"{_bd.date}: {int(_bd.events)}",
+    "appointments_daily.json", "days")
 num("Appointments", "Global appointment moments in events (share of all global moments)",
     f"{len(_in):,} ({len(_in) / _g_all:.1%})", "appointments.json", "counts")
 num("Appointments", "... sport / non-sport moments", f"{int(_in.is_sport.sum()):,} / {int((~_in.is_sport).sum()):,}",
