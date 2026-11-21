@@ -915,7 +915,7 @@ def appointments_stage(t, meta, m):
     rows_by_topic = {k_: g for k_, g in rows[rows.topic_id.isin(_tp)].groupby("topic_id")}
     units = AP.event_units(a, rows_by_topic, groups)
     units = units[~units.event_id.isin(AP.rejected_events(DOCS))]
-    units = units.sort_values(["event_reach", "event_reach_60"], ascending=False).reset_index(drop=True)
+    units = units.sort_values(["event_reach", "rank_reach_60"], ascending=False).reset_index(drop=True)
     a.drop(columns=["text"]).to_parquet(WORK / "appointments_preview.parquet", index=False)
     units.drop(columns=["curve"]).to_parquet(WORK / "appointment_events.parquet", index=False)
     g_all = int(m.is_global.sum())

@@ -599,15 +599,32 @@ units = AP.event_units(appt, _rbt, APPT_GROUPS)
 units["verified"] = [any(_hand_sched.get(x) == "scheduled" for x in mem) for mem in units.members]
 APPT_REJECTED = AP.rejected_events(DOCS)      # events hand-labelled unscheduled on the verification sheet
 units = units[(units.category != "holiday") & ~units.event_id.isin(APPT_REJECTED)].sort_values(
-    ["event_reach", "event_reach_60"], ascending=False)
+    ["event_reach", "rank_reach_60"], ascending=False)       # tie-break: third-country count (timing-independent)
 APPT_CHART = pd.concat([units[units.category == "football"].head(10)] +
                        [units[units.category == c].head(5) for c in AP.CATEGORIES if c not in ("football", "holiday")])
+
+
+def _int_or_none(x):
+    return None if x is None or (isinstance(x, float) and math.isnan(x)) else int(x)
+
+
+def _str_or_none(x):
+    return None if x is None or (isinstance(x, float) and math.isnan(x)) else str(x)
+
+
+def _fmt(x):
+    return "—" if _int_or_none(x) is None else f"{int(x)}"
 
 
 def _unit_item(r, curve=True):
     d = {"event_id": r.event_id, "event": r.event, "category": r.category, "is_sport": bool(r.is_sport),
          "first_utc": r.first_utc, "window_utc": r.window_utc, "event_reach": int(r.event_reach),
-         "event_reach_60": int(r.event_reach_60), "event_minutes_to_half": r.event_minutes_to_half,
+         "event_reach_60": _int_or_none(r.event_reach_60), "event_minutes_to_half": _int_or_none(r.event_minutes_to_half),
+         "timing_basis": r.timing_basis, "start_utc": _str_or_none(getattr(r, "start_utc", None)),
+         "start_note": _str_or_none(getattr(r, "start_note", None)),
+         "start_source": _str_or_none(getattr(r, "start_source", None)),
+         "anticipation": _int_or_none(getattr(r, "anticipation", None)),
+         "new_in_first_hour": _int_or_none(getattr(r, "new_in_first_hour", None)),
          "verified": bool(r.verified), "multi_day": bool(r.multi_day),
          "event_reach_total": int(r.event_reach_total) if r.multi_day else None,
          "best_day": r.best_day if r.multi_day else None,
@@ -625,7 +642,7 @@ for mo, g in units.assign(month=units.first_utc.str[:7]).groupby("month"):
                                         "event_reach_60", "event_minutes_to_half", "moments", "verified", "multi_day",
                                         "event_reach_total", "curve"],
                 "rows": [[r.event_id, r.event, r.first_utc, int(r.is_sport), r.category, int(r.event_reach),
-                          int(r.event_reach_60), r.event_minutes_to_half, len(r.members), int(r.verified),
+                          _int_or_none(r.event_reach_60), _int_or_none(r.event_minutes_to_half), len(r.members), int(r.verified),
                           int(r.multi_day), int(r.event_reach_total) if r.multi_day else None,
                           [c for _, c in r.curve]] for r in g.itertuples()]})
     appt_files.append(rel)
@@ -637,8 +654,11 @@ write("appointments.json", {
             "its moments; every other appointment moment (a match, a trailer) is its own unit. Holidays are in "
             "Rituals; unclear non-sport moments are left out. Event reach = countries where any topic of the event "
             "trended in its window (the catalogue window, or 2 h before to 24 h after a single moment); within 60 "
-            "min, minutes to half and the curve count from the third country's first trend (curve = [minute, "
-            "countries] every 10 min for 6 h). Catalogue events take every trend of their topics inside the window, "
+            "min, minutes to half and the curve count from the event's cited scheduled start for catalogue events "
+            "(start_utc, start_source; anticipation = countries already trending before it; curve = [minutes after "
+            "the start, countries] every 10 min for 6 h), are not given for football matches outside the catalogue "
+            "(no kickoff times), and count from the third country's first trend for other single-moment units "
+            "(timing_basis). Catalogue events take every trend of their topics inside the window, "
             "not only global moments. multi_day events (Winter Olympics 2026) are ranked by their best UTC day "
             "(event_reach, best_day), with event_reach_total over the whole window as a second number. verified = a "
             "member moment is hand-labelled scheduled.",
@@ -661,6 +681,7 @@ write("appointments.json", {
     "chart": {"rule": "top 10 football events + top 5 events of each other category, by event reach",
               "verified": int(APPT_CHART.verified.sum()), "events": [_unit_item(r) for r in APPT_CHART.itertuples()]},
     "top20_by_event_reach": [_unit_item(r, curve=False) for r in units.head(20).itertuples()],
+    "catalogue_events": [_unit_item(r, curve=False) for r in units[units.is_catalogue.astype(bool)].itertuples()],
     "files": appt_files})
 num("Appointments", "Global appointment moments in events (share of all global moments)",
     f"{len(_in):,} ({len(_in) / _g_all:.1%})", "appointments.json", "counts")
@@ -671,8 +692,13 @@ num("Appointments", "Scheduled events (catalogue events / single-moment units)",
 for c_, v_ in units.category.value_counts().reindex([c for c in AP.CATEGORIES if c != "holiday"], fill_value=0).items():
     num("Appointments", f"... events in category {c_}", int(v_), "appointments.json", "counts.events_by_category")
 for r in units.head(5).itertuples():
-    num("Appointments", f"{r.event} ({r.first_utc[:10]}): event reach / within 60 min / minutes to half",
-        f"{r.event_reach} / {r.event_reach_60} / {r.event_minutes_to_half}", "appointments.json", "top20_by_event_reach")
+    num("Appointments", f"{r.event} ({r.first_utc[:10]}): event reach / by 60 min after start / minutes to half",
+        f"{r.event_reach} / {_fmt(r.event_reach_60)} / {_fmt(r.event_minutes_to_half)}", "appointments.json",
+        "top20_by_event_reach")
+for r in APPT_CHART[APPT_CHART.timing_basis.eq("scheduled start")].itertuples():
+    num("Appointments", f"{r.event}: anticipation / by 60 min after the start ({r.start_utc} UTC) / minutes to half "
+        f"/ event reach", f"{_fmt(r.anticipation)} / {_fmt(r.event_reach_60)} / {_fmt(r.event_minutes_to_half)} / "
+        f"{r.event_reach}", "appointments.json", "chart.events[]")
 for r in units[units.multi_day.astype(bool)].itertuples():
     num("Appointments", f"{r.event}: best day ({r.best_day}) / total over the window",
         f"{r.event_reach} / {r.event_reach_total}", "appointments.json", "chart.events[].event_reach, event_reach_total")

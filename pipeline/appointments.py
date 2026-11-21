@@ -313,6 +313,20 @@ def event_units(a, rows_by_topic, groups=None):
             f = figures_multi_day(rows_by_topic, topics, lo, hi)
         else:
             f = figures_window(rows_by_topic, topics, lo, hi)
+        f["rank_reach_60"] = f.get("event_reach_60")   # ranking tie-break (third-country basis), kept stable
+        # timing basis: the cited scheduled start for catalogue events; none for football matches outside the
+        # catalogue (no kickoff times); the third country's first trend for other single-moment units
+        if eid in START_TIMES:
+            st_ = pd.Timestamp(START_TIMES[eid][0], tz="UTC")
+            f.update(timing_from_start(rows_by_topic, topics, lo, hi, st_))
+            f.update(timing_basis="scheduled start", start_utc=f"{st_:%Y-%m-%dT%H:%MZ}",
+                     start_note=START_TIMES[eid][1], start_source=START_TIMES[eid][2])
+        elif eid in cat_of:
+            f.update(event_reach_60=None, event_minutes_to_half=None, curve=[], timing_basis="none (no cited start)")
+        elif cat == "football":
+            f.update(event_reach_60=None, event_minutes_to_half=None, curve=[], timing_basis="none (football match)")
+        else:
+            f.update(timing_basis="third country's first trend")
         out.append({"event_id": eid, "event": name_, "category": cat, "is_catalogue": eid in cat_of,
                     "window_utc": [f"{lo:%Y-%m-%dT%H:%MZ}", f"{hi:%Y-%m-%dT%H:%MZ}"],
                     "members": g.moment_id.tolist(), "member_names": [display_topic(x, eid) for x in g["name"]],
@@ -445,3 +459,67 @@ def display_topic(name, eid):
     trends on Super Bowl LX day): they are assigned by date (their trends inside the window count for that event)
     and shown neutrally."""
     return "Super Bowl (searches that day)" if eid.startswith("super-bowl") and SUPER_BOWL_RE.search(str(name)) else name
+
+
+# ------------------------------------------------------------------ scheduled start times (Step 9 round 23)
+# Entered by hand, each with its source (read 2026-11-20/21). Timing for catalogue events counts from this start:
+# anticipation (countries already trending before it), countries by 60 min after it, minutes to half after it.
+# Multi-day events use the opening ceremony. Events without a cited start get reach only.
+W = "https://en.wikipedia.org/wiki/"
+START_TIMES = {
+    "game-awards-2024": ("2024-12-13 01:00", "main show 8 p.m. ET", "https://www.gamespot.com/articles/the-game-awards-2024-how-to-watch-start-times-and-what-to-expect/1100-6528392/"),
+    "inauguration-2025": ("2025-01-20 17:00", "oath scheduled at noon ET", "https://www.npr.org/2025/01/20/g-s1-43577/donald-trump-inauguration-day-how-to-watch"),
+    "oscar-nominations-2025": ("2025-01-23 13:30", "announcement 8:30 a.m. ET", "https://www.forbes.com/sites/timlammers/2025/01/22/what-time-will-2025-oscar-nominations-be-announced-how-to-watch/"),
+    "grammys-2025": ("2025-02-03 01:00", "telecast 8 p.m. ET", "https://www.cbsnews.com/news/how-to-watch-2025-grammy-awards/"),
+    "super-bowl-lix": ("2025-02-09 23:30", "kickoff 5:30 p.m. CT", W + "Super_Bowl_LIX"),
+    "apple-2025-02": ("2025-02-19 16:00", "announcement 8 a.m. PT", "https://www.techradar.com/news/live/iphone-se-4-apple-event-feb-2024"),
+    "german-election-2025": ("2025-02-23 17:00", "polls close 18:00 CET", "https://www.bundeswahlleiterin.de/info/presse/mitteilungen/bundestagswahl-2025/24_25_bis-18-uhr-waehlen-gehen.html"),
+    "oscars-2025": ("2025-03-03 00:00", "ceremony 7 p.m. ET", "https://press.oscars.org/news/academy-and-abc-announce-show-date-97th-oscarsr"),
+    "conclave-2025": ("2025-05-08 16:07", "white smoke 6:07 p.m. CEST", W + "2025_conclave"),
+    "esc-2025-sf1": ("2025-05-13 19:00", "21:00 CEST (from the page summary, not verbatim)", W + "Eurovision_Song_Contest_2025"),
+    "esc-2025-sf2": ("2025-05-15 19:00", "21:00 CEST (from the page summary, not verbatim)", W + "Eurovision_Song_Contest_2025"),
+    "esc-2025-final": ("2025-05-17 19:00", "21:00 CEST", W + "Eurovision_Song_Contest_2025"),
+    "polish-election-2025": ("2025-05-18 19:00", "polls close 21:00 CEST", W + "2025_Polish_presidential_election"),
+    "europa-final-2025": ("2025-05-21 19:00", "kickoff 21:00 UTC+2", W + "2025_UEFA_Europa_League_final"),
+    "ucl-final-2025": ("2025-05-31 19:00", "kickoff 21:00 UTC+2", W + "2025_UEFA_Champions_League_final"),
+    "roland-garros-final-2025": ("2025-06-08 13:00", "not before 15:00 CEST", "https://www.atptour.com/en/news/roland-garros-2025-final-schedule"),
+    "wimbledon-final-2025": ("2025-07-13 15:00", "not before 16:00 BST (started 16:10)", "https://www.atptour.com/en/news/wimbledon-2025-final-schedule-alcaraz-sinner"),
+    "cwc-final-2025": ("2025-07-13 19:00", "kickoff 3:00 p.m. EDT", W + "2025_FIFA_Club_World_Cup_final"),
+    "nobel-literature-2025": ("2025-10-09 11:00", "13:00 CEST at the earliest", "https://www.nobelprize.org/press-release/the-2025-nobel-prize-announcements/"),
+    "nobel-peace-2025": ("2025-10-10 09:00", "11:00 CEST", "https://www.nobelprize.org/press-release/the-2025-nobel-prize-announcements/"),
+    "vs-show-2025": ("2025-10-15 23:00", "show 7 p.m. ET", "https://www.forbes.com/sites/monicamercuri/2025/10/15/what-time-is-the-victorias-secret-fashion-show-2025-heres-how-to-watch/"),
+    "grammy-nominations-2026": ("2025-11-07 16:00", "livestream 11 a.m. ET", "https://www.grammy.com/news/how-watch-2026-grammys-nominations-live/"),
+    "st5-release": ("2025-11-27 01:00", "release 5 p.m. PT on 26 Nov", "https://www.forbes.com/sites/monicamercuri/2025/11/26/what-time-is-stranger-things-season-5-volume-1-coming-out-on-netflix-tonight/"),
+    "wc-2026-draw": ("2025-12-05 17:00", "12:00 UTC-5 (EST)", W + "2026_FIFA_World_Cup_draw"),
+    "game-awards-2025": ("2025-12-12 01:00", "main show 8 p.m. ET", "https://www.windowscentral.com/gaming/how-to-watch-the-game-awards-2025"),
+    "st5-finale": ("2026-01-01 01:00", "release 5 p.m. PT on 31 Dec", "https://www.forbes.com/sites/erikkain/2025/12/30/stranger-things-finale-netflix-release-time/"),
+    "grammys-2026": ("2026-02-02 01:00", "telecast 8 p.m. ET", "https://www.grammy.com/news/how-watch-2026-grammys-live-streaming-performers-host-air-date-red-carpet/"),
+    "olympics-2026-opening": ("2026-02-06 19:00", "ceremony 20:00 CET", W + "2026_Winter_Olympics_opening_ceremony"),
+    "winter-olympics-2026": ("2026-02-06 19:00", "opening ceremony 20:00 CET", W + "2026_Winter_Olympics_opening_ceremony"),
+    "super-bowl-lx": ("2026-02-08 23:30", "kickoff 3:30 p.m. PT", W + "Super_Bowl_LX"),
+    "olympics-2026-closing": ("2026-02-22 19:30", "ceremony 20:30 CET", W + "2026_Winter_Olympics_closing_ceremony"),
+    "oscars-2026": ("2026-03-15 23:00", "ceremony 7 p.m. ET", "https://abcnews.com/GMA/Culture/how-watch-stream-oscars-2026/story?id=130730695"),
+    "esc-2026-sf1": ("2026-05-12 19:00", "21:00 CEST (from the page summary, not verbatim)", W + "Eurovision_Song_Contest_2026"),
+    "esc-2026-sf2": ("2026-05-14 19:00", "21:00 CEST (from the page summary, not verbatim)", W + "Eurovision_Song_Contest_2026"),
+    "esc-2026-final": ("2026-05-16 19:00", "21:00 CEST", W + "Eurovision_Song_Contest_2026"),
+}
+# no cited start: spotify-wrapped-2024/2025 (Spotify published no time), apple-2026-03, g7-2025
+
+
+def timing_from_start(rows_by_topic, topic_ids, lo, hi, start):
+    """Anticipation (countries whose first trend in the window is before the start), countries by 60 min after the
+    start (cumulative), new countries in that hour, minutes from the start until half of the event-reach countries,
+    and the curve [minutes after start, countries] every 10 min for 6 h (minute 0 includes the anticipation)."""
+    parts = [rows_by_topic[x] for x in topic_ids if x in rows_by_topic]
+    w = pd.concat(parts) if parts else pd.DataFrame(columns=["country_code", "start_time_utc"])
+    w = w[(w.start_time_utc >= lo) & (w.start_time_utc < hi)]
+    first = w.groupby("country_code").start_time_utc.min()
+    if first.empty:
+        return {}
+    mins = ((first - start).dt.total_seconds() / 60).round().astype(int).values
+    srt = np.sort(mins)
+    half = int(srt[int(np.ceil(len(srt) / 2)) - 1])
+    return {"anticipation": int((mins < 0).sum()), "event_reach_60": int((mins <= 60).sum()),
+            "new_in_first_hour": int(((mins >= 0) & (mins <= 60)).sum()),
+            "event_minutes_to_half": max(0, half), "half_before_start": half < 0,
+            "curve": [[k, int((mins <= k).sum())] for k in range(0, CURVE_MIN + 1, CURVE_STEP)]}

@@ -1156,6 +1156,91 @@ Sample 1 (`docs/shock_validation_sample.csv`, 100 moments) is now the **tuning**
 - **Open: first-hour figures for whole-day windows.** For catalogue events, "within 60 min" and "minutes to half" count from the third country's first trend in the window, which can be hours before the event: Super Bowl LIX 12 within 60 min and 1,030 minutes to half, Winter Olympics best day 610, German election 580, Trump inauguration 520. They describe the day's build-up, not the event's spread. Counting from each event's scheduled start time (kickoff, ceremony start) would fix it; not done.
 - **Not covered:** shocks below the chart, Shrek 5 (now out of the chart; its one-row sheet stays).
 
+### Step 9, round 23 (2026-11-21): timing from each catalogue event's scheduled start
+
+**Rule** (`appointments.START_TIMES`, `timing_from_start`):
+- **Catalogue events** count their timing from a scheduled start, entered by hand with a cited source each (sources read 2026-11-20/21). The figures are:
+  - **anticipation:** countries whose first trend in the window is before the start;
+  - **by 60 min after the start:** cumulative, including the anticipation;
+  - **new in the first hour;**
+  - **minutes to half:** minutes from the start until half of the event-reach countries trended; 0 if half were already there before the start;
+  - **event reach:** countries by the end of the window.
+  - The curve is [minutes after the start, countries] every 10 min for 6 h.
+- **Multi-day events** (Winter Olympics) time from the opening ceremony start and keep best day / total for reach.
+- **Football matches outside the catalogue:** reach only, no timing (no kickoff times from a reliable source).
+- **Other single-moment units** keep the third-country basis; `timing_basis` says which applies.
+- **Chart ranking** keeps the third-country count as its tie-break (`rank_reach_60`), so the chart set is unchanged.
+
+**Start times and sources** (UTC; all times as stated by the source):
+- **Wikipedia** (verbatim text):
+  - Super Bowl LIX 2025-02-09 23:30 (kickoff 5:30 p.m. CT) and Super Bowl LX 2026-02-08 23:30 (3:30 p.m. PT);
+  - Europa League final and Champions League final 2025, 19:00 (21:00 UTC+2);
+  - Club World Cup final 2025-07-13 19:00 (3 p.m. EDT);
+  - World Cup 2026 draw 2025-12-05 17:00 (12:00 UTC−5);
+  - Eurovision 2025 and 2026 finals 19:00 (21:00 CEST);
+  - Winter Olympics opening ceremony 2026-02-06 19:00 (20:00 CET) and closing ceremony 2026-02-22 19:30;
+  - Polish presidential election 2025-05-18 19:00 (polls close 21:00 CEST);
+  - Conclave 2025-05-08 16:07 (white smoke 6:07 p.m. CEST).
+- **Wikipedia, from the fetch tool's page summary rather than verbatim text** (flagged in `start_note`): Eurovision 2025 and 2026 semi-finals, 19:00 (21:00 CEST).
+- **Official and news sources:**
+  - **Trump inauguration:** 2025-01-20 17:00, oath scheduled at noon ET (NPR).
+  - **German federal election:** 2025-02-23 17:00, polls close 18:00 CET (Bundeswahlleiterin).
+  - **Grammys:** 2025-02-03 01:00 (CBS News) and 2026-02-02 01:00 (grammy.com), both 8 p.m. ET.
+  - **Oscars:** 2025-03-03 00:00 (Academy press office) and 2026-03-15 23:00 (ABC News), both 7 p.m. ET.
+  - **Oscar nominations 2025:** 2025-01-23 13:30, 8:30 a.m. ET (Forbes).
+  - **Grammy nominations 2026:** 2025-11-07 16:00, 11 a.m. ET (grammy.com).
+  - **Nobel Literature 2025:** 2025-10-09 11:00, 13:00 CEST at the earliest; **Nobel Peace 2025:** 2025-10-10 09:00, 11:00 CEST (nobelprize.org).
+  - **Game Awards:** 2024-12-13 01:00 (GameSpot) and 2025-12-12 01:00 (Windows Central), both main show 8 p.m. ET.
+  - **Victoria's Secret Fashion Show 2025:** 2025-10-15 23:00, 7 p.m. ET (Forbes).
+  - **Stranger Things 5:** release 2025-11-27 01:00 and finale 2026-01-01 01:00, both 5 p.m. PT (Forbes).
+  - **Apple event Feb 2025:** 2025-02-19 16:00, 8 a.m. PT (TechRadar live blog; MacRumors posted 8:02 PST).
+  - **Roland Garros final:** 2025-06-08 13:00, not before 15:00 CEST (ATP).
+  - **Wimbledon final:** 2025-07-13 15:00, not before 16:00 BST; it started 16:10 (ATP).
+  - The URLs are in `START_TIMES` and in `appointments.json` (`start_source`).
+- **No cited start, so no timing:**
+  - Spotify Wrapped 2024 and 2025: Spotify published no time; one blog citing the BBC gives 13:00 GMT for 2025, which was not used;
+  - Apple event Mar 2026 (iPhone 17e);
+  - G7 2025 (dropped).
+
+**Results:** anticipation / by 60 min after the start / minutes to half / event reach.
+
+| Event | Anticipation | By +60 min | Min to half | Reach |
+|---|---:|---:|---:|---:|
+| Champions League final 2025 | 121 | 122 | 0 | 124 |
+| Europa League final 2025 | 115 | 124 | 0 | 125 |
+| Club World Cup final 2025 | 112 | 125 | 0 | 125 |
+| Super Bowl LIX | 97 | 106 | 0 | 106 |
+| Winter Olympics 2026 (from the opening ceremony) | 87 | 94 | 0 | 109 best day, 119 total |
+| Super Bowl LX | 76 | 90 | 0 | 96 |
+| Trump inauguration 2025 | 74 | 76 | 0 | 78 |
+| Grammys 2025 | 71 | 76 | 0 | 102 |
+| Grammys 2026 | 63 | 70 | 0 | 84 |
+| Stranger Things 5 release | 53 | 69 | 0 | 86 |
+| German federal election 2025 | 47 | 67 | 0 | 78 |
+| World Cup 2026 draw | 39 | 74 | 0 | 98 |
+| Victoria's Secret Fashion Show 2025 | 39 | 46 | 0 | 52 |
+| Eurovision 2025 final | 37 | 56 | 0 | 73 |
+| Eurovision 2026 final | 36 | 47 | 0 | 61 |
+| Oscars 2026 | 34 | 60 | 10 | 81 |
+| Eurovision 2025 / 2026 semi-final 1 | 34 / 34 | 44 / 40 | 0 / 0 | 44 / 42 |
+| Wimbledon final 2025 | 32 | 96 | 10 | 103 |
+| The Game Awards 2024 / 2025 | 30 / 28 | 41 / 36 | 0 / 0 | 58 / 51 |
+| Oscars 2025 | 28 | 49 | 20 | 70 |
+| Stranger Things 5 finale | 23 | 63 | 0 | 85 |
+| Roland Garros final 2025 | 22 | 81 | 20 | 105 |
+| Conclave 2025 | 16 | 103 | 3 | 115 |
+| Eurovision 2025 / 2026 semi-final 2 | 11 / 9 | 35 / 22 | 10 / 20 | 38 / 31 |
+| Polish presidential election 2025 | 11 | 20 | 0 | 20 |
+| Nobel Peace Prize 2025 | 7 | 54 | 10 | 70 |
+| Apple event Feb 2025 | 6 | 55 | 40 | 85 |
+| Oscar nominations 2025 | 5 | 41 | 30 | 57 |
+| Olympics opening / closing ceremony | 5 / 5 | 20 / 19 | 30 / 0 | 29 / 20 |
+| Grammy nominations 2026 | 2 | 18 | 90 | 43 |
+| Nobel Literature 2025 | 1 | 29 | 10 | 34 |
+
+- **Reading the table:** finals, Super Bowls, award nights and elections are mostly *anticipated*: most of their countries trend before the start, so half are reached before it begins (minutes to half 0). Announcements nobody can watch in advance are not: the conclave (16 before the white smoke, 103 within the hour), the Nobel prizes, the Apple event and the Oscar and Grammy nominations.
+- The Spotify Wrapped 2025 chart event has reach only (104).
+
 ## Open issues (need a decision)
 
 _Updated 2026-11-09, after the short-string, sport, 19:00 UTC and Wrapped fixes (rerun from combine: combine, link, validation, moments, export, profile, checks)._

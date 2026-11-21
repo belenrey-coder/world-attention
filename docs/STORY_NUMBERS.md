@@ -86,11 +86,30 @@ Conventions: national feeds; UTC unless a local hour is named; a moment is one t
 | ... events in category launch/release | 39 | `appointments.json` | `counts.events_by_category` |
 | ... events in category religious | 1 | `appointments.json` | `counts.events_by_category` |
 | ... events in category other | 0 | `appointments.json` | `counts.events_by_category` |
-| Barcelona vs Inter Milan (2025-05-06): event reach / within 60 min / minutes to half | 125 / 17 / 90 | `appointments.json` | `top20_by_event_reach` |
-| Club World Cup final 2025 (Chelsea vs PSG) (2025-07-13): event reach / within 60 min / minutes to half | 125 / 9 / 150 | `appointments.json` | `top20_by_event_reach` |
-| Europa League final 2025 (2025-05-21): event reach / within 60 min / minutes to half | 125 / 6 / 330 | `appointments.json` | `top20_by_event_reach` |
-| Paris Saint-Germain vs Arsenal (2025-05-07): event reach / within 60 min / minutes to half | 124 / 117 / 40 | `appointments.json` | `top20_by_event_reach` |
-| Champions League final 2025 (PSG vs Inter) (2025-05-31): event reach / within 60 min / minutes to half | 124 / 38 / 120 | `appointments.json` | `top20_by_event_reach` |
+| Barcelona vs Inter Milan (2025-05-06): event reach / by 60 min after start / minutes to half | 125 / — / — | `appointments.json` | `top20_by_event_reach` |
+| Club World Cup final 2025 (Chelsea vs PSG) (2025-07-13): event reach / by 60 min after start / minutes to half | 125 / 125 / 0 | `appointments.json` | `top20_by_event_reach` |
+| Europa League final 2025 (2025-05-21): event reach / by 60 min after start / minutes to half | 125 / 124 / 0 | `appointments.json` | `top20_by_event_reach` |
+| Paris Saint-Germain vs Arsenal (2025-05-07): event reach / by 60 min after start / minutes to half | 124 / — / — | `appointments.json` | `top20_by_event_reach` |
+| Champions League final 2025 (PSG vs Inter) (2025-05-31): event reach / by 60 min after start / minutes to half | 124 / 122 / 0 | `appointments.json` | `top20_by_event_reach` |
+| Club World Cup final 2025 (Chelsea vs PSG): anticipation / by 60 min after the start (2025-07-13T19:00Z UTC) / minutes to half / event reach | 112 / 125 / 0 / 125 | `appointments.json` | `chart.events[]` |
+| Europa League final 2025: anticipation / by 60 min after the start (2025-05-21T19:00Z UTC) / minutes to half / event reach | 115 / 124 / 0 / 125 | `appointments.json` | `chart.events[]` |
+| Champions League final 2025 (PSG vs Inter): anticipation / by 60 min after the start (2025-05-31T19:00Z UTC) / minutes to half / event reach | 121 / 122 / 0 / 124 | `appointments.json` | `chart.events[]` |
+| Winter Olympics 2026 (4-22 Feb, multi-day): anticipation / by 60 min after the start (2026-02-06T19:00Z UTC) / minutes to half / event reach | 87 / 94 / 0 / 109 | `appointments.json` | `chart.events[]` |
+| Super Bowl LIX: anticipation / by 60 min after the start (2025-02-09T23:30Z UTC) / minutes to half / event reach | 97 / 106 / 0 / 106 | `appointments.json` | `chart.events[]` |
+| Roland Garros men's final 2025: anticipation / by 60 min after the start (2025-06-08T13:00Z UTC) / minutes to half / event reach | 22 / 81 / 20 / 105 | `appointments.json` | `chart.events[]` |
+| Wimbledon men's final 2025: anticipation / by 60 min after the start (2025-07-13T15:00Z UTC) / minutes to half / event reach | 32 / 96 / 10 / 103 | `appointments.json` | `chart.events[]` |
+| Grammys 2025: anticipation / by 60 min after the start (2025-02-03T01:00Z UTC) / minutes to half / event reach | 71 / 76 / 0 / 102 | `appointments.json` | `chart.events[]` |
+| Grammys 2026: anticipation / by 60 min after the start (2026-02-02T01:00Z UTC) / minutes to half / event reach | 63 / 70 / 0 / 84 | `appointments.json` | `chart.events[]` |
+| Oscars 2026: anticipation / by 60 min after the start (2026-03-15T23:00Z UTC) / minutes to half / event reach | 34 / 60 / 10 / 81 | `appointments.json` | `chart.events[]` |
+| Eurovision 2025 final: anticipation / by 60 min after the start (2025-05-17T19:00Z UTC) / minutes to half / event reach | 37 / 56 / 0 / 73 | `appointments.json` | `chart.events[]` |
+| Oscars 2025: anticipation / by 60 min after the start (2025-03-03T00:00Z UTC) / minutes to half / event reach | 28 / 49 / 20 / 70 | `appointments.json` | `chart.events[]` |
+| Trump inauguration 2025: anticipation / by 60 min after the start (2025-01-20T17:00Z UTC) / minutes to half / event reach | 74 / 76 / 0 / 78 | `appointments.json` | `chart.events[]` |
+| German federal election 2025: anticipation / by 60 min after the start (2025-02-23T17:00Z UTC) / minutes to half / event reach | 47 / 67 / 0 / 78 | `appointments.json` | `chart.events[]` |
+| Polish presidential election 2025: anticipation / by 60 min after the start (2025-05-18T19:00Z UTC) / minutes to half / event reach | 11 / 20 / 0 / 20 | `appointments.json` | `chart.events[]` |
+| Stranger Things 5 release: anticipation / by 60 min after the start (2025-11-27T01:00Z UTC) / minutes to half / event reach | 53 / 69 / 0 / 86 | `appointments.json` | `chart.events[]` |
+| Stranger Things 5 finale: anticipation / by 60 min after the start (2026-01-01T01:00Z UTC) / minutes to half / event reach | 23 / 63 / 0 / 85 | `appointments.json` | `chart.events[]` |
+| Apple event, Feb 2025 (iPhone 16e): anticipation / by 60 min after the start (2025-02-19T16:00Z UTC) / minutes to half / event reach | 6 / 55 / 40 / 85 | `appointments.json` | `chart.events[]` |
+| Conclave 2025 (Pope Leo XIV): anticipation / by 60 min after the start (2025-05-08T16:07Z UTC) / minutes to half / event reach | 16 / 103 / 3 / 115 | `appointments.json` | `chart.events[]` |
 | Winter Olympics 2026 (4-22 Feb, multi-day): best day (2026-02-11) / total over the window | 109 / 119.0 | `appointments.json` | `chart.events[].event_reach, event_reach_total` |
 | Top 5 other sport: Winter Olympics 2026 (4-22 Feb, multi-day) (2026-02-04), event reach | 109 | `appointments.json` | `chart.events` |
 | Top 5 other sport: Super Bowl LIX (2025-02-09), event reach | 106 | `appointments.json` | `chart.events` |
