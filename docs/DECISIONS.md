@@ -1064,6 +1064,59 @@ Sample 1 (`docs/shock_validation_sample.csv`, 100 moments) is now the **tuning**
   - Champions League final 2025: "William Saliba vs Pacho", a hand-labelled football moment that night (13 moments, reach stays 93).
 - **The chart set is unchanged** (the same 31 events, members and reach), so `docs/event_groups_review_appointments.csv` and `docs/appointment_chart_verification.csv` were **not regenerated**.
 
+### Step 9, round 20 (2026-11-20): appointment chart verified, story rebuilt
+
+- **Your review:**
+  - **Verification sheet** (21 rows): 19 scheduled; G7 summit 2025 and "Spotify Wrapped and year-end recaps 2024" unscheduled.
+  - **Event groups** (`event_groups_review_appointments.csv`): 62 accepted, 48 rejected, 105 no-effect.
+- **Rejected events leave Appointments** (`appointments.rejected_events`): a catalogue event whose verification row is labelled unscheduled is dropped as a whole. Its labelled moment also becomes a shock in step 4 through the hand-label override. Without the rule, Spotify Wrapped 2024 would have stayed through its other member, Apple Music Replay.
+- **`make moments`:** 271 hand labels apply; shock moments 597 (610 by the rule alone).
+- **`make story`:** `appointments.json` uses the reviewed event groups.
+  - **Appointments:** 7,237 appointment moments in events (90.5% of 7,999 global moments; sport 7,120, non-sport 117) form 7,162 events (36 catalogue events).
+  - **Events by category:** football 5,752, other sport 1,344, award/ceremony 21, election/politics 4, launch/release 40, religious 1.
+  - **Left out:** 3 holiday moments and 45 unclear non-sport moments.
+- **Chart set: 30 events, 29 verified.**
+  - **Football:** Barcelona vs Inter 6 May 2025 (125), PSG vs Arsenal (124), Real Madrid vs Rayo 1 Feb 2026 (123), Sevilla vs Barcelona (123), Alavés vs Real Madrid 14 Dec 2025 (123), Barcelona vs Alavés (122), Real Madrid vs Rayo 9 Mar 2025 (122), Atlético vs Barcelona (122), Real Madrid vs Leganés (122), Talavera vs Real Madrid (122).
+  - **Other sport:** Roland Garros men's final 2025 (104), NBA 22 Jun 2025 (101), NBA 20 Jun 2025 (100), Formula One 25 May 2025 (92), Wimbledon men's final 2025 (90).
+  - **Award/ceremony:** Grammys 2025 (97), Nobel Peace Prize 2025 (69), Oscars 2025 (62), Oscar nominations 2025 (57), The Game Awards 2024 (54).
+  - **Election/politics** (4 left): German federal election 2025 (71), Trump inauguration 2025 (68), Kash Patel's confirmation vote (42), Polish presidential election 2025 (20).
+  - **Launch/release:** Apple event Feb 2025 (83), Samsung 30 Dec 2025 (66), BTS 4 Mar 2026 (65), Epic Games 15 May 2025 (57), **Shrek 5 trailer (56, unverified)**.
+  - **Religious:** Conclave 2025 (76).
+- **Open:** Shrek 5 replaced Spotify Wrapped 2024 in launch/release. It has no hand label and its event-group candidates were not in the review. The chart's numbers for it are the main topic only.
+- **Slow first-hour figures** for some scheduled events, counted from the third country in the window, which starts up to 2 h before (or the catalogue window): Roland Garros final 6 within 60 min (200 min to half), Wimbledon final 5 (200), Alavés vs Real Madrid 4 (150), Oscars 2025 11 (130). Countries search ahead of the event and keep joining through it; this is the appointment pattern, not an error.
+
+### Step 9, round 21 (2026-11-20): old Appointments chapter removed; Shrek 5; Winter Olympics and Super Bowls
+
+**1. One Appointments chapter.** The original step-8 chapter (section 4: hand-picked El Clásicos, Super Bowls, Club World Cup, holidays, with a 10-day build-up) also wrote `appointments.json` and was overwritten by the event-based chapter, which left 16 stale keys in STORY_NUMBERS. It is removed; the event-based chapter (5b) is the only writer. `make story` was rerun to regenerate STORY_NUMBERS.
+
+**2. Shrek 5 trailer** (27 Feb 2025, event reach 56; entered launch/release when Spotify Wrapped 2024 dropped out):
+- **Verification:** `docs/appointment_chart_verification_2.csv` (one row, same columns and links; key `_2_key`).
+- **Event-group candidates:** `docs/event_groups_review_appointments_2.csv`: 4 candidates, all no-effect ("shrek 5 teaser trailer", "shrek 5 dreamworks", "shrek 5 ne zaman", "shrek 5 uscita"), so nothing to review.
+- **Wiring:** the `_2` labels join the hand-label overrides (`kinds.HAND_SHEETS`), and an unscheduled label drops the event (`appointments.rejected_events`). The appointments chapter uses event groups once the main review file is decided; follow-up review files add their accepted rows as they are decided (`events.APPOINTMENT_REVIEW_FILES`).
+
+**3. Winter Olympics 2026 and Super Bowls LIX / LX** (analysis only; the chart set is not changed).
+- **Coverage gap:** Appointments contains only **global** moments (15+ countries within 60 min of the third). Most topics of these events spread over the day and are not global moments, so the chapter barely sees them.
+- **Super Bowl LIX** (window 9 Feb 2025 06:00 – 10 Feb 08:00 UTC):
+  - **Global moments in the chapter:** only NFL (42) and Taylor Swift (37), grouped as catalogue event "Super Bowl LIX" (event reach 57).
+  - **Not global:** Super Bowl (55), Kendrick Lamar (56), Travis Kelce (47), Jalen Hurts, Saquon Barkley, Jon Batiste, Patrick Mahomes, Lady Gaga, "Super Bowl LIX halftime show", "Philadelphia Eagles", and others.
+  - **The catalogue window started at 18:00,** after the 12:30 "Super Bowl" moment.
+  - **Grouped as one event** (all Super Bowl, NFL, team, player and halftime topics in the window): **106 countries**, which would rank **1st in other sport** (current 1st: Roland Garros final 2025, 104).
+- **Super Bowl LX** (window 8 Feb 2026 06:00 – 9 Feb 08:00 UTC):
+  - **In the chapter:** NFL (20), Ricky Martin (31), Green Day (21) and Charlie Puth (17), grouped as "Super Bowl LX" (46).
+  - **Not global:** Bad Bunny (60), Sam Darnold (23), "Super Bowl LX winner", "Bad Bunny Super Bowl halftime show", Seahawks, Patriots.
+  - **A topic named "Super Bowl LIX"** trends that day in 52 countries: a merge of plain "super bowl" searches across years.
+  - **Grouped:** **95 countries**, **4th in other sport** (after 104, 101, 100).
+- **Winter Olympics 2026 opening ceremony** (window 6 Feb 15:00 – 7 Feb 06:00 UTC):
+  - **In the chapter:** Charlize Theron, Laura Pausini and Sabrina Impacciatore, grouped as "Winter Olympics 2026 opening ceremony" (29). Predazzo is a sport moment of its own.
+  - **Not in the chapter:** Mariah Carey (23, not global), San Siro, "Opening ceremony of the 2026 Winter Olympics".
+  - **Grouped:** ceremony, performer and Games topics give **43 countries**, or 45 with sport-event topics such as Predazzo and the 2028 / 2030 Games. That ranks **7th in award/ceremony** (5th place: The Game Awards 2024, 54).
+- **Winter Olympics 2026 overall** (4–23 Feb):
+  - **In the chapter:** almost none of it. The sport topics are not global moments: "2026 Winter Olympics ice hockey" 106 countries, alpine skiing 105, snowboarding slopestyle 101, …
+  - **Grouped over the Games:** **118 countries**. The **best single day is 11 Feb, 110 countries**, which would rank **1st in other sport**. Four days pass 100: 11 Feb (110), 14 Feb (102), 17 Feb (101) and 18 Feb (103).
+- **Options (not done):**
+  - widen the two Super Bowl catalogue windows and let catalogue events take non-global appointment moments of their topics;
+  - add "Winter Olympics 2026" as a multi-day catalogue event ranked by its best day.
+
 ## Open issues (need a decision)
 
 _Updated 2026-11-09, after the short-string, sport, 19:00 UTC and Wrapped fixes (rerun from combine: combine, link, validation, moments, export, profile, checks)._

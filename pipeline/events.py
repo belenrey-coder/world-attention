@@ -107,7 +107,9 @@ def _first_minutes(rows, start):
 
 # review files per chapter: the shocks' (main + extra) and the appointments' are decided and switched on separately
 SHOCK_REVIEW_FILES = ["event_groups_review.csv", "event_groups_review_extra.csv"]
-APPOINTMENT_REVIEW_FILES = ["event_groups_review_appointments.csv"]
+APPOINTMENT_REVIEW_FILES = ["event_groups_review_appointments.csv", "event_groups_review_appointments_2.csv"]
+# the appointments chapter switches to event groups once the MAIN file is fully decided; later files (follow-ups such
+# as Shrek 5) add their accepted rows as they are decided
 
 
 def review_files(docs, names=None):

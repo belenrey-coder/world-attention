@@ -40,7 +40,8 @@ def load_shock_labels(path):
 # (git-ignored); without them nothing is overridden.
 HAND_SHEETS = [("shock_validation_sample.csv", "shock_validation_key.csv"),
                ("shock_validation_sample2.csv", "shock_validation_key2.csv"),
-               ("appointment_chart_verification.csv", "appointment_chart_verification_key.csv")]
+               ("appointment_chart_verification.csv", "appointment_chart_verification_key.csv"),
+               ("appointment_chart_verification_2.csv", "appointment_chart_verification_2_key.csv")]
 VERIFY_GLOB = "shock_chart_verification*.csv"
 
 

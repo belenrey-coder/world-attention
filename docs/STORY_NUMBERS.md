@@ -36,16 +36,16 @@ Conventions: national feeds; UTC unless a local hour is named; a moment is one t
 | number | value | file | key |
 |---|---|---|---|
 | Chart set: 60 shocks (by event reach once event groups are reviewed), of which hand-verified | 60 of 60 | `shocks.json` | `chart_top60` |
-| Shocks verified by hand label (all) | 130 | `shocks.json` | `moments[].verified` |
+| Shocks verified by hand label (all) | 132 | `shocks.json` | `moments[].verified` |
 | Estimated true number of shocks (flagged x precision / recall, 95% bootstrap interval) | 475 [400, 548] | `shocks.json` | `estimate_true_shocks` |
-| Sport-free global shock moments | 587 | `shocks.json` | `moments` |
-| ... of kind other | 398 | `shocks.json` | `moments[].kind` |
+| Sport-free global shock moments | 589 | `shocks.json` | `moments` |
+| ... of kind other | 400 | `shocks.json` | `moments[].kind` |
 | ... of kind death | 115 | `shocks.json` | `moments[].kind` |
 | ... of kind outage | 74 | `shocks.json` | `moments[].kind` |
-| ... 'other' shocks of sub-kind viral or celebrity (all / in the top 40) | 144 / 8 | `shocks.json` | `moments[].sub_kind, other_top40` |
+| ... 'other' shocks of sub-kind viral or celebrity (all / in the top 40) | 144 / 7 | `shocks.json` | `moments[].sub_kind, other_top40` |
 | ... 'other' shocks of sub-kind other (all / in the top 40) | 78 / 8 | `shocks.json` | `moments[].sub_kind, other_top40` |
-| ... 'other' shocks of sub-kind politics or conflict (all / in the top 40) | 73 / 16 | `shocks.json` | `moments[].sub_kind, other_top40` |
-| ... 'other' shocks of sub-kind launch (all / in the top 40) | 60 / 4 | `shocks.json` | `moments[].sub_kind, other_top40` |
+| ... 'other' shocks of sub-kind politics or conflict (all / in the top 40) | 74 / 16 | `shocks.json` | `moments[].sub_kind, other_top40` |
+| ... 'other' shocks of sub-kind launch (all / in the top 40) | 61 / 5 | `shocks.json` | `moments[].sub_kind, other_top40` |
 | ... 'other' shocks of sub-kind disaster or accident (all / in the top 40) | 36 / 3 | `shocks.json` | `moments[].sub_kind, other_top40` |
 | ... 'other' shocks of sub-kind markets (all / in the top 40) | 7 / 1 | `shocks.json` | `moments[].sub_kind, other_top40` |
 | ChatGPT (2025-01-23): event reach / within 60 min / minutes to half | 123 / 120 / 10 | `shocks.json` | `chart_top60.by_event_reach` |
@@ -53,27 +53,6 @@ Conventions: national feeds; UTC unless a local hour is named; a moment is one t
 | Pope Francis (2025-04-21): event reach / within 60 min / minutes to half | 120 / 109 / 10 | `shocks.json` | `chart_top60.by_event_reach` |
 | ChatGPT (2024-12-11): event reach / within 60 min / minutes to half | 119 / 117 / 10 | `shocks.json` | `chart_top60.by_event_reach` |
 | Venezuela (2026-01-03): event reach / within 60 min / minutes to half | 119 / 55 / 70 | `shocks.json` | `chart_top60.by_event_reach` |
-
-## Appointments
-
-| number | value | file | key |
-|---|---|---|---|
-| El Clásico 2025-01-11: countries at peak (2025-01-11) | 122 | `appointments.json` | `events[El Clásico 2025-01-11].reach` |
-| El Clásico 2025-04-25: countries at peak (2025-04-25) | 123 | `appointments.json` | `events[El Clásico 2025-04-25].reach` |
-| El Clásico 2025-05-11: countries at peak (2025-05-11) | 124 | `appointments.json` | `events[El Clásico 2025-05-11].reach` |
-| El Clásico 2025-10-24: countries at peak (2025-10-24) | 118 | `appointments.json` | `events[El Clásico 2025-10-24].reach` |
-| El Clásico 2026-05-10: countries at peak (2026-05-10) | 90 | `appointments.json` | `events[El Clásico 2026-05-10].reach` |
-| Winter Olympics 2026: countries at peak (2026-02-03) | 114 | `appointments.json` | `events[Winter Olympics 2026].reach` |
-| Club World Cup 2025 start: countries at peak (2025-06-12) | 99 | `appointments.json` | `events[Club World Cup 2025 start].reach` |
-| PSG vs Bayern (Club World Cup QF, 4 Jul 2025): countries at peak (2025-07-04) | 125 | `appointments.json` | `events[PSG vs Bayern (Club World Cup QF, 4 Jul 2025)].reach` |
-| Champions League final 2025 (PSG vs Inter): countries at peak (2025-05-31) | 91 | `appointments.json` | `events[Champions League final 2025 (PSG vs Inter)].reach` |
-| Super Bowl LIX (9 Feb 2025): countries at peak (2025-02-08) | 89 | `appointments.json` | `events[Super Bowl LIX (9 Feb 2025)].reach` |
-| Super Bowl LX (8 Feb 2026): countries at peak (2026-02-07) | 74 | `appointments.json` | `events[Super Bowl LX (8 Feb 2026)].reach` |
-| World Cup 2026 draw (5 Dec 2025): countries at peak (2025-12-04) | 43 | `appointments.json` | `events[World Cup 2026 draw (5 Dec 2025)].reach` |
-| London Marathon 2025: countries at peak (2025-04-26) | 25 | `appointments.json` | `events[London Marathon 2025].reach` |
-| Holiday: New Year's Eve: countries at peak (2025-12-30) | 119 | `appointments.json` | `events[Holiday: New Year's Eve].reach` |
-| Holiday: Earth Day: countries at peak (2025-04-20) | 114 | `appointments.json` | `events[Holiday: Earth Day].reach` |
-| Holiday: New Year's Day: countries at peak (2025-12-31) | 112 | `appointments.json` | `events[Holiday: New Year's Day].reach` |
 
 ## Waves
 
@@ -92,6 +71,27 @@ Conventions: national feeds; UTC unless a local hour is named; a moment is one t
 | S&P 500: peak day Mar-Apr 2025 and countries | 2025-04-07: 50 | `waves.json` | `daily.S&P 500` |
 | Dow Jones: peak day Mar-Apr 2025 and countries | 2025-04-07: 36 | `waves.json` | `daily.Dow Jones` |
 | Nasdaq: peak day Mar-Apr 2025 and countries | 2025-04-07: 39 | `waves.json` | `daily.Nasdaq` |
+
+## Appointments
+
+| number | value | file | key |
+|---|---|---|---|
+| Global appointment moments in events (share of all global moments) | 7,237 (90.5%) | `appointments.json` | `counts` |
+| ... sport / non-sport moments | 7,120 / 117 | `appointments.json` | `counts` |
+| Scheduled events (catalogue events / single-moment units) | 7,162 (36 / 7,126) | `appointments.json` | `counts` |
+| ... events in category football | 5,752 | `appointments.json` | `counts.events_by_category` |
+| ... events in category other sport | 1,344 | `appointments.json` | `counts.events_by_category` |
+| ... events in category award/ceremony | 21 | `appointments.json` | `counts.events_by_category` |
+| ... events in category election/politics | 4 | `appointments.json` | `counts.events_by_category` |
+| ... events in category launch/release | 40 | `appointments.json` | `counts.events_by_category` |
+| ... events in category religious | 1 | `appointments.json` | `counts.events_by_category` |
+| ... events in category other | 0 | `appointments.json` | `counts.events_by_category` |
+| Barcelona vs Inter Milan (2025-05-06): event reach / within 60 min / minutes to half | 125 / 17 / 90 | `appointments.json` | `top20_by_event_reach` |
+| Paris Saint-Germain vs Arsenal (2025-05-07): event reach / within 60 min / minutes to half | 124 / 117 / 40 | `appointments.json` | `top20_by_event_reach` |
+| Real Madrid vs Rayo Vallecano (2026-02-01): event reach / within 60 min / minutes to half | 123 / 109 / 50 | `appointments.json` | `top20_by_event_reach` |
+| Sevilla vs Barcelona (2025-10-05): event reach / within 60 min / minutes to half | 123 / 41 / 120 | `appointments.json` | `top20_by_event_reach` |
+| Deportivo Alavés vs Real Madrid (2025-12-14): event reach / within 60 min / minutes to half | 123 / 4 / 150 | `appointments.json` | `top20_by_event_reach` |
+| Chart set (stratified by event), of which hand-verified | 29 of 30 | `appointments.json` | `chart` |
 
 ## Rituals
 
@@ -173,14 +173,14 @@ From `shocks.json` → `other_top40`. Sub-kinds are keyword rules (see `sub_kind
 | 28 | Terence Stamp | 2025-08-17 | 55 | 100 | person | viral or celebrity | terence stamp; actor terence stamp |
 | 29 | Instagram | 2025-07-09 | 54 | 40 | product | launch | instagram |
 | 30 | Christian Horner | 2025-07-09 | 54 | 30 | person | other | christian horner |
-| 31 | CNN | 2025-06-12 | 54 | 60 | media | viral or celebrity | cnn |
-| 32 | Nintendo Switch 2 | 2025-01-16 | 53 | 20 | product | launch | switch2; nintendo switch 2; switch 2 |
-| 33 | BBC | 2025-06-22 | 53 | 20 | media | politics or conflict | bbc |
-| 34 | OPEC | 2026-04-28 | 53 | 40 | company | markets | opec |
-| 35 | Ross Ulbricht | 2025-01-21 | 53 | 130 | person | politics or conflict | ross ulbricht; росса ульбрихта; росс ульбрихт |
-| 36 | Dean Huijsen | 2025-06-05 | 53 | 70 | person | politics or conflict | dean huijsen; huijsen |
-| 37 | Tomorrowland | 2025-07-16 | 53 | 90 | event | disaster or accident | tomorrowland |
-| 38 | Google Maps | 2026-03-26 | 52 | 30 | product | launch | maps |
-| 39 | Dean Huijsen | 2025-06-08 | 52 | 50 | person | politics or conflict | dean huijsen; دین هویسن; huijsen |
-| 40 | Kevin De Bruyne | 2025-04-04 | 52 | 160 | person | viral or celebrity | kevin de bruyne; de bruyne; де брюйне |
+| 31 | Spotify | 2024-12-04 | 54 | 250 | company | launch | spotify |
+| 32 | CNN | 2025-06-12 | 54 | 60 | media | viral or celebrity | cnn |
+| 33 | Nintendo Switch 2 | 2025-01-16 | 53 | 20 | product | launch | switch2; nintendo switch 2; switch 2 |
+| 34 | BBC | 2025-06-22 | 53 | 20 | media | politics or conflict | bbc |
+| 35 | OPEC | 2026-04-28 | 53 | 40 | company | markets | opec |
+| 36 | Ross Ulbricht | 2025-01-21 | 53 | 130 | person | politics or conflict | ross ulbricht; росса ульбрихта; росс ульбрихт |
+| 37 | Dean Huijsen | 2025-06-05 | 53 | 70 | person | politics or conflict | dean huijsen; huijsen |
+| 38 | Tomorrowland | 2025-07-16 | 53 | 90 | event | disaster or accident | tomorrowland |
+| 39 | Google Maps | 2026-03-26 | 52 | 30 | product | launch | maps |
+| 40 | Dean Huijsen | 2025-06-08 | 52 | 50 | person | politics or conflict | dean huijsen; دین هویسن; huijsen |
 

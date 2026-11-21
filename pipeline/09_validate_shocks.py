@@ -896,7 +896,7 @@ def appointments_stage(t, meta, m):
     tr = pd.read_parquet(INTERIM / "topics.parquet", columns=["topic_id", "level", "start_time_utc", "query_raw", "related"],
                          filters=[("topic_id", "in", sorted(ns_topics))])
     tr = tr[tr.level == "country"]
-    groups = ev.load_groups(DOCS, ev.APPOINTMENT_REVIEW_FILES) if ev.reviewed(DOCS, ev.APPOINTMENT_REVIEW_FILES) else None
+    groups = ev.load_groups(DOCS, ev.APPOINTMENT_REVIEW_FILES) if ev.reviewed(DOCS, ev.APPOINTMENT_REVIEW_FILES[:1]) else None
     a = AP.build(m, meta, rows[rows.topic_id.isin(app_topics)], tr, SDIR / "labels.jsonl")
     a["shown"] = a.moment_id.isin(shown_ids)
     a = a[a.shown].copy()
@@ -904,6 +904,7 @@ def appointments_stage(t, meta, m):
     a["event_id"] = AP.assign_events(a, dict(zip(_hs.moment_id, _hs.hand_event_type))).values
     rows_by_topic = {k_: g for k_, g in rows.groupby("topic_id")}
     units = AP.event_units(a, rows_by_topic, groups)
+    units = units[~units.event_id.isin(AP.rejected_events(DOCS))]
     units = units.sort_values(["event_reach", "event_reach_60"], ascending=False).reset_index(drop=True)
     a.drop(columns=["text"]).to_parquet(WORK / "appointments_preview.parquet", index=False)
     units.drop(columns=["curve"]).to_parquet(WORK / "appointment_events.parquet", index=False)

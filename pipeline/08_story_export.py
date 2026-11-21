@@ -473,61 +473,6 @@ else:
         num("Shocks", f"{s_['name']} ({s_['date_utc'][:10]}): countries / minutes to half",
             f"{s_['reach']} / {s_['minutes_to_half']}", "shocks.json", f"moments[{s_['name']}]")
 
-# ------------------------------------------------------------------ 4 appointments
-print("appointments ...", flush=True)
-
-
-def appointment(label, tids, lo_, hi_, pick="max"):
-    lo_, hi_ = pd.Timestamp(lo_, tz="UTC"), pd.Timestamp(hi_, tz="UTC") + pd.Timedelta(days=1)
-    mm = m[m.topic_id.isin(tids) & (m.start_utc >= lo_) & (m.start_utc < hi_)]
-    if mm.empty:
-        return {"event": label, "found": False}
-    pk = mm.sort_values("reach", ascending=False).iloc[0]
-    d0 = pk.start_utc.floor("D")
-    days = pd.date_range(d0 - pd.Timedelta(days=7), d0 + pd.Timedelta(days=2), freq="D")
-    rr = tv[tv.topic_id.isin(tids)]
-    per = rr[(rr.start_time_utc >= days[0]) & (rr.start_time_utc < days[-1] + pd.Timedelta(days=1))] \
-        .groupby("day").country_code.nunique()
-    cs = pk.countries
-    return {"event": label, "found": True, "topic_id": pk.topic_id, "name": pk.topic_name, "date_utc": iso(pk.start_utc),
-            "reach": int(pk.reach), "minutes_to_half": int(pk.minutes_to_half),
-            "countries": [c["country_code"] for c in cs],
-            "phrasings": list(dict.fromkeys(c["phrasing"].lower() for c in cs if c["phrasing"]))[:10],
-            "build_up": [[d.strftime("%Y-%m-%d"), int(per.get(d.strftime("%Y-%m-%d"), 0)), (d - d0).days] for d in days]}
-
-
-clasico = topics_where(r"real madrid.*barcelona|barcelona.*real madrid|el cl[aá]sico", exclude=r"women|femen|\bb\b|basket")
-cm = m[m.topic_id.isin(clasico) & (m.reach >= 60)].sort_values("reach", ascending=False)
-peaks, used = [], []
-for r in cm.itertuples():
-    if all(abs((r.start_utc - u).total_seconds()) > 3 * 86400 for u in used):
-        used.append(r.start_utc)
-        peaks.append(r.start_utc)
-apps = [appointment(f"El Clásico {p:%Y-%m-%d}", clasico, (p - pd.Timedelta(days=1)).strftime("%Y-%m-%d"),
-                    (p + pd.Timedelta(days=1)).strftime("%Y-%m-%d")) for p in sorted(peaks)]
-apps += [
-    appointment("Winter Olympics 2026", topics_where(r"winter olympic|milano cortina|olimpiadi invernali"), "2026-01-25", "2026-02-25"),
-    appointment("Club World Cup 2025 start", topics_where(r"club world cup|mundial de clubes|copa do mundo de clubes"), "2025-06-10", "2025-06-20"),
-    appointment("PSG vs Bayern (Club World Cup QF, 4 Jul 2025)", topics_where(r"(paris saint|psg).*bayern|bayern.*(paris saint|psg)"), "2025-07-03", "2025-07-06"),
-    appointment("Champions League final 2025 (PSG vs Inter)", topics_where(r"(paris saint|psg).*inter|inter.*(paris saint|psg)|champions league final"), "2025-05-29", "2025-06-02"),
-    appointment("Super Bowl LIX (9 Feb 2025)", topics_where(r"super bowl"), "2025-02-05", "2025-02-12"),
-    appointment("Super Bowl LX (8 Feb 2026)", topics_where(r"super bowl"), "2026-02-04", "2026-02-11"),
-    appointment("World Cup 2026 draw (5 Dec 2025)", topics_where(r"(world cup|mundial|copa do mundo).*(draw|sorteo|sorteio)|(draw|sorteo|sorteio).*(world cup|mundial)"), "2025-12-01", "2025-12-08"),
-    appointment("London Marathon 2025", topics_where(r"london.*marathon|marathon.*london"), "2025-04-24", "2025-04-30"),
-]
-hol = f[f.index.isin(holiday) & ~f.index.isin(hidden)].sort_values("max_reach", ascending=False).head(3)
-for tid in hol.index:
-    b = best.loc[tid]
-    apps.append(appointment(f"Holiday: {name[tid]}", {tid}, (b.start_utc - pd.Timedelta(days=1)).strftime("%Y-%m-%d"),
-                            (b.start_utc + pd.Timedelta(days=1)).strftime("%Y-%m-%d")) | {"holiday": True})
-write("appointments.json", {"note": "Each event's peak moment (biggest reach in its window). build_up = [UTC day, countries "
-                                    "trending the event's topics that day, days from the peak]. Holidays are non-sport "
-                                    "appointments for comparison.", "events": apps})
-for a in apps:
-    if a.get("found"):
-        num("Appointments", f"{a['event']}: countries at peak ({a['date_utc'][:10]})", a["reach"], "appointments.json",
-            f"events[{a['event']}].reach")
-
 # ------------------------------------------------------------------ 5 waves
 print("waves ...", flush=True)
 SER = {"ChatGPT": topics_where(r"chatgpt|chat gpt|openai"),
@@ -624,13 +569,13 @@ for k, rows in daily.items():
     b = max(rows, key=lambda d: d[1])
     num("Waves", f"{k}: peak day Mar-Apr 2025 and countries", f"{b[0]}: {b[1]}", "waves.json", f"daily.{k}")
 
-# ------------------------------------------------------------------ 5b appointments
+# ------------------------------------------------------------------ 5b appointments (event-based; the only writer of appointments.json)
 print("appointments ...", flush=True)
 # every global moment of kind appointment (Step 9 round 17; pipeline/appointments.py): category, event reach
 # (main topic + accepted topics about the same event once docs/event_groups_review_appointments.csv is reviewed),
 # within 60 min and minutes to half from the third country, and a 10-minute curve over 6 h
 import appointments as AP  # noqa: E402
-APPT_GROUPS = EV.load_groups(DOCS, EV.APPOINTMENT_REVIEW_FILES) if EV.reviewed(DOCS, EV.APPOINTMENT_REVIEW_FILES) else None
+APPT_GROUPS = EV.load_groups(DOCS, EV.APPOINTMENT_REVIEW_FILES) if EV.reviewed(DOCS, EV.APPOINTMENT_REVIEW_FILES[:1]) else None
 _ns_t = set(m[m.is_global & m.kind.eq("appointment") & ~m.is_sport.astype(bool)].topic_id)
 _tr = pd.read_parquet(INTERIM / "topics.parquet", columns=["topic_id", "level", "start_time_utc", "query_raw", "related"],
                       filters=[("topic_id", "in", sorted(_ns_t))])
@@ -648,7 +593,9 @@ _rbt = {k_: g_ for k_, g_ in t[t.topic_id.isin(_app_t | {x for v in (APPT_GROUPS
         [["topic_id", "country_code", "start_time_utc"]].groupby("topic_id")}
 units = AP.event_units(appt, _rbt, APPT_GROUPS)
 units["verified"] = [any(_hand_sched.get(x) == "scheduled" for x in mem) for mem in units.members]
-units = units[units.category != "holiday"].sort_values(["event_reach", "event_reach_60"], ascending=False)
+APPT_REJECTED = AP.rejected_events(DOCS)      # events hand-labelled unscheduled on the verification sheet
+units = units[(units.category != "holiday") & ~units.event_id.isin(APPT_REJECTED)].sort_values(
+    ["event_reach", "event_reach_60"], ascending=False)
 APPT_CHART = pd.concat([units[units.category == "football"].head(10)] +
                        [units[units.category == c].head(5) for c in AP.CATEGORIES if c not in ("football", "holiday")])
 

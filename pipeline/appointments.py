@@ -361,3 +361,17 @@ def event_candidates(units, t, meta):
     order = {e: i for i, e in enumerate(units.event_id)}
     d["_o"] = d.event_id.map(order)
     return d.sort_values(["can_change", "_o", "countries_added"], ascending=[False, True, False]).drop(columns="_o")
+
+
+def rejected_events(docs):
+    """Event ids whose row in docs/appointment_chart_verification.csv is hand-labelled unscheduled: the whole event
+    leaves Appointments (its labelled moment becomes a shock in step 4; its other members go with it)."""
+    out = set()
+    for stem in ("appointment_chart_verification", "appointment_chart_verification_2"):
+        sp, kp = docs / f"{stem}.csv", docs / f"{stem}_key.csv"
+        if not (sp.exists() and kp.exists()):
+            continue
+        d = pd.read_csv(sp, dtype=str, keep_default_na=False).merge(
+            pd.read_csv(kp, dtype=str, keep_default_na=False)[["sample_id", "event_id"]], on="sample_id")
+        out |= set(d.event_id[d.scheduled_label.str.strip().str.lower().eq("unscheduled")])
+    return out
