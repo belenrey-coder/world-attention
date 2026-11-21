@@ -902,7 +902,17 @@ def appointments_stage(t, meta, m):
     a = a[a.shown].copy()
     _hs = m[m.hand_scheduled.eq("scheduled")] if "hand_scheduled" in m else m.iloc[:0]
     a["event_id"] = AP.assign_events(a, dict(zip(_hs.moment_id, _hs.hand_event_type))).values
-    rows_by_topic = {k_: g for k_, g in rows.groupby("topic_id")}
+    import importlib.util as _ilu
+    _sp = _ilu.spec_from_file_location("export05", Path(__file__).parent / "05_export.py")
+    _ex = _ilu.module_from_spec(_sp)
+    _sp.loader.exec_module(_ex)
+    _hidden, _, _ = _ex.visibility(t, meta)
+    extra = AP.extra_members(m, meta, a.moment_id, set(_hidden) | set(meta.index[meta.is_junk]))
+    print(f"catalogue members from non-global moments: {len(extra)}")
+    a = pd.concat([a, extra], ignore_index=True)
+    a["is_sport"] = a.is_sport.astype(bool)
+    _tp = set(a.topic_id) | {x for v in (groups or {}).values() for x in v}
+    rows_by_topic = {k_: g for k_, g in rows[rows.topic_id.isin(_tp)].groupby("topic_id")}
     units = AP.event_units(a, rows_by_topic, groups)
     units = units[~units.event_id.isin(AP.rejected_events(DOCS))]
     units = units.sort_values(["event_reach", "event_reach_60"], ascending=False).reset_index(drop=True)
@@ -935,46 +945,59 @@ def appointments_stage(t, meta, m):
                        if c not in ("football", "holiday")])
     chart.drop(columns=["curve"]).to_parquet(WORK / "appointments_chart.parquet", index=False)
     print(f"\nchart set: {len(chart)} events ({chart.category.value_counts().to_dict()})")
-    # event-group candidates (same format and no-effect rule as the shocks), per event
-    p = DOCS / ev.APPOINTMENT_REVIEW_FILES[0]
-    if p.exists() and (~pd.read_csv(p, dtype=str, keep_default_na=False).accept.str.strip().isin(["", "no-effect"])).any():
-        print(f"{p.name} already has decisions: not overwritten")
-    else:
-        tt = pd.read_parquet(INTERIM / "topics.parquet", columns=["topic_id", "country_code", "level", "start_time_utc", "query_raw"])
-        tt = tt[(tt.level == "country") & tt.topic_id.notna() & ~tt.topic_id.isin(set(meta.index[meta.is_junk]))]
-        cand = AP.event_candidates(chart, tt, meta)
-        cand.to_csv(p, index=False)
-        print(f"wrote {p.name}: {len(cand)} candidates, {int((cand.accept == '').sum()) if len(cand) else 0} to review, "
-              f"{int((cand.accept == 'no-effect').sum()) if len(cand) else 0} no-effect")
-    # verification sheet: one row per chart event (its largest moment); an event with any hand-labelled member is
-    # verified. Existing labels are kept (rows matched by moment key).
+    # follow-up files for chart events that are new: existing sheets and review files are never rewritten (they hold
+    # hand labels and decisions); new events go to the next numbered file (_2, _3, ...)
     hand = load_hand_labels(DOCS)
     key_of = dict(zip(a.moment_id, a.key))
     chart = chart.assign(verified=[any(key_of.get(x) in hand for x in mem) for mem in chart.members])
-    todo = chart[~chart.verified]
-    print(f"chart events already hand-labelled (verified): {int(chart.verified.sum())}; to label: {len(todo)}")
-    old = {}
-    if APPT_SHEET.exists() and APPT_KEY.exists():
-        o = pd.read_csv(APPT_SHEET, dtype=str, keep_default_na=False).merge(
-            pd.read_csv(APPT_KEY, dtype=str, keep_default_na=False)[["sample_id", "key"]], on="sample_id")
-        old = {k_: (s_, e_) for k_, s_, e_ in zip(o.key, o.scheduled_label, o.event_type_label) if s_.strip()}
-    mm = m.set_index("moment_id").loc[todo.largest_member].reset_index()
-    mm["key"] = [mkey(x, y) for x, y in zip(mm.topic_id, mm.start_utc)]
-    recs = records(mm, meta)
-    out, key = [], []
-    for i, (r, u) in enumerate(zip(mm.itertuples(), todo.itertuples())):
-        rec = recs[r.key]
-        lab = old.get(r.key, ("", ""))
-        out.append({"sample_id": i, "name": u.event if u.is_catalogue else rec["name"],
-                    "date_utc": f"{rec['date']} {rec['start_utc']}", "phrasings": "; ".join(rec["phrasings"]),
-                    "related_searches": "; ".join(rec["related"]), "scheduled_label": lab[0], "event_type_label": lab[1]})
-        key.append({"sample_id": i, "key": r.key, "topic_id": r.topic_id, "moment_id": int(r.moment_id),
-                    "event_id": u.event_id, "event": u.event, "category": u.category,
-                    "members": "; ".join(map(str, u.member_names)), "reach": int(r.reach), "claude_scheduled": r.claude_scheduled})
-    pd.DataFrame(out).to_csv(APPT_SHEET, index=False)
-    pd.DataFrame(key).to_csv(APPT_KEY, index=False)
-    helpers(APPT_SHEET, APPT_KEY)
-    print(f"kept {len(old)} existing labels")
+
+    def _next(stem):
+        i = 2
+        while (DOCS / f"{stem}_{i}.csv").exists():
+            i += 1
+        return DOCS / f"{stem}_{i}.csv"
+    reviewed_ids = set()
+    for p_ in ev.review_files(DOCS, ev.APPOINTMENT_REVIEW_FILES):
+        d_ = pd.read_csv(p_, dtype=str, keep_default_na=False)
+        reviewed_ids |= set(d_.event_id) if "event_id" in d_ else set()
+    in_sheets = set()
+    for p_ in [APPT_KEY] + sorted(DOCS.glob("appointment_chart_verification_*_key.csv")):
+        if p_.exists():
+            in_sheets |= set(pd.read_csv(p_, dtype=str, keep_default_na=False).event_id)
+    new_grp = chart[~chart.event_id.isin(reviewed_ids)]
+    if len(new_grp):
+        tt = pd.read_parquet(INTERIM / "topics.parquet", columns=["topic_id", "country_code", "level", "start_time_utc", "query_raw"])
+        tt = tt[(tt.level == "country") & tt.topic_id.notna() & ~tt.topic_id.isin(set(meta.index[meta.is_junk]))]
+        cand = AP.event_candidates(new_grp, tt, meta)
+        if len(cand):
+            p = _next("event_groups_review_appointments")
+            cand.to_csv(p, index=False)
+            print(f"wrote {p.name}: {len(cand)} candidates for {new_grp.event.tolist()}, "
+                  f"{int((cand.accept == '').sum())} to review, {int((cand.accept == 'no-effect').sum())} no-effect")
+        else:
+            print(f"no event-group candidates for the new chart events {new_grp.event.tolist()}")
+    todo = chart[~chart.verified & ~chart.event_id.isin(in_sheets)]
+    print(f"chart events verified: {int(chart.verified.sum())} of {len(chart)}; new to label: {len(todo)} "
+          f"({todo.event.tolist()})")
+    if len(todo):
+        sp = _next("appointment_chart_verification")
+        kp = sp.with_name(sp.stem + "_key.csv")
+        mm = m.set_index("moment_id").loc[todo.largest_member].reset_index()
+        mm["key"] = [mkey(x, y) for x, y in zip(mm.topic_id, mm.start_utc)]
+        recs = records(mm, meta)
+        out, key = [], []
+        for i, (r, u) in enumerate(zip(mm.itertuples(), todo.itertuples())):
+            rec = recs[r.key]
+            out.append({"sample_id": i, "name": u.event if u.is_catalogue else rec["name"],
+                        "date_utc": f"{rec['date']} {rec['start_utc']}", "phrasings": "; ".join(rec["phrasings"]),
+                        "related_searches": "; ".join(rec["related"]), "scheduled_label": "", "event_type_label": ""})
+            key.append({"sample_id": i, "key": r.key, "topic_id": r.topic_id, "moment_id": int(r.moment_id),
+                        "event_id": u.event_id, "event": u.event, "category": u.category,
+                        "members": "; ".join(map(str, u.member_names)), "reach": int(r.reach),
+                        "claude_scheduled": r.claude_scheduled})
+        pd.DataFrame(out).to_csv(sp, index=False)
+        pd.DataFrame(key).to_csv(kp, index=False)
+        helpers(sp, kp)
     # surprise inside an appointment: hand-labelled scheduled, type viral_celebrity or other. The appointment is the
     # one the moment's own searches or Claude's summary name: an appointment-kind moment (any reach >= 10) starting
     # 12 h before to 6 h after, whose name tokens appear in that text; none if nothing is named (no guessing by time)

@@ -179,12 +179,12 @@ CATALOGUE = [
     ("oscar-nominations-2025", "Oscar nominations 2025", "award/ceremony", _w("2025-01-23 10:00", "2025-01-24 10:00"),
      r"oscar|academy award"),
     ("grammys-2025", "Grammys 2025", "award/ceremony", _w("2025-02-02 18:00", "2025-02-03 08:00"), r"grammy"),
-    ("super-bowl-lix", "Super Bowl LIX", "other sport", _w("2025-02-09 18:00", "2025-02-10 06:00"),
-     r"super bowl|halftime|half-time|\bnfl\b|chiefs|eagles|kendrick"),
+    ("super-bowl-lix", "Super Bowl LIX", "other sport", _w("2025-02-09 00:00", "2025-02-10 08:00"),
+     r"super bowl|halftime|half-time|\bnfl\b|chiefs|eagles|kendrick|\bsza\b|mahomes|jalen hurts|kelce|saquon|jon batiste"),
     ("apple-2025-02", "Apple event, Feb 2025 (iPhone 16e)", "launch/release", _w("2025-02-19 06:00", "2025-02-20 06:00"),
      r"iphone|apple"),
     ("german-election-2025", "German federal election 2025", "election/politics", _w("2025-02-23 06:00", "2025-02-24 06:00"),
-     r"bundestagswahl|german|election|wahl|\bafd\b|cdu|csu|linke|greens|gr[uü]ne|\bbsw\b|\bspd\b|merz"),
+     r"bundestagswahl|german (federal )?election|wahl 2025|wahlergebnis|hochrechnung|\bafd\b|cdu|csu|die linke|greens \(german|gr[uü]ne|\bbsw\b|\bspd\b|merz|scholz"),
     ("oscars-2025", "Oscars 2025", "award/ceremony", _w("2025-03-02 18:00", "2025-03-03 08:00"),
      r"oscar|academy award|best (picture|actor|actress|director|documentary|animated)"),
     ("conclave-2025", "Conclave 2025 (Pope Leo XIV)", "religious", _w("2025-05-08 12:00", "2025-05-09 06:00"),
@@ -196,7 +196,7 @@ CATALOGUE = [
     ("esc-2025-final", "Eurovision 2025 final", "award/ceremony", _w("2025-05-17 12:00", "2025-05-18 03:00"),
      r"eurovision|\besc\b|eurovisi[oó]n|k[aä][aä]rij[aä]"),
     ("polish-election-2025", "Polish presidential election 2025", "election/politics",
-     _w("2025-05-18 06:00", "2025-05-19 06:00"), r"election|wybory|presidential"),
+     _w("2025-05-18 06:00", "2025-05-19 06:00"), r"wybory|polish|poland|trzaskowski|nawrocki"),
     ("europa-final-2025", "Europa League final 2025", "football", _w("2025-05-21 12:00", "2025-05-22 06:00"),
      r"europa league|tottenham|manchester united|\bspurs\b"),
     ("ucl-final-2025", "Champions League final 2025 (PSG vs Inter)", "football", _w("2025-05-31 15:00", "2025-06-01 06:00"),
@@ -204,7 +204,7 @@ CATALOGUE = [
      r"kvaratskhelia|mayulu|donnarumma|linkin park|vitinha|demb[eé]l[eé]|lautaro"),
     ("roland-garros-final-2025", "Roland Garros men's final 2025", "other sport", _w("2025-06-08 08:00", "2025-06-09 06:00"),
      r"alcaraz|sinner|roland garros|french open"),
-    ("g7-2025", "G7 summit 2025", "election/politics", _w("2025-06-16 06:00", "2025-06-17 06:00"), r"\bg7\b|summit"),
+    ("g7-2025", "G7 summit 2025", "election/politics", _w("2025-06-16 06:00", "2025-06-17 06:00"), r"\bg7\b"),
     ("wimbledon-final-2025", "Wimbledon men's final 2025", "other sport", _w("2025-07-13 12:00", "2025-07-14 03:00"),
      r"sinner|alcaraz|wimbledon|mcconaughey"),
     ("cwc-final-2025", "Club World Cup final 2025 (Chelsea vs PSG)", "football", _w("2025-07-13 15:00", "2025-07-14 06:00"),
@@ -234,10 +234,16 @@ CATALOGUE = [
     ("olympics-2026-opening", "Winter Olympics 2026 opening ceremony", "award/ceremony",
      _w("2026-02-06 15:00", "2026-02-07 06:00"),
      r"olymp|olimp|opening ceremony|cerimonia|ceremonia|mameli|san siro|pausini|impacciatore|theron"),
-    ("super-bowl-lx", "Super Bowl LX", "other sport", _w("2026-02-08 16:00", "2026-02-09 06:00"),
-     r"super bowl|halftime|half-time|\bnfl\b|seahawks|patriots|green day|puth|ricky martin|bad bunny|national anthem"),
+    ("super-bowl-lx", "Super Bowl LX", "other sport", _w("2026-02-08 00:00", "2026-02-09 08:00"),
+     r"super bowl|halftime|half-time|\bnfl\b|seahawks|patriots|green day|puth|ricky martin|bad bunny|national anthem|darnold|drake maye"),
     ("olympics-2026-closing", "Winter Olympics 2026 closing ceremony", "award/ceremony",
      _w("2026-02-22 15:00", "2026-02-23 03:00"), r"olymp|olimp|closing ceremony|verona"),
+    # multi-day: ranked by its best UTC day, total reach over the Games as a second number (MULTI_DAY)
+    ("winter-olympics-2026", "Winter Olympics 2026 (4-22 Feb, multi-day)", "other sport",
+     _w("2026-02-04 00:00", "2026-02-23 00:00"),
+     r"winter olympic|olympics 2026|2026 olympics|olympic games|olimpiadas? de invierno|olimpiadi|milano cortina|"
+     r"milan cortina|milan-cortina|jeux olympiques|juegos ol[ií]mpicos|olympische|зимние олимп|олимпиад|"
+     r"olimp[ií]adas de inverno|olimpiyat|predazzo|cortina d'ampezzo"),
     ("apple-2026-03", "Apple event, Mar 2026 (iPhone 17e)", "launch/release", _w("2026-03-02 06:00", "2026-03-03 06:00"),
      r"iphone|apple"),
     ("oscars-2026", "Oscars 2026", "award/ceremony", _w("2026-03-15 18:00", "2026-03-16 08:00"),
@@ -274,6 +280,8 @@ def assign_events(a, hand_scheduled_types=None):
         ev[hit] = eid
     ht = a.moment_id.map(hand_scheduled_types or {})
     for eid, _n, cat, (lo, hi), _rx in CATALOGUE:
+        if eid in MULTI_DAY:          # a multi-day window is too wide to join on the window alone
+            continue
         fits = ht.map(lambda x: isinstance(x, str) and cat in HAND_TYPE_FITS.get(x, set()))
         if cat in ("football", "other sport"):
             fits &= a.category.eq(cat)
@@ -301,13 +309,33 @@ def event_units(a, rows_by_topic, groups=None):
             name_, cat = r0["name"], r0["category"]
             lo, hi = EV.window(pd.Timestamp(r0["date_utc"].replace("Z", ""), tz="UTC"))
         topics = set(g.topic_id) | (groups or {}).get(eid, set())
-        f = figures_window(rows_by_topic, topics, lo, hi)
+        if eid in MULTI_DAY:
+            f = figures_multi_day(rows_by_topic, topics, lo, hi)
+        else:
+            f = figures_window(rows_by_topic, topics, lo, hi)
         out.append({"event_id": eid, "event": name_, "category": cat, "is_catalogue": eid in cat_of,
                     "window_utc": [f"{lo:%Y-%m-%dT%H:%MZ}", f"{hi:%Y-%m-%dT%H:%MZ}"],
-                    "members": g.moment_id.tolist(), "member_names": g["name"].tolist(), "topics": sorted(topics),
+                    "members": g.moment_id.tolist(), "member_names": [display_topic(x, eid) for x in g["name"]],
+                    "topics": sorted(topics), "multi_day": eid in MULTI_DAY,
                     "is_sport": bool(g.is_sport.any()), "first_utc": g.date_utc.min(),
                     "largest_member": int(g.moment_id.iloc[0]), **f})
     return pd.DataFrame(out)
+
+
+def figures_multi_day(rows_by_topic, topic_ids, lo, hi):
+    """Multi-day event: event reach = its BEST UTC day (countries trending any of its topics that day); total reach
+    over the whole window as a second number; within 60 min, minutes to half and the curve on the best day."""
+    parts = [rows_by_topic[x] for x in topic_ids if x in rows_by_topic]
+    w = pd.concat(parts) if parts else pd.DataFrame(columns=["country_code", "start_time_utc"])
+    w = w[(w.start_time_utc >= lo) & (w.start_time_utc < hi)]
+    if w.empty:
+        return {"event_reach": 0, "event_reach_60": 0, "event_minutes_to_half": None, "curve": [], "event_reach_total": 0}
+    per = w.groupby(w.start_time_utc.dt.floor("D")).country_code.nunique()
+    day = per.idxmax()
+    f = figures_window(rows_by_topic, topic_ids, day, day + pd.Timedelta(days=1))
+    f.update(event_reach_total=int(w.country_code.nunique()), best_day=f"{day:%Y-%m-%d}",
+             days_100_plus=int((per >= 100).sum()))
+    return f
 
 
 def figures_window(rows_by_topic, topic_ids, lo, hi):
@@ -367,7 +395,9 @@ def rejected_events(docs):
     """Event ids whose row in docs/appointment_chart_verification.csv is hand-labelled unscheduled: the whole event
     leaves Appointments (its labelled moment becomes a shock in step 4; its other members go with it)."""
     out = set()
-    for stem in ("appointment_chart_verification", "appointment_chart_verification_2"):
+    stems = ["appointment_chart_verification"] + sorted(
+        p.stem for p in docs.glob("appointment_chart_verification_*.csv") if not p.name.endswith("_key.csv"))
+    for stem in stems:
         sp, kp = docs / f"{stem}.csv", docs / f"{stem}_key.csv"
         if not (sp.exists() and kp.exists()):
             continue
@@ -375,3 +405,43 @@ def rejected_events(docs):
             pd.read_csv(kp, dtype=str, keep_default_na=False)[["sample_id", "event_id"]], on="sample_id")
         out |= set(d.event_id[d.scheduled_label.str.strip().str.lower().eq("unscheduled")])
     return out
+
+
+MULTI_DAY = {"winter-olympics-2026"}
+EXTRA_MIN_REACH = 5        # non-global moments join a catalogue event only with at least this many countries
+SUPER_BOWL_RE = re.compile(r"^super bowl", re.I)
+
+
+def extra_members(m, meta, have_ids, excluded_topics=()):
+    """Catalogue events take every trend of their topics inside the window (Step 9 round 22), not only global
+    moments: any other moment (not a shock, reach >= EXTRA_MIN_REACH, topic not excluded) that overlaps an event's
+    window and whose name or phrasings match the event's pattern joins it, with the same sport / non-sport rule.
+    -> rows shaped like build() output, with event_id set (they never become single-moment units)."""
+    c = m[~m.moment_id.isin(set(have_ids)) & (m.reach >= EXTRA_MIN_REACH) & ~m.kind.eq("shock")
+          & ~m.topic_id.isin(set(excluded_topics))]
+    out = []
+    taken = set()
+    for eid, _n, cat, (lo, hi), rx in CATALOGUE:
+        w = c[(c.start_utc < hi) & (c.end_utc >= lo) & ~c.moment_id.isin(taken)]
+        if cat not in ("football", "other sport"):
+            w = w[~w.is_sport.astype(bool)]
+        if w.empty:
+            continue
+        text = w.topic_name.astype(str) + " | " + w.countries.map(
+            lambda cs: " | ".join(x["phrasing"].lower() for x in cs if x["phrasing"]))
+        w = w[text.str.contains(rx, case=False, regex=True)]
+        for r in w.itertuples():
+            taken.add(r.moment_id)
+            out.append({"moment_id": int(r.moment_id), "key": f"{r.topic_id}|{pd.Timestamp(r.start_utc):%Y-%m-%dT%H:%MZ}",
+                        "topic_id": r.topic_id, "name": r.topic_name,
+                        "date_utc": f"{max(pd.Timestamp(r.start_utc), lo):%Y-%m-%dT%H:%MZ}",
+                        "is_sport": bool(r.is_sport), "category": cat, "moment_reach": int(r.reach),
+                        "reach_60": int(r.reach_60), "event_id": eid, "is_global": bool(r.is_global)})
+    return pd.DataFrame(out)
+
+
+def display_topic(name, eid):
+    """Year-named Super Bowl topics merge plain 'super bowl' searches across years (a topic named 'Super Bowl LIX'
+    trends on Super Bowl LX day): they are assigned by date (their trends inside the window count for that event)
+    and shown neutrally."""
+    return "Super Bowl (searches that day)" if eid.startswith("super-bowl") and SUPER_BOWL_RE.search(str(name)) else name

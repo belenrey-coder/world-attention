@@ -1117,6 +1117,45 @@ Sample 1 (`docs/shock_validation_sample.csv`, 100 moments) is now the **tuning**
   - widen the two Super Bowl catalogue windows and let catalogue events take non-global appointment moments of their topics;
   - add "Winter Olympics 2026" as a multi-day catalogue event ranked by its best day.
 
+### Step 9, round 22 (2026-11-20): catalogue events take every trend in their window; Super Bowls; Winter Olympics
+
+**The global-moment rule favors fast events.** A moment is global only if 15 countries start it within an hour of the third, which suits shocks and kickoffs. Appointments that build up over the day fall short: on Super Bowl day 2025, "Super Bowl" (55), Kendrick Lamar (56) and Travis Kelce (47) were never global moments, and the Winter Olympics' sport topics (ice hockey 106, alpine skiing 105) spread over the day. Event reach (all accepted topics, the event's window) corrects this for appointments.
+
+**1. Catalogue events take every trend of their topics inside the window** (`appointments.extra_members`), for all catalogue events.
+- **Who joins:** besides global appointment moments, any other moment that overlaps the window and whose name or phrasings match the event's pattern, with the same sport / non-sport rule. It must have reach ≥ 5 (`EXTRA_MIN_REACH`), not be a shock, and not be hidden or junk. These moments only join catalogue events, never become single units.
+- **Result:** 391 more members, all non-global moments, counted separately (`counts.non_global_members_of_catalogue_events`). The share of global moments stays global-only: 7,237 of 7,999 (90.5%), sport 7,120, non-sport 117. That gives 7,152 events.
+- **Generic patterns tightened** before widening the pool:
+  - German election: "bundestagswahl", "german (federal) election", "wahl 2025", "wahlergebnis", "hochrechnung" and the party names, no bare "election" / "wahl";
+  - Polish election: "wybory", "polish", "poland", the candidates;
+  - G7: "g7" only.
+
+**2. Super Bowls.**
+- **Windows** now cover the whole day: LIX 9 Feb 2025 00:00 – 10 Feb 08:00 UTC, LX 8 Feb 2026 00:00 – 9 Feb 08:00 UTC, so both include pregame, game and halftime.
+- **Patterns** add players, teams and halftime acts (Mahomes, Jalen Hurts, Kelce, Saquon, SZA, Jon Batiste; Darnold, Drake Maye).
+- **Year-named Super Bowl topics are assigned by date:** a topic named "Super Bowl LIX" that trends on Super Bowl LX day (a merge of plain "super bowl" searches across years) counts for the event whose window its trends fall in, and is shown as "Super Bowl (searches that day)".
+- **Result:** Super Bowl LIX **106** countries (23 moments), Super Bowl LX **96** (20).
+
+**3. Winter Olympics 2026 as a multi-day event** (`MULTI_DAY`, `figures_multi_day`): window 4–22 Feb 2026 (to 23 Feb 00:00 UTC), category other sport, pattern on Olympic names in several languages (not "Olympique").
+- **Ranked by its best UTC day; total reach over the Games as a second number;** flagged `multi_day`.
+- **Result:** best day **11 Feb, 109 countries**; **119 over the Games**; 72 moments.
+- The hand-labelled window join (round 19) is skipped for multi-day events.
+
+**4. Chart set rebuilt** (30 events, 25 verified). New: Club World Cup final, Europa League final, Champions League final, Winter Olympics, Super Bowl LIX, Grammys 2026, Oscars 2026, Eurovision 2025 final, Spotify Wrapped 2025, Stranger Things 5 release and finale. Out: NBA 20 Jun, Formula One, Nobel Peace, Oscar nominations, Game Awards 2024, BTS, Epic Games, Shrek 5 and others.
+- **Top 5 per category:**
+  - football: Barcelona vs Inter (125), Club World Cup final 2025 (125, 23 moments), Europa League final 2025 (125, 10), PSG vs Arsenal (124), Champions League final 2025 (124, 41);
+  - other sport: Winter Olympics 2026 (109 best day, 119 total), Super Bowl LIX (106), Roland Garros final 2025 (105), Wimbledon final 2025 (103), NBA 22 Jun 2025 (101); Super Bowl LX (96) is 7th;
+  - award/ceremony: Grammys 2025 (102), Grammys 2026 (84), Oscars 2026 (81), Eurovision 2025 final (73), Oscars 2025 (70);
+  - election/politics: Trump inauguration 2025 (78), German federal election 2025 (78), Kash Patel (42), Polish presidential election 2025 (20);
+  - launch/release: Spotify Wrapped and year-end recaps 2025 (104), Stranger Things 5 release (86), Stranger Things 5 finale (85), Apple event Feb 2025 (85), Samsung 30 Dec 2025 (66);
+  - religious: Conclave 2025 (115, 26 moments).
+- **Follow-up files** (new chart events only; existing sheets and review files are never rewritten, because they hold hand labels and decisions):
+  - `docs/appointment_chart_verification_3.csv`: 5 to label (Europa League final 2025, Grammys 2026, Spotify Wrapped 2025, Stranger Things 5 release, Stranger Things 5 finale);
+  - `docs/event_groups_review_appointments_3.csv`: 697 candidates for 13 events, **60 to review**, 637 no-effect.
+  - The loaders read every numbered follow-up file; `HAND_SHEETS` and `rejected_events` cover `appointment_chart_verification_*.csv`.
+  - Sevilla vs Barcelona and Kash Patel appear in `_3` only because they had no candidates before; their rows are no-effect.
+- **Open: first-hour figures for whole-day windows.** For catalogue events, "within 60 min" and "minutes to half" count from the third country's first trend in the window, which can be hours before the event: Super Bowl LIX 12 within 60 min and 1,030 minutes to half, Winter Olympics best day 610, German election 580, Trump inauguration 520. They describe the day's build-up, not the event's spread. Counting from each event's scheduled start time (kickoff, ceremony start) would fix it; not done.
+- **Not covered:** shocks below the chart, Shrek 5 (now out of the chart; its one-row sheet stays).
+
 ## Open issues (need a decision)
 
 _Updated 2026-11-09, after the short-string, sport, 19:00 UTC and Wrapped fixes (rerun from combine: combine, link, validation, moments, export, profile, checks)._

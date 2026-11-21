@@ -40,8 +40,8 @@ def load_shock_labels(path):
 # (git-ignored); without them nothing is overridden.
 HAND_SHEETS = [("shock_validation_sample.csv", "shock_validation_key.csv"),
                ("shock_validation_sample2.csv", "shock_validation_key2.csv"),
-               ("appointment_chart_verification.csv", "appointment_chart_verification_key.csv"),
-               ("appointment_chart_verification_2.csv", "appointment_chart_verification_2_key.csv")]
+               ("appointment_chart_verification.csv", "appointment_chart_verification_key.csv")]
+APPT_VERIFY_GLOB = "appointment_chart_verification_*.csv"     # numbered follow-up sheets (_2, _3, ...)
 VERIFY_GLOB = "shock_chart_verification*.csv"
 
 
@@ -57,7 +57,9 @@ def verification_sheets(docs):
 
 def load_hand_labels(docs):
     """{moment key: (scheduled_label, event_type_label)} from every hand-labelled sheet with a key file."""
-    pairs = [(docs / a, docs / b) for a, b in HAND_SHEETS] + verification_sheets(docs)
+    follow = sorted(p for p in docs.glob(APPT_VERIFY_GLOB) if not p.name.endswith("_key.csv"))
+    pairs = [(docs / a, docs / b) for a, b in HAND_SHEETS] + verification_sheets(docs) + \
+        [(p, p.with_name(p.stem + "_key.csv")) for p in follow]
     out = {}
     for sp, kp in pairs:
         if not (sp.exists() and kp.exists()):

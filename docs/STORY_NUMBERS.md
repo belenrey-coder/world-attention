@@ -78,20 +78,41 @@ Conventions: national feeds; UTC unless a local hour is named; a moment is one t
 |---|---|---|---|
 | Global appointment moments in events (share of all global moments) | 7,237 (90.5%) | `appointments.json` | `counts` |
 | ... sport / non-sport moments | 7,120 / 117 | `appointments.json` | `counts` |
-| Scheduled events (catalogue events / single-moment units) | 7,162 (36 / 7,126) | `appointments.json` | `counts` |
+| Scheduled events (catalogue events / single-moment units) | 7,152 (37 / 7,115) | `appointments.json` | `counts` |
 | ... events in category football | 5,752 | `appointments.json` | `counts.events_by_category` |
-| ... events in category other sport | 1,344 | `appointments.json` | `counts.events_by_category` |
+| ... events in category other sport | 1,335 | `appointments.json` | `counts.events_by_category` |
 | ... events in category award/ceremony | 21 | `appointments.json` | `counts.events_by_category` |
 | ... events in category election/politics | 4 | `appointments.json` | `counts.events_by_category` |
-| ... events in category launch/release | 40 | `appointments.json` | `counts.events_by_category` |
+| ... events in category launch/release | 39 | `appointments.json` | `counts.events_by_category` |
 | ... events in category religious | 1 | `appointments.json` | `counts.events_by_category` |
 | ... events in category other | 0 | `appointments.json` | `counts.events_by_category` |
 | Barcelona vs Inter Milan (2025-05-06): event reach / within 60 min / minutes to half | 125 / 17 / 90 | `appointments.json` | `top20_by_event_reach` |
+| Club World Cup final 2025 (Chelsea vs PSG) (2025-07-13): event reach / within 60 min / minutes to half | 125 / 9 / 150 | `appointments.json` | `top20_by_event_reach` |
+| Europa League final 2025 (2025-05-21): event reach / within 60 min / minutes to half | 125 / 6 / 330 | `appointments.json` | `top20_by_event_reach` |
 | Paris Saint-Germain vs Arsenal (2025-05-07): event reach / within 60 min / minutes to half | 124 / 117 / 40 | `appointments.json` | `top20_by_event_reach` |
-| Real Madrid vs Rayo Vallecano (2026-02-01): event reach / within 60 min / minutes to half | 123 / 109 / 50 | `appointments.json` | `top20_by_event_reach` |
-| Sevilla vs Barcelona (2025-10-05): event reach / within 60 min / minutes to half | 123 / 41 / 120 | `appointments.json` | `top20_by_event_reach` |
-| Deportivo Alavés vs Real Madrid (2025-12-14): event reach / within 60 min / minutes to half | 123 / 4 / 150 | `appointments.json` | `top20_by_event_reach` |
-| Chart set (stratified by event), of which hand-verified | 29 of 30 | `appointments.json` | `chart` |
+| Champions League final 2025 (PSG vs Inter) (2025-05-31): event reach / within 60 min / minutes to half | 124 / 38 / 120 | `appointments.json` | `top20_by_event_reach` |
+| Winter Olympics 2026 (4-22 Feb, multi-day): best day (2026-02-11) / total over the window | 109 / 119.0 | `appointments.json` | `chart.events[].event_reach, event_reach_total` |
+| Top 5 other sport: Winter Olympics 2026 (4-22 Feb, multi-day) (2026-02-04), event reach | 109 | `appointments.json` | `chart.events` |
+| Top 5 other sport: Super Bowl LIX (2025-02-09), event reach | 106 | `appointments.json` | `chart.events` |
+| Top 5 other sport: Roland Garros men's final 2025 (2025-06-08), event reach | 105 | `appointments.json` | `chart.events` |
+| Top 5 other sport: Wimbledon men's final 2025 (2025-07-13), event reach | 103 | `appointments.json` | `chart.events` |
+| Top 5 other sport: NBA (2025-06-22), event reach | 101 | `appointments.json` | `chart.events` |
+| Top 5 award/ceremony: Grammys 2025 (2025-02-02), event reach | 102 | `appointments.json` | `chart.events` |
+| Top 5 award/ceremony: Grammys 2026 (2026-02-01), event reach | 84 | `appointments.json` | `chart.events` |
+| Top 5 award/ceremony: Oscars 2026 (2026-03-15), event reach | 81 | `appointments.json` | `chart.events` |
+| Top 5 award/ceremony: Eurovision 2025 final (2025-05-17), event reach | 73 | `appointments.json` | `chart.events` |
+| Top 5 award/ceremony: Oscars 2025 (2025-03-02), event reach | 70 | `appointments.json` | `chart.events` |
+| Top 5 election/politics: Trump inauguration 2025 (2025-01-20), event reach | 78 | `appointments.json` | `chart.events` |
+| Top 5 election/politics: German federal election 2025 (2025-02-23), event reach | 78 | `appointments.json` | `chart.events` |
+| Top 5 election/politics: Kash Patel (2025-02-20), event reach | 42 | `appointments.json` | `chart.events` |
+| Top 5 election/politics: Polish presidential election 2025 (2025-05-18), event reach | 20 | `appointments.json` | `chart.events` |
+| Top 5 launch/release: Spotify Wrapped and year-end recaps 2025 (2025-12-03), event reach | 104 | `appointments.json` | `chart.events` |
+| Top 5 launch/release: Stranger Things 5 release (2025-11-26), event reach | 86 | `appointments.json` | `chart.events` |
+| Top 5 launch/release: Stranger Things 5 finale (2025-12-31), event reach | 85 | `appointments.json` | `chart.events` |
+| Top 5 launch/release: Apple event, Feb 2025 (iPhone 16e) (2025-02-19), event reach | 85 | `appointments.json` | `chart.events` |
+| Top 5 launch/release: Samsung (2025-12-30), event reach | 66 | `appointments.json` | `chart.events` |
+| Top 5 religious: Conclave 2025 (Pope Leo XIV) (2025-05-08), event reach | 115 | `appointments.json` | `chart.events` |
+| Chart set (stratified by event), of which hand-verified | 25 of 30 | `appointments.json` | `chart` |
 
 ## Rituals
 

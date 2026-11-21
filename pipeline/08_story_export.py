@@ -589,7 +589,11 @@ appt = appt[~appt.topic_id.isin(hidden) & appt.topic_id.isin(set(_named)) & (app
 _hs = m[m.hand_scheduled.eq("scheduled")]
 appt["event_id"] = AP.assign_events(appt, dict(zip(_hs.moment_id, _hs.hand_event_type))).values
 _hand_sched = m.set_index("moment_id").hand_scheduled
-_rbt = {k_: g_ for k_, g_ in t[t.topic_id.isin(_app_t | {x for v in (APPT_GROUPS or {}).values() for x in v})]
+# catalogue events also take non-global moments of their topics inside the window (Step 9 round 22)
+_extra = AP.extra_members(m, meta, appt.moment_id, hidden)
+appt = pd.concat([appt, _extra], ignore_index=True)
+appt["is_sport"] = appt.is_sport.astype(bool)
+_rbt = {k_: g_ for k_, g_ in t[t.topic_id.isin(set(appt.topic_id) | {x for v in (APPT_GROUPS or {}).values() for x in v})]
         [["topic_id", "country_code", "start_time_utc"]].groupby("topic_id")}
 units = AP.event_units(appt, _rbt, APPT_GROUPS)
 units["verified"] = [any(_hand_sched.get(x) == "scheduled" for x in mem) for mem in units.members]
@@ -604,7 +608,10 @@ def _unit_item(r, curve=True):
     d = {"event_id": r.event_id, "event": r.event, "category": r.category, "is_sport": bool(r.is_sport),
          "first_utc": r.first_utc, "window_utc": r.window_utc, "event_reach": int(r.event_reach),
          "event_reach_60": int(r.event_reach_60), "event_minutes_to_half": r.event_minutes_to_half,
-         "verified": bool(r.verified), "moments": [name.get(x, x) for x in r.member_names],
+         "verified": bool(r.verified), "multi_day": bool(r.multi_day),
+         "event_reach_total": int(r.event_reach_total) if r.multi_day else None,
+         "best_day": r.best_day if r.multi_day else None,
+         "moments": [name.get(x, x) for x in r.member_names],
          "topics": [name.get(x, x) for x in r.topics]}
     if curve:
         d["curve"] = r.curve
@@ -615,20 +622,26 @@ appt_files = []
 for mo, g in units.assign(month=units.first_utc.str[:7]).groupby("month"):
     rel = f"appointments/{mo}.json"
     write(rel, {"month": mo, "fields": ["event_id", "event", "first_utc", "is_sport", "category", "event_reach",
-                                        "event_reach_60", "event_minutes_to_half", "moments", "verified", "curve"],
+                                        "event_reach_60", "event_minutes_to_half", "moments", "verified", "multi_day",
+                                        "event_reach_total", "curve"],
                 "rows": [[r.event_id, r.event, r.first_utc, int(r.is_sport), r.category, int(r.event_reach),
                           int(r.event_reach_60), r.event_minutes_to_half, len(r.members), int(r.verified),
+                          int(r.multi_day), int(r.event_reach_total) if r.multi_day else None,
                           [c for _, c in r.curve]] for r in g.itertuples()]})
     appt_files.append(rel)
 _g_all = int((m.is_global & ~m.topic_id.isin(hidden)).sum())
-_in = appt[appt.event_id.notna()]
+_in_all = appt[appt.event_id.notna()]
+_in = _in_all[_in_all.moment_id.isin(set(m[m.is_global].moment_id))]     # global moments only, for the share
 write("appointments.json", {
     "note": "Appointments counted by scheduled event: a catalogue event (a ceremony, election, final or draw) groups "
             "its moments; every other appointment moment (a match, a trailer) is its own unit. Holidays are in "
             "Rituals; unclear non-sport moments are left out. Event reach = countries where any topic of the event "
             "trended in its window (the catalogue window, or 2 h before to 24 h after a single moment); within 60 "
             "min, minutes to half and the curve count from the third country's first trend (curve = [minute, "
-            "countries] every 10 min for 6 h). verified = a member moment is hand-labelled scheduled.",
+            "countries] every 10 min for 6 h). Catalogue events take every trend of their topics inside the window, "
+            "not only global moments. multi_day events (Winter Olympics 2026) are ranked by their best UTC day "
+            "(event_reach, best_day), with event_reach_total over the whole window as a second number. verified = a "
+            "member moment is hand-labelled scheduled.",
     "reach_basis": "event reach with reviewed event groups" if APPT_GROUPS is not None
                    else "event reach, event members only (event groups not reviewed yet)",
     "categories": [c for c in AP.CATEGORIES if c != "holiday"],
@@ -638,7 +651,8 @@ write("appointments.json", {
                   for e in AP.CATALOGUE],
     "counts": {"appointment_moments": len(_in), "global_moments": _g_all,
                "share_of_global": round(len(_in) / _g_all, 4), "sport_moments": int(_in.is_sport.sum()),
-               "non_sport_moments": int((~_in.is_sport).sum()), "events": len(units),
+               "non_sport_moments": int((~_in.is_sport).sum()),
+               "non_global_members_of_catalogue_events": int(len(_in_all) - len(_in)), "events": len(units),
                "catalogue_events": int(units.is_catalogue.sum()),
                "events_by_category": units.category.value_counts().reindex(
                    [c for c in AP.CATEGORIES if c != "holiday"], fill_value=0).to_dict(),
@@ -659,6 +673,13 @@ for c_, v_ in units.category.value_counts().reindex([c for c in AP.CATEGORIES if
 for r in units.head(5).itertuples():
     num("Appointments", f"{r.event} ({r.first_utc[:10]}): event reach / within 60 min / minutes to half",
         f"{r.event_reach} / {r.event_reach_60} / {r.event_minutes_to_half}", "appointments.json", "top20_by_event_reach")
+for r in units[units.multi_day.astype(bool)].itertuples():
+    num("Appointments", f"{r.event}: best day ({r.best_day}) / total over the window",
+        f"{r.event_reach} / {r.event_reach_total}", "appointments.json", "chart.events[].event_reach, event_reach_total")
+for c_ in [c for c in AP.CATEGORIES if c not in ("football", "holiday", "other")]:
+    for r in APPT_CHART[APPT_CHART.category == c_].head(5).itertuples():
+        num("Appointments", f"Top 5 {c_}: {r.event} ({r.first_utc[:10]}), event reach", int(r.event_reach),
+            "appointments.json", "chart.events")
 num("Appointments", "Chart set (stratified by event), of which hand-verified",
     f"{int(APPT_CHART.verified.sum())} of {len(APPT_CHART)}", "appointments.json", "chart")
 
