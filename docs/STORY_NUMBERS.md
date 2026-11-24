@@ -136,6 +136,37 @@ Conventions: national feeds; UTC unless a local hour is named; a moment is one t
 | S&P 500: peak day Mar-Apr 2025 and countries | 2025-04-07: 50 | `waves.json` | `daily.S&P 500` |
 | Dow Jones: peak day Mar-Apr 2025 and countries | 2025-04-07: 36 | `waves.json` | `daily.Dow Jones` |
 | Nasdaq: peak day Mar-Apr 2025 and countries | 2025-04-07: 39 | `waves.json` | `daily.Nasdaq` |
+| Wave chart: stories (hand-verified real recurring stories) / returns (months at 15+) | 18 / 167 | `waves_chart.json` | `stories` |
+| Wave chart returns, pop stars: biggest moment a shock / an appointment / neither | 1 / 3 / 63 of 67 (1% / 4% / 94%) | `waves_chart.json` | `returns_by_group` |
+| Wave chart returns, pop stars: biggest moment global (15+ countries within 60 min) | 3 of 67 | `waves_chart.json` | `biggest_moment_global` |
+| Wave chart returns, pop stars: month has any shock / else any appointment / neither | 1 / 3 / 63 of 67 | `waves_chart.json` | `returns_by_group_any_moment` |
+| Wave chart returns, crises/politics: biggest moment a shock / an appointment / neither | 3 / 0 / 44 of 47 (6% / 0% / 94%) | `waves_chart.json` | `returns_by_group` |
+| Wave chart returns, crises/politics: biggest moment global (15+ countries within 60 min) | 3 of 47 | `waves_chart.json` | `biggest_moment_global` |
+| Wave chart returns, crises/politics: month has any shock / else any appointment / neither | 4 / 0 / 43 of 47 | `waves_chart.json` | `returns_by_group_any_moment` |
+| Wave chart returns, tech/companies: biggest moment a shock / an appointment / neither | 12 / 4 / 37 of 53 (23% / 8% / 70%) | `waves_chart.json` | `returns_by_group` |
+| Wave chart returns, tech/companies: biggest moment global (15+ countries within 60 min) | 18 of 53 | `waves_chart.json` | `biggest_moment_global` |
+| Wave chart returns, tech/companies: month has any shock / else any appointment / neither | 13 / 4 / 36 of 53 | `waves_chart.json` | `returns_by_group_any_moment` |
+| Wave chart returns, all: biggest moment a shock / an appointment / neither | 16 / 7 / 144 of 167 (10% / 4% / 86%) | `waves_chart.json` | `returns_by_group` |
+| Wave chart returns, all: biggest moment global (15+ countries within 60 min) | 24 of 167 | `waves_chart.json` | `biggest_moment_global` |
+| Wave chart returns, all: month has any shock / else any appointment / neither | 18 / 7 / 142 of 167 | `waves_chart.json` | `returns_by_group_any_moment` |
+| Wave chart: Iran (crises/politics): months at 15+ / countries / shock-appointment-neither | 11 / 123 / 1-0-10 | `waves_chart.json` | `stories` |
+| Wave chart: Dua Lipa (pop stars): months at 15+ / countries / shock-appointment-neither | 11 / 58 / 0-0-11 | `waves_chart.json` | `stories` |
+| Wave chart: Venezuela (Nicolás Maduro) (crises/politics): months at 15+ / countries / shock-appointment-neither | 10 / 122 / 1-0-9 | `waves_chart.json` | `stories` |
+| Wave chart: Samsung (tech/companies): months at 15+ / countries / shock-appointment-neither | 10 / 112 / 0-2-8 | `waves_chart.json` | `stories` |
+| Wave chart: Shakira (pop stars): months at 15+ / countries / shock-appointment-neither | 10 / 72 / 0-0-10 | `waves_chart.json` | `stories` |
+| Wave chart: Justin Bieber (pop stars): months at 15+ / countries / shock-appointment-neither | 10 / 61 / 0-0-10 | `waves_chart.json` | `stories` |
+| Wave chart: Meta (tech/companies): months at 15+ / countries / shock-appointment-neither | 10 / 57 / 2-0-8 | `waves_chart.json` | `stories` |
+| Wave chart: Sabrina Carpenter (pop stars): months at 15+ / countries / shock-appointment-neither | 10 / 53 / 0-0-10 | `waves_chart.json` | `stories` |
+| Wave chart: Jeffrey Epstein (crises/politics): months at 15+ / countries / shock-appointment-neither | 9 / 104 / 1-0-8 | `waves_chart.json` | `stories` |
+| Wave chart: Emmanuel Macron (crises/politics): months at 15+ / countries / shock-appointment-neither | 9 / 81 / 0-0-9 | `waves_chart.json` | `stories` |
+| Wave chart: Nintendo Switch 2 (tech/companies): months at 15+ / countries / shock-appointment-neither | 9 / 69 / 1-0-8 | `waves_chart.json` | `stories` |
+| Wave chart: Demi Moore (pop stars): months at 15+ / countries / shock-appointment-neither | 9 / 66 / 0-1-8 | `waves_chart.json` | `stories` |
+| Wave chart: Ariana Grande (pop stars): months at 15+ / countries / shock-appointment-neither | 9 / 64 / 1-1-7 | `waves_chart.json` | `stories` |
+| Wave chart: Syria (crises/politics): months at 15+ / countries / shock-appointment-neither | 8 / 92 / 0-0-8 | `waves_chart.json` | `stories` |
+| Wave chart: BTS (pop stars): months at 15+ / countries / shock-appointment-neither | 8 / 84 / 0-1-7 | `waves_chart.json` | `stories` |
+| Wave chart: Grok (tech/companies): months at 15+ / countries / shock-appointment-neither | 8 / 76 / 4-0-4 | `waves_chart.json` | `stories` |
+| Wave chart: OpenAI (tech/companies): months at 15+ / countries / shock-appointment-neither | 8 / 64 / 5-0-3 | `waves_chart.json` | `stories` |
+| Wave chart: Nvidia stock (tech/companies): months at 15+ / countries / shock-appointment-neither | 8 / 58 / 0-2-6 | `waves_chart.json` | `stories` |
 
 ## Appointments
 

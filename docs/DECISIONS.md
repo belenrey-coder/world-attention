@@ -1348,6 +1348,28 @@ Sample 1 (`docs/shock_validation_sample.csv`, 100 moments) is now the **tuning**
 - **Top by distinct countries:** Iran (123), Pope Francis (122), Venezuela (120), DeepSeek (117), Facebook (115).
 - **Verification sheet regenerated** (it had no labels): `docs/wave_chart_verification.csv` (local), the top 30 of the new clean set. Ranks 25–30 tie at 8 months and are ordered by distinct countries.
 
+### Step 9, round 30 (2026-11-23): Wave chart set (`waves_chart.json`)
+
+- **Chart set** (step 8, from the local verification sheet):
+  - 19 of the 30 verified stories are labelled real recurring story (10 always-on, 1 misgrouped). Venezuela and Nicolás Maduro are merged (`WAVE_CHART_MERGES`), giving 18 stories.
+  - Groups (`WAVE_CHART_GROUPS`, chosen by hand):
+    - pop stars (7): Dua Lipa, Shakira, Justin Bieber, Sabrina Carpenter, Ariana Grande, BTS, Demi Moore;
+    - crises/politics (5): Iran, Venezuela (Nicolás Maduro), Jeffrey Epstein, Emmanuel Macron, Syria;
+    - tech/companies (6): Samsung, Meta, Nintendo Switch 2, Grok, OpenAI, Nvidia stock.
+- **`waves_chart.json` fields** per story: countries per month (19 months; `month_coverage` gives days collected / days and gap months), months at 15+, distinct countries, peak month, the hand notes, and the returns.
+- **Returns:** every month at 15+ is a return, 167 in all. Each carries the story's biggest moment that month (most countries; date, countries, countries within 60 min, `is_global`) and its kind: shock if it is in shocks.json, appointment if it is a member of an appointment event, otherwise neither.
+- **Biggest moment's kind** (shock / appointment / neither):
+  - pop stars 1 / 3 / 63 of 67;
+  - crises/politics 3 / 0 / 44 of 47;
+  - tech/companies 12 / 4 / 37 of 53;
+  - all 16 / 7 / 144 of 167 (10% / 4% / 86%).
+- **Why most are "neither":** shocks and appointments are global moments (15+ countries within 60 min). Only 24 of the 167 biggest moments are global (pop stars 3, crises/politics 3, tech/companies 18); the rest are slow builds over hours or days.
+  - Iran, 12 Jun 2025: 70 countries, 3 within 60 min.
+  - Syria, the fall of Assad: 75 countries, 6 within 60 min.
+  - Demi Moore's Golden Globe: 59 countries, 3 within 60 min.
+- **Second view** (`returns_by_group_any_moment`): whether the month has any shock, else any appointment, moment of the story. It changes little: 18 / 7 / 142 overall. One change is Iran in June 2025, whose global shock (the US strikes on 22 Jun, 62 countries) is not the month's biggest moment.
+- **Reading:** the waves' returns are mostly not instant global moments. Tech/companies returns are the most shock- and launch-driven (outages, Grok and OpenAI news, launches, earnings). Pop-star and crisis returns build across countries over hours or days.
+
 ## Open issues (need a decision)
 
 _Updated 2026-11-09, after the short-string, sport, 19:00 UTC and Wrapped fixes (rerun from combine: combine, link, validation, moments, export, profile, checks)._

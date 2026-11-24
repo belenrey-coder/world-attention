@@ -1131,6 +1131,127 @@ for c_ in [c for c in AP.CATEGORIES if c not in ("football", "holiday", "other")
 num("Appointments", "Chart set (stratified by event), of which hand-verified",
     f"{int(APPT_CHART.verified.sum())} of {len(APPT_CHART)}", "appointments.json", "chart")
 
+# ------------------------------------------------------------------ 5c wave chart (Step 9 round 30)
+# the stories hand-labelled "real recurring story" on docs/wave_chart_verification.csv (local), Venezuela and Nicolás
+# Maduro merged into one story. For each month at 15+: the story's biggest moment that month (most countries; any
+# moment of its topics starting in the month) and whether it is a shock (shocks.json), an appointment (a member of an
+# appointment event in appointments.json) or neither.
+print("wave chart ...", flush=True)
+WAVE_CHART_MERGES = {"Venezuela (Nicolás Maduro)": ["Q717", "Q58132"]}     # story ids on the verification sheet
+WAVE_CHART_GROUPS = {   # story name -> group (reported by group)
+    "pop stars": ["Dua Lipa", "Shakira", "Justin Bieber", "Sabrina Carpenter", "Ariana Grande", "BTS", "Demi Moore"],
+    "crises/politics": ["Iran", "Venezuela (Nicolás Maduro)", "Jeffrey Epstein", "Emmanuel Macron", "Syria"],
+    "tech/companies": ["Samsung", "Meta", "Nintendo Switch 2", "Grok", "OpenAI", "Nvidia stock"]}
+_group_of = {s_: g_ for g_, v_ in WAVE_CHART_GROUPS.items() for s_ in v_}
+_wvs = DOCS / "wave_chart_verification.csv"
+WAVE_CHART = []
+if _wvs.exists():
+    _vs = pd.read_csv(_wvs, dtype=str, keep_default_na=False)
+    _vs = _vs[_vs.label.str.strip().eq("real recurring story")]
+    _cs_by = _cs.set_index("story_id")
+    _shock_ids = {x["moment_id"] for x in shocks}
+    _appt_ids = {int(x) for mem in units.members for x in mem}
+    _merged_into = {sid: nm_ for nm_, ids_ in WAVE_CHART_MERGES.items() for sid in ids_}
+    _stories = {}
+    for r in _vs.itertuples():
+        key = _merged_into.get(r.story_id, r.story)
+        st_ = _stories.setdefault(key, {"name": key, "story_ids": [], "topic_ids": [], "topics": [], "notes": []})
+        st_["story_ids"].append(r.story_id)
+        if r.story_id in _cs_by.index:
+            st_["topic_ids"] += list(_cs_by.loc[r.story_id, "topic_ids"])
+            st_["topics"] += list(_cs_by.loc[r.story_id, "topics"])
+        else:
+            print(f"  wave chart: story {r.story_id} ({r.story}) is not in the clean set", flush=True)
+        if r.notes.strip():
+            st_["notes"].append(r.notes.strip())
+    _mm = m[m.topic_id.isin({x for s_ in _stories.values() for x in s_["topic_ids"]})].copy()
+    _mm["month"] = _mm.start_utc.dt.strftime("%Y-%m")
+    for s_ in _stories.values():
+        rows_ = wv[wv.topic_id.isin(s_["topic_ids"])]
+        cpm = rows_.groupby("month").country_code.nunique().reindex(months, fill_value=0).astype(int).tolist()
+        pk = int(np.argmax(cpm))
+        mo_ = _mm[_mm.topic_id.isin(s_["topic_ids"])]
+        returns = []
+        for mo, c in zip(months, cpm):
+            if c < 15:
+                continue
+            g_ = mo_[mo_.month == mo].sort_values(["reach", "reach_60"], ascending=False)
+            if g_.empty:
+                returns.append({"month": mo, "countries": c, "biggest_moment": None})
+                continue
+            b_ = g_.iloc[0]
+
+            def _k(mid):
+                return "shock" if int(mid) in _shock_ids else ("appointment" if int(mid) in _appt_ids else "neither")
+            kinds_in = {_k(x) for x in g_.moment_id}
+            returns.append({"month": mo, "countries": c, "gap": mo in gap_months,
+                            "biggest_moment": {"date_utc": f"{b_.start_utc:%Y-%m-%d}", "topic": name.get(b_.topic_id),
+                                               "countries": int(b_.reach), "countries_within_60_min": int(b_.reach_60),
+                                               "is_global": bool(b_.is_global), "kind": _k(b_.moment_id)},
+                            "month_has_shock": "shock" in kinds_in, "month_has_appointment": "appointment" in kinds_in})
+        WAVE_CHART.append({"story": s_["name"], "group": _group_of.get(s_["name"]), "topics": s_["topics"],
+                           "months_15plus": len(returns), "distinct_countries": int(rows_.country_code.nunique()),
+                           "peak_month": months[pk], "peak_countries": cpm[pk], "countries_per_month": cpm,
+                           "notes": " | ".join(s_["notes"]), "returns": returns})
+    WAVE_CHART.sort(key=lambda d: (-d["months_15plus"], -d["distinct_countries"]))
+    _ungrouped = [d["story"] for d in WAVE_CHART if d["group"] is None]
+    if _ungrouped:
+        print(f"  wave chart: stories without a group: {_ungrouped}", flush=True)
+    _ret = pd.DataFrame([{"story": d["story"], "group": d["group"],
+                          "kind": (x["biggest_moment"] or {}).get("kind", "no moment"),
+                          "is_global": bool((x["biggest_moment"] or {}).get("is_global")),
+                          "any": "shock" if x.get("month_has_shock") else (
+                              "appointment" if x.get("month_has_appointment") else "neither")}
+                         for d in WAVE_CHART for x in d["returns"]])
+    _kinds = ["shock", "appointment", "neither"]
+    _by_group = {g_: _ret[_ret.group == g_].kind.value_counts().reindex(_kinds, fill_value=0).astype(int).to_dict()
+                 for g_ in WAVE_CHART_GROUPS}
+    _by_group["all"] = _ret.kind.value_counts().reindex(_kinds, fill_value=0).astype(int).to_dict()
+    _by_group_any = {g_: _ret[_ret.group == g_]["any"].value_counts().reindex(_kinds, fill_value=0).astype(int).to_dict()
+                     for g_ in WAVE_CHART_GROUPS}
+    _by_group_any["all"] = _ret["any"].value_counts().reindex(_kinds, fill_value=0).astype(int).to_dict()
+    _glob = {g_: int(_ret[(_ret.group == g_) if g_ != "all" else _ret.group.notna()].is_global.sum())
+             for g_ in list(WAVE_CHART_GROUPS) + ["all"]}
+    write("waves_chart.json", {
+        "note": "Wave chart: the clean-set stories hand-labelled real recurring stories on the wave verification "
+                "sheet (Venezuela and Nicolás Maduro merged). countries_per_month follows months (gap months in "
+                "month_coverage, with days collected / days). returns = every month at 15+, with the story's "
+                "biggest moment that month (most countries; any moment of its topics starting that month) and its "
+                "kind: shock (in shocks.json), appointment (a member of an appointment event in appointments.json) "
+                "or neither. notes = the hand notes from the verification sheet.",
+        "months": months, "month_coverage": _mcov, "groups": WAVE_CHART_GROUPS,
+        "returns_by_group": _by_group,
+        "returns_by_group_note": "returns_by_group = kind of each return's biggest moment (most countries). Shocks and "
+                                 "appointments are global moments (15+ countries within 60 min), so a slow build that "
+                                 "reaches many countries over hours or days counts as neither; biggest_moment_global "
+                                 "counts the returns whose biggest moment is global. returns_by_group_any_moment = "
+                                 "the month has any shock (else any appointment) moment of the story.",
+        "biggest_moment_global": _glob, "returns_by_group_any_moment": _by_group_any, "stories": WAVE_CHART})
+    print(f"  wave chart: {len(WAVE_CHART)} stories, {len(_ret)} returns; biggest moment by group {_by_group}; "
+          f"global {_glob}; any moment in the month {_by_group_any}", flush=True)
+    num("Waves", "Wave chart: stories (hand-verified real recurring stories) / returns (months at 15+)",
+        f"{len(WAVE_CHART)} / {len(_ret)}", "waves_chart.json", "stories")
+    for g_, v_ in _by_group.items():
+        n_ = sum(v_.values())
+        num("Waves", f"Wave chart returns, {g_}: biggest moment a shock / an appointment / neither",
+            f"{v_['shock']} / {v_['appointment']} / {v_['neither']} of {n_}"
+            + (f" ({v_['shock'] / n_:.0%} / {v_['appointment'] / n_:.0%} / {v_['neither'] / n_:.0%})" if n_ else ""),
+            "waves_chart.json", "returns_by_group")
+        num("Waves", f"Wave chart returns, {g_}: biggest moment global (15+ countries within 60 min)",
+            f"{_glob[g_]} of {n_}", "waves_chart.json", "biggest_moment_global")
+        va_ = _by_group_any[g_]
+        num("Waves", f"Wave chart returns, {g_}: month has any shock / else any appointment / neither",
+            f"{va_['shock']} / {va_['appointment']} / {va_['neither']} of {n_}", "waves_chart.json",
+            "returns_by_group_any_moment")
+    for d in WAVE_CHART:
+        k_ = pd.Series([(x["biggest_moment"] or {}).get("kind") for x in d["returns"]]).value_counts()
+        num("Waves", f"Wave chart: {d['story']} ({d['group']}): months at 15+ / countries / shock-appointment-neither",
+            f"{d['months_15plus']} / {d['distinct_countries']} / {int(k_.get('shock', 0))}-"
+            f"{int(k_.get('appointment', 0))}-{int(k_.get('neither', 0))}", "waves_chart.json", "stories")
+else:
+    print("  wave chart: docs/wave_chart_verification.csv not found (local hand labels); waves_chart.json not written",
+          flush=True)
+
 # ------------------------------------------------------------------ 6 rituals
 print("rituals ...", flush=True)
 cz = json.load(open(INTERIM / "country_timezones.json"))
