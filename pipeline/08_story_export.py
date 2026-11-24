@@ -1186,10 +1186,13 @@ if _wvs.exists():
             kinds_in = {_k(x) for x in g_.moment_id}
             returns.append({"month": mo, "countries": c, "gap": mo in gap_months,
                             "biggest_moment": {"date_utc": f"{b_.start_utc:%Y-%m-%d}", "topic": name.get(b_.topic_id),
+                                               "moment_id": int(b_.moment_id),
+                                               "start_utc": f"{b_.start_utc:%Y-%m-%dT%H:%MZ}",
                                                "countries": int(b_.reach), "countries_within_60_min": int(b_.reach_60),
                                                "is_global": bool(b_.is_global), "kind": _k(b_.moment_id)},
                             "month_has_shock": "shock" in kinds_in, "month_has_appointment": "appointment" in kinds_in})
         WAVE_CHART.append({"story": s_["name"], "group": _group_of.get(s_["name"]), "topics": s_["topics"],
+                           "topic_ids": s_["topic_ids"],
                            "months_15plus": len(returns), "distinct_countries": int(rows_.country_code.nunique()),
                            "peak_month": months[pk], "peak_countries": cpm[pk], "countries_per_month": cpm,
                            "notes": " | ".join(s_["notes"]), "returns": returns})
@@ -1251,6 +1254,189 @@ if _wvs.exists():
 else:
     print("  wave chart: docs/wave_chart_verification.csv not found (local hand labels); waves_chart.json not written",
           flush=True)
+
+
+# ------------------------------------------------------------------ 5d wave speed (Step 9 round 31)
+# "Waves spread slowly and come back." Daily series of the 18 chart stories; 72-hour curves of each story's biggest
+# return (and Iran's June 2025 return from the US strikes) and of four shocks; and a baseline over every non-sport,
+# non-hidden moment whose 72-hour total reaches 50+ (and 30+) countries.
+# Counting (same for all): origin = the moment's start (its first country's trend). Countries where the topic set
+# trended in the 24 h before the origin are "already trending" and left out. The clock starts at the third new
+# country's first trend (as in the global-moment rule); the curve is cumulative distinct new countries (the first two
+# count at 0), every 10 min for 6 h, then hourly to 72 h. hours_to_half = hours until half of the 72-hour total.
+SPEED_THRESHOLDS = (50, 30)
+CURVE_MIN = list(range(0, 361, 10)) + list(range(420, 72 * 60 + 1, 60))
+print("wave speed ...", flush=True)
+_cc_code = {c: i for i, c in enumerate(sorted(tv.country_code.unique()))}
+_tsec = tv.start_time_utc.astype("int64").to_numpy() // 10**9
+_tv_arr = pd.DataFrame({"topic_id": tv.topic_id.values, "cc": tv.country_code.map(_cc_code).values, "ts": _tsec})
+
+
+def _arrays(topic_ids):
+    d = _tv_arr[_tv_arr.topic_id.isin(set(topic_ids))].sort_values("ts")
+    return d.ts.to_numpy(), d.cc.to_numpy()
+
+
+def curve72(ts, cc, origin, curve=True):
+    """ts, cc: sorted row start times (s) and country codes of a topic set; origin: Timestamp or seconds."""
+    o = int(pd.Timestamp(origin).timestamp()) if not isinstance(origin, (int, np.integer)) else int(origin)
+    a, b = np.searchsorted(ts, [o - 86400, o])
+    already = set(cc[a:b].tolist())
+    c_ = np.searchsorted(ts, o + 80 * 3600)
+    pt, pc = ts[b:c_], cc[b:c_]
+    if already:
+        keep = ~np.isin(pc, list(already))
+        pt, pc = pt[keep], pc[keep]
+    _, first_idx = np.unique(pc, return_index=True)
+    first = np.sort(pt[first_idx])
+    if len(first) < 3:
+        return None
+    zero = first[2]
+    mins = np.clip((first - zero) / 60.0, 0, None)
+    mins = mins[mins <= 72 * 60]
+    total = len(mins)
+    half = float(np.sort(mins)[int(np.ceil(total / 2)) - 1] / 60)
+    out = {"already_trending": len(already), "start_utc": f"{pd.Timestamp(zero, unit='s'):%Y-%m-%dT%H:%MZ}",
+           "total_72h": int(total), "at_1h": int((mins <= 60).sum()), "at_24h": int((mins <= 1440).sum()),
+           "at_72h": int(total), "share_1h": round(float((mins <= 60).sum() / total), 3),
+           "hours_to_half": round(half, 2)}
+    if curve:
+        out["curve"] = [[mn, int((mins <= mn).sum())] for mn in CURVE_MIN]
+    return out
+
+
+WAVES_SPEED = {}
+if WAVE_CHART:
+    # 1 daily series
+    _daily_days = pd.date_range(t.day.min(), t.day.max(), freq="D").strftime("%Y-%m-%d")
+    _gapset = set(gap_days)
+    daily_series = []
+    for d in WAVE_CHART:
+        r_ = tv[tv.topic_id.isin(set(d["topic_ids"]))]
+        cnt = r_.groupby("day").country_code.nunique()
+        daily_series.append({"story": d["story"], "group": d["group"],
+                             "countries_per_day": [int(cnt.get(x, 0)) for x in _daily_days]})
+    # 2 biggest return of each story (+ Iran from the US strikes)
+    big_returns = []
+    for d in WAVE_CHART:
+        ts_, cc_ = _arrays(d["topic_ids"])
+        rb = max((x for x in d["returns"] if x["biggest_moment"]), key=lambda x: x["countries"])
+        bm = rb["biggest_moment"]
+        cv = curve72(ts_, cc_, pd.Timestamp(bm["start_utc"].replace("Z", ""), tz="UTC"))
+        big_returns.append({"story": d["story"], "group": d["group"], "month": rb["month"],
+                            "month_countries": rb["countries"], "moment_start_utc": bm["start_utc"],
+                            "moment_kind": bm["kind"], **(cv or {})})
+        if d["story"] == "Iran":
+            _us = m[m.topic_id.isin(set(d["topic_ids"])) & (m.start_utc.dt.strftime("%Y-%m-%d") == "2025-06-22")]
+            _us = _us.sort_values(["reach", "reach_60"], ascending=False)
+            if len(_us):
+                u0 = _us.iloc[0]
+                cv2 = curve72(ts_, cc_, u0.start_utc)
+                big_returns.append({"story": "Iran (US strikes, 22 Jun 2025)", "group": d["group"],
+                                    "month": "2025-06", "month_countries": rb["countries"] if rb["month"] == "2025-06"
+                                    else None, "moment_start_utc": f"{u0.start_utc:%Y-%m-%dT%H:%MZ}",
+                                    "moment_kind": "shock" if int(u0.moment_id) in _shock_ids else "other",
+                                    "extra": True, **(cv2 or {})})
+    # 3 four shocks
+    SPEED_SHOCKS = [("Pope Francis", "2025-04-21"), ("ChatGPT", "2025-01-23"), ("Diogo Jota", "2025-07-03"),
+                    ("Venezuela", "2026-01-03")]
+    shock_curves = []
+    for nm_, day_ in SPEED_SHOCKS:
+        cand = [x for x in shocks if x["name"] == nm_ and x["date_utc"][:10] == day_]
+        if not cand:
+            print(f"  wave speed: shock {nm_} {day_} not found", flush=True)
+            continue
+        x = max(cand, key=lambda y: y["reach"])
+        grp = {x["topic_id"]} | (EVENT_GROUPS or {}).get(x["moment_id"], set())
+        ts_, cc_ = _arrays(grp)
+        cv = curve72(ts_, cc_, pd.Timestamp(x["date_utc"].replace("Z", ""), tz="UTC"))
+        shock_curves.append({"shock": nm_, "date_utc": x["date_utc"], "topics": sorted(name.get(g, g) for g in grp),
+                             **(cv or {})})
+    # 4 baseline: every non-sport, non-hidden moment (single topic); wave returns with the story's topics
+    _bm = m[~m.is_sport.astype(bool) & ~m.topic_id.isin(hidden)]
+    _nc = tv.groupby("topic_id").country_code.nunique()
+    _bm = _bm[_bm.topic_id.isin(set(_nc[_nc >= min(SPEED_THRESHOLDS)].index))]
+    _arr_by_topic = {k: (g.ts.to_numpy(), g.cc.to_numpy())
+                     for k, g in _tv_arr[_tv_arr.topic_id.isin(set(_bm.topic_id))].sort_values("ts").groupby("topic_id")}
+    _wave_moments = {x["biggest_moment"]["moment_id"] for d in WAVE_CHART for x in d["returns"] if x["biggest_moment"]}
+    base = []
+    _o = (_bm.start_utc.astype("int64") // 10**9).to_numpy()
+    for tid, mid, o in zip(_bm.topic_id.values, _bm.moment_id.values, _o):
+        ts_, cc_ = _arr_by_topic[tid]
+        lo_, hi_ = np.searchsorted(ts_, [o, o + 80 * 3600])
+        if hi_ - lo_ < min(SPEED_THRESHOLDS):        # fewer rows than the threshold: cannot reach it
+            continue
+        cv = curve72(ts_, cc_, int(o), curve=False)
+        if cv and cv["total_72h"] >= min(SPEED_THRESHOLDS):
+            mid = int(mid)
+            grp_ = "shock" if mid in _shock_ids else ("appointment" if mid in _appt_ids else "other")
+            base.append({"moment_id": mid, "group": grp_, "wave_moment": mid in _wave_moments,
+                         "total_72h": cv["total_72h"], "share_1h": cv["share_1h"], "hours_to_half": cv["hours_to_half"]})
+    base = pd.DataFrame(base)
+    wret = []
+    for d in WAVE_CHART:
+        ts_, cc_ = _arrays(d["topic_ids"])
+        for x in d["returns"]:
+            if x["biggest_moment"]:
+                cv = curve72(ts_, cc_, pd.Timestamp(x["biggest_moment"]["start_utc"].replace("Z", ""), tz="UTC"),
+                             curve=False)
+                if cv:
+                    wret.append({"story": d["story"], "month": x["month"], "total_72h": cv["total_72h"],
+                                 "share_1h": cv["share_1h"], "hours_to_half": cv["hours_to_half"]})
+    wret = pd.DataFrame(wret)
+
+    def _dist(d):
+        if d.empty:
+            return {"n": 0}
+        q = d.share_1h.quantile([0.25, 0.5, 0.75])
+        h = d.hours_to_half.quantile([0.25, 0.5, 0.75])
+        hist = np.histogram(d.share_1h.clip(0, 1), bins=np.linspace(0, 1, 11))[0]
+        return {"n": int(len(d)), "share_1h": {"q1": round(float(q[0.25]), 3), "median": round(float(q[0.5]), 3),
+                                               "q3": round(float(q[0.75]), 3)},
+                "hours_to_half": {"q1": round(float(h[0.25]), 2), "median": round(float(h[0.5]), 2),
+                                  "q3": round(float(h[0.75]), 2)},
+                "share_1h_histogram_10pct": [int(v) for v in hist]}
+
+    baseline = {}
+    for th in SPEED_THRESHOLDS:
+        b_ = base[base.total_72h >= th]
+        w_ = wret[wret.total_72h >= th] if len(wret) else wret
+        baseline[f"{th}_plus"] = {"all": _dist(b_), "shocks": _dist(b_[b_.group == "shock"]),
+                                  "appointments": _dist(b_[b_.group == "appointment"]), "wave_returns": _dist(w_),
+                                  "everything_else": _dist(b_[(b_.group == "other") & ~b_.wave_moment])}
+    WAVES_SPEED = {
+        "note": "72-hour curves: origin = the moment's start (first country). Countries where the topic set trended "
+                "in the 24 h before the origin are already_trending and left out. The clock starts at the third new "
+                "country's first trend; curve = [minutes from the start, cumulative distinct new countries], every 10 "
+                "min to 6 h then hourly to 72 h. hours_to_half = hours until half of the 72-hour total. Wave stories "
+                "count any topic of the story; shocks count the shock's topic and its reviewed event group; the "
+                "baseline counts each moment's own topic. Baseline = every non-sport, non-hidden moment whose 72-hour "
+                "total reaches the threshold (global or not); groups: shocks (shocks.json), appointments (members of "
+                "appointments.json events), wave_returns (the 18 stories' biggest moment in each month at 15+, with "
+                "the story's topics), everything_else (the rest, without the wave stories' moments). "
+                "share_1h_histogram_10pct: counts in bins [0-10%), [10-20%) ... [90-100%].",
+        "days": list(_daily_days), "gap_days": sorted(_gapset & set(_daily_days)),
+        "daily_series": daily_series, "biggest_returns": big_returns, "shocks": shock_curves,
+        "baseline": baseline}
+    write("waves_speed.json", WAVES_SPEED)
+    for th in SPEED_THRESHOLDS:
+        for g_, v_ in baseline[f"{th}_plus"].items():
+            if v_.get("n"):
+                print(f"  speed {th}+ {g_}: n={v_['n']} share_1h median {v_['share_1h']['median']:.0%} "
+                      f"(IQR {v_['share_1h']['q1']:.0%}-{v_['share_1h']['q3']:.0%}); hours to half median "
+                      f"{v_['hours_to_half']['median']:g}", flush=True)
+                num("Waves", f"Speed baseline {th}+ countries in 72 h, {g_.replace('_', ' ')}: moments / median share "
+                    f"within 1 h / median hours to half", f"{v_['n']:,} / {v_['share_1h']['median']:.0%} / "
+                    f"{v_['hours_to_half']['median']:g}", "waves_speed.json", f"baseline.{th}_plus.{g_}")
+    for x in big_returns + shock_curves:
+        lab_ = x.get("story") or f"shock {x['shock']} ({x['date_utc'][:10]})"
+        if "total_72h" in x:
+            print(f"  curve {lab_}: start {x['start_utc']}, already {x['already_trending']}, 1h {x['at_1h']}, "
+                  f"24h {x['at_24h']}, 72h {x['at_72h']}, hours to half {x['hours_to_half']}", flush=True)
+            num("Waves", f"72-h curve, {lab_}" + (f" ({x['month']})" if x.get("month") else "")
+                + ": already trending / 1 h / 24 h / 72 h / hours to half",
+                f"{x['already_trending']} / {x['at_1h']} / {x['at_24h']} / {x['at_72h']} / {x['hours_to_half']:g}",
+                "waves_speed.json", "biggest_returns" if x.get("story") else "shocks")
 
 # ------------------------------------------------------------------ 6 rituals
 print("rituals ...", flush=True)

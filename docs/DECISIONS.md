@@ -1370,6 +1370,38 @@ Sample 1 (`docs/shock_validation_sample.csv`, 100 moments) is now the **tuning**
 - **Second view** (`returns_by_group_any_moment`): whether the month has any shock, else any appointment, moment of the story. It changes little: 18 / 7 / 142 overall. One change is Iran in June 2025, whose global shock (the US strikes on 22 Jun, 62 countries) is not the month's biggest moment.
 - **Reading:** the waves' returns are mostly not instant global moments. Tech/companies returns are the most shock- and launch-driven (outages, Grok and OpenAI news, launches, earnings). Pop-star and crisis returns build across countries over hours or days.
 
+### Step 9, round 31 (2026-11-24): Wave speed (`waves_speed.json`)
+
+- **Counting, the same for every curve:**
+  - Origin = the moment's start (its first country).
+  - Countries where the topic set trended in the 24 h before the origin are `already_trending` and are left out.
+  - The clock starts at the third new country's first trend, as in the global-moment rule.
+  - The curve counts cumulative distinct new countries (the first two count at 0), every 10 min for 6 h, then hourly to 72 h.
+  - `hours_to_half` = hours until half of the 72-hour total.
+  - Wave stories count any topic of the story; the four shocks count their topic plus the reviewed event group; the baseline counts each moment's own topic.
+- **Daily series:** the 18 chart stories, countries per UTC day over all 537 archive days (51 gap days listed).
+- **Biggest returns** (72 h; 1 h / 24 h / 72 h countries and hours to half):
+  - The slow ones: Iran 12 Jun 2025 (3 / 69 / 73, 5.7 h, 27 already trending), Syria (6 / 75 / 75, 11.2 h), Demi Moore (3 / 59 / 61, 6.7 h), Shakira (4 / 20 / 26, 11.8 h), Dua Lipa (3 / 16 / 25, 15.3 h) and Jeffrey Epstein (3 / 19 / 27, 16.2 h, 30 already trending).
+  - The fast ones are shock-driven: Venezuela 3 Jan 2026 (54 / 120 / 120, 1.2 h), Meta (22 / 27 / 28, 0.2 h), OpenAI (27 / 29 / 41, 0.7 h), Grok (20 / 49 / 49, 1.3 h) and BTS (16 / 65 / 65, 1.5 h).
+  - Iran from the US strikes, 22 Jun 2025: 50 / 68 / 70, 0.5 h.
+- **Four shocks** (same counts): Pope Francis 95 / 104 / 105, 0.33 h (16 already trending at Easter); ChatGPT outage 118 / 121 / 121, 0.17 h; Diogo Jota 111 / 122 / 122, 0.33 h; Venezuela 55 / 119 / 119, 1.17 h.
+- **Fair baseline:** every non-sport, non-hidden moment whose 72-hour total reaches the threshold, global or not. Median share of the 72-hour countries reached within 1 h, and median hours to half:
+
+  | group | 50+ countries | 30+ countries |
+  |---|---|---|
+  | all | 851 moments: 7%, 12 h | 3,316: 11%, 11.7 h |
+  | shocks | 122: 54%, 0.83 h | 324: 62%, 0.67 h |
+  | appointments | 33: 17%, 2.8 h | 87: 41%, 1.5 h |
+  | wave returns | 14: 8%, 3.7 h | 34: 17%, 3.8 h |
+  | everything else | 688: 6%, 17.7 h | 2,885: 10%, 15.7 h |
+
+  Quartiles and 10% histograms are in `baseline`.
+- **Reading:**
+  - Shocks are the fast exception, which their definition makes partly circular.
+  - Most wide moments build over half a day.
+  - Wave returns sit between the two: a small share within the first hour, like everything else, but half their countries within about 4 hours. That is faster than the typical slow build, because several returns are driven by shocks or launches.
+  - The ordering holds at both thresholds.
+
 ## Open issues (need a decision)
 
 _Updated 2026-11-09, after the short-string, sport, 19:00 UTC and Wrapped fixes (rerun from combine: combine, link, validation, moments, export, profile, checks)._

@@ -167,6 +167,39 @@ Conventions: national feeds; UTC unless a local hour is named; a moment is one t
 | Wave chart: Grok (tech/companies): months at 15+ / countries / shock-appointment-neither | 8 / 76 / 4-0-4 | `waves_chart.json` | `stories` |
 | Wave chart: OpenAI (tech/companies): months at 15+ / countries / shock-appointment-neither | 8 / 64 / 5-0-3 | `waves_chart.json` | `stories` |
 | Wave chart: Nvidia stock (tech/companies): months at 15+ / countries / shock-appointment-neither | 8 / 58 / 0-2-6 | `waves_chart.json` | `stories` |
+| Speed baseline 50+ countries in 72 h, all: moments / median share within 1 h / median hours to half | 851 / 7% / 12 | `waves_speed.json` | `baseline.50_plus.all` |
+| Speed baseline 50+ countries in 72 h, shocks: moments / median share within 1 h / median hours to half | 122 / 54% / 0.83 | `waves_speed.json` | `baseline.50_plus.shocks` |
+| Speed baseline 50+ countries in 72 h, appointments: moments / median share within 1 h / median hours to half | 33 / 17% / 2.83 | `waves_speed.json` | `baseline.50_plus.appointments` |
+| Speed baseline 50+ countries in 72 h, wave returns: moments / median share within 1 h / median hours to half | 14 / 8% / 3.67 | `waves_speed.json` | `baseline.50_plus.wave_returns` |
+| Speed baseline 50+ countries in 72 h, everything else: moments / median share within 1 h / median hours to half | 688 / 6% / 17.67 | `waves_speed.json` | `baseline.50_plus.everything_else` |
+| Speed baseline 30+ countries in 72 h, all: moments / median share within 1 h / median hours to half | 3,316 / 11% / 11.67 | `waves_speed.json` | `baseline.30_plus.all` |
+| Speed baseline 30+ countries in 72 h, shocks: moments / median share within 1 h / median hours to half | 324 / 62% / 0.67 | `waves_speed.json` | `baseline.30_plus.shocks` |
+| Speed baseline 30+ countries in 72 h, appointments: moments / median share within 1 h / median hours to half | 87 / 41% / 1.5 | `waves_speed.json` | `baseline.30_plus.appointments` |
+| Speed baseline 30+ countries in 72 h, wave returns: moments / median share within 1 h / median hours to half | 34 / 17% / 3.83 | `waves_speed.json` | `baseline.30_plus.wave_returns` |
+| Speed baseline 30+ countries in 72 h, everything else: moments / median share within 1 h / median hours to half | 2,885 / 10% / 15.67 | `waves_speed.json` | `baseline.30_plus.everything_else` |
+| 72-h curve, Iran (2025-06): already trending / 1 h / 24 h / 72 h / hours to half | 27 / 3 / 69 / 73 / 5.67 | `waves_speed.json` | `biggest_returns` |
+| 72-h curve, Iran (US strikes, 22 Jun 2025) (2025-06): already trending / 1 h / 24 h / 72 h / hours to half | 1 / 50 / 68 / 70 / 0.5 | `waves_speed.json` | `biggest_returns` |
+| 72-h curve, Dua Lipa (2026-05): already trending / 1 h / 24 h / 72 h / hours to half | 0 / 3 / 16 / 25 / 15.33 | `waves_speed.json` | `biggest_returns` |
+| 72-h curve, Venezuela (Nicolás Maduro) (2026-01): already trending / 1 h / 24 h / 72 h / hours to half | 1 / 54 / 120 / 120 / 1.17 | `waves_speed.json` | `biggest_returns` |
+| 72-h curve, Samsung (2026-02): already trending / 1 h / 24 h / 72 h / hours to half | 8 / 3 / 59 / 64 / 3.17 | `waves_speed.json` | `biggest_returns` |
+| 72-h curve, Shakira (2025-02): already trending / 1 h / 24 h / 72 h / hours to half | 3 / 4 / 20 / 26 / 11.83 | `waves_speed.json` | `biggest_returns` |
+| 72-h curve, Justin Bieber (2026-04): already trending / 1 h / 24 h / 72 h / hours to half | 1 / 3 / 34 / 35 / 6.83 | `waves_speed.json` | `biggest_returns` |
+| 72-h curve, Meta (2024-12): already trending / 1 h / 24 h / 72 h / hours to half | 1 / 22 / 27 / 28 / 0.17 | `waves_speed.json` | `biggest_returns` |
+| 72-h curve, Sabrina Carpenter (2025-02): already trending / 1 h / 24 h / 72 h / hours to half | 1 / 4 / 31 / 32 / 3.83 | `waves_speed.json` | `biggest_returns` |
+| 72-h curve, Jeffrey Epstein (2026-02): already trending / 1 h / 24 h / 72 h / hours to half | 30 / 3 / 19 / 27 / 16.17 | `waves_speed.json` | `biggest_returns` |
+| 72-h curve, Emmanuel Macron (2025-05): already trending / 1 h / 24 h / 72 h / hours to half | 0 / 10 / 59 / 60 / 3.33 | `waves_speed.json` | `biggest_returns` |
+| 72-h curve, Nintendo Switch 2 (2025-04): already trending / 1 h / 24 h / 72 h / hours to half | 12 / 5 / 56 / 56 / 4 | `waves_speed.json` | `biggest_returns` |
+| 72-h curve, Demi Moore (2025-01): already trending / 1 h / 24 h / 72 h / hours to half | 2 / 3 / 59 / 61 / 6.67 | `waves_speed.json` | `biggest_returns` |
+| 72-h curve, Ariana Grande (2025-06): already trending / 1 h / 24 h / 72 h / hours to half | 4 / 8 / 42 / 44 / 8.83 | `waves_speed.json` | `biggest_returns` |
+| 72-h curve, Syria (2024-12): already trending / 1 h / 24 h / 72 h / hours to half | 14 / 6 / 75 / 75 / 11.17 | `waves_speed.json` | `biggest_returns` |
+| 72-h curve, BTS (2026-03): already trending / 1 h / 24 h / 72 h / hours to half | 0 / 16 / 65 / 65 / 1.5 | `waves_speed.json` | `biggest_returns` |
+| 72-h curve, Grok (2025-06): already trending / 1 h / 24 h / 72 h / hours to half | 0 / 20 / 49 / 49 / 1.33 | `waves_speed.json` | `biggest_returns` |
+| 72-h curve, OpenAI (2026-04): already trending / 1 h / 24 h / 72 h / hours to half | 0 / 27 / 29 / 41 / 0.67 | `waves_speed.json` | `biggest_returns` |
+| 72-h curve, Nvidia stock (2025-01): already trending / 1 h / 24 h / 72 h / hours to half | 0 / 3 / 45 / 46 / 3.83 | `waves_speed.json` | `biggest_returns` |
+| 72-h curve, shock Pope Francis (2025-04-21): already trending / 1 h / 24 h / 72 h / hours to half | 16 / 95 / 104 / 105 / 0.33 | `waves_speed.json` | `shocks` |
+| 72-h curve, shock ChatGPT (2025-01-23): already trending / 1 h / 24 h / 72 h / hours to half | 2 / 118 / 121 / 121 / 0.17 | `waves_speed.json` | `shocks` |
+| 72-h curve, shock Diogo Jota (2025-07-03): already trending / 1 h / 24 h / 72 h / hours to half | 0 / 111 / 122 / 122 / 0.33 | `waves_speed.json` | `shocks` |
+| 72-h curve, shock Venezuela (2026-01-03): already trending / 1 h / 24 h / 72 h / hours to half | 0 / 55 / 119 / 119 / 1.17 | `waves_speed.json` | `shocks` |
 
 ## Appointments
 
