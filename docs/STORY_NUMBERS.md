@@ -333,6 +333,31 @@ Conventions: national feeds; UTC unless a local hour is named; a moment is one t
 | Is it down, whole topic: countries ever / trends | 111 / 3,941 | `rituals.json` | `by_topic.Is it down.whole_topic` |
 | Is it down, strict phrasing: peak day and countries | 2026-05-12: 25 | `rituals.json` | `by_topic.Is it down.strict` |
 | Is it down, strict phrasing: countries ever / trends | 61 / 1,237 | `rituals.json` | `by_topic.Is it down.strict` |
+| Ritual topics (not hidden) / proposed cycle daily / weekly / yearly / unclear / too few trends | 13,573 / 49 / 140 / 1,269 / 1,897 / 10,218 | `rituals_review.json` | `ritual_topics` |
+| Ritual topics that look like sport (topic sport, athlete, or mostly sport moments) | 55 of 13,573 (of those with 5+ trends: 27 of 3,355) | `rituals_review.json` | `ritual_topics[].sport_like` |
+| Weather clock: busiest local hour, 'today' / 'tomorrow' phrasings | 6:00 (31.0%) / 20:00 (77.8%) | `rituals_review.json` | `weather_clock` |
+| Weather clock without multi-zone countries (14 left out): busiest hour today / tomorrow | 6:00 / 20:00 | `rituals_review.json` | `weather_clock.robustness_without_multizone` |
+| Weather clock: 'today' share 05:00-09:59 local / 'tomorrow' share 18:00-23:59 local | 60.6% / 98.3% | `rituals_review.json` | `weather_clock` |
+| Scrape proxy: UTC hour of the latest trend start per collection day (most common, share of days) | 10:00 (48% of 486 days) | `rituals_review.json` | `scrape_check` |
+| Trends starting 19:00-19:59 UTC: share lasting 20 h+ vs other hours (median) | 14.7% vs 13.4% | `rituals_review.json` | `scrape_check` |
+| Weather: countries by peak local hour, most common hours | 6:00 90, 20:00 18, 7:00 11, 5:00 5 | `rituals_review.json` | `weather_clock.countries_per_peak_hour` |
+| Holiday Ramadan: topics / peak day (countries) per year / countries in both years | 332 / 2025: 2025-02-28 (74); 2026: 2026-02-17 (75) / 82 | `rituals_review.json` | `holidays.Ramadan` |
+| Holiday Eid: topics / peak day (countries) per year / countries in both years | 575 / 2024: 2024-12-31 (16); 2025: 2025-03-30 (81); 2026: 2026-03-20 (67) / 86 | `rituals_review.json` | `holidays.Eid` |
+| Holiday Easter: topics / peak day (countries) per year / countries in both years | 418 / 2025: 2025-04-20 (83); 2026: 2026-04-05 (77) / 95 | `rituals_review.json` | `holidays.Easter` |
+| Holiday Christmas: topics / peak day (countries) per year / countries in both years | 1220 / 2024: 2024-12-24 (100); 2025: 2025-12-24 (98); 2026: 2026-03-26 (40) / 107 | `rituals_review.json` | `holidays.Christmas` |
+| Holiday New Year: topics / peak day (countries) per year / countries in both years | 726 / 2025: 2024-12-31 (125); 2026: 2025-12-31 (123) / 125 | `rituals_review.json` | `holidays.New Year` |
+| Holiday Halloween: topics / peak day (countries) per year / countries in both years | 75 / 2025: 2025-10-31 (53) / - | `rituals_review.json` | `holidays.Halloween` |
+| Holiday Valentine's Day: topics / peak day (countries) per year / countries in both years | 289 / 2025: 2025-02-13 (86); 2026: 2026-02-14 (73) / 106 | `rituals_review.json` | `holidays.Valentine's Day` |
+| Holiday Diwali: topics / peak day (countries) per year / countries in both years | 49 / 2025: 2025-10-20 (48) / - | `rituals_review.json` | `holidays.Diwali` |
+| Holiday Lunar New Year: topics / peak day (countries) per year / countries in both years | 178 / 2024: 2024-12-31 (22); 2025: 2025-01-28 (39); 2026: 2026-02-17 (51) / 54 | `rituals_review.json` | `holidays.Lunar New Year` |
+| Holiday Mother's Day: topics / peak day (countries) per year / countries in both years | 124 / 2025: 2025-05-11 (68); 2026: 2026-05-10 (72) / 88 | `rituals_review.json` | `holidays.Mother's Day` |
+| Holiday Black Friday: topics / peak day (countries) per year / countries in both years | 260 / 2024: 2024-11-28 (42); 2025: 2025-11-27 (38) / 54 | `rituals_review.json` | `holidays.Black Friday` |
+| Cycle scan: topics with a daily / weekly / yearly cycle in at least one country | 335 / 140 / 9,897 | `rituals_review.json` | `cycle_scan.counts` |
+| Cycle scan, top 5 daily | Weather (58); Weather tomorrow (22); Weather (9); Weather today (8); Today's weather (6) | `rituals_review.json` | `cycle_scan.daily` |
+| Cycle scan, top 5 weekly | Investments (5); Funeral director (3); Childcare (3); Americano (3); Child care (3) | `rituals_review.json` | `cycle_scan.weekly` |
+| Cycle scan, top 5 yearly | New Year's Eve (117); New Year's Day (106); International Women's Day (99); Valentine's Day (92); Christmas (63) | `rituals_review.json` | `cycle_scan.yearly` |
+| 'Is it down': trends inside outage shocks (share) | 1,839 of 3,941 (47%) | `rituals_review.json` | `is_it_down` |
+| 'Is it down': top 10 days with a matching outage shock | 10 of 10 | `rituals_review.json` | `is_it_down.top10_days` |
 
 ## Time machine
 

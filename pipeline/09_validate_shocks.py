@@ -16,6 +16,7 @@
     python pipeline/09_validate_shocks.py waves-sample # after make story: local hand-label sheet docs/waves_review.csv
     python pipeline/09_validate_shocks.py waves-score  # hand labels vs Claude categories -> docs/WAVES_VALIDATION.md
     python pipeline/09_validate_shocks.py waves-verify-sheet # top 30 clean waves -> docs/wave_chart_verification.csv
+    python pipeline/09_validate_shocks.py rituals-sample # after make story: 60 holiday topics -> docs/rituals_review.csv
 
 Candidates: every non-sport global moment (is_global, is_sport false, topic not hidden). "Current shocks" are the
 moments in data/export/story/shocks.json as last exported (built with the old 20-country rule).
@@ -1436,10 +1437,47 @@ def waves_verify_sheet():
     print(f"wrote {p} ({len(rows)} stories). label = {' / '.join(WAVE_LABEL_CHOICES)}; '*' = gap month")
 
 
+RITUALS_REVIEW_CSV = DOCS / "rituals_review.csv"     # git-ignored (hand labels)
+RITUALS_SAMPLE_N = 60
+RITUALS_MIN_PER_HOLIDAY = 3
+RITUALS_SEED = 43
+RITUALS_LABEL_CHOICES = ["about the holiday", "unrelated match"]
+
+
+def rituals_sample():
+    """Local hand-label sheet docs/rituals_review.csv: a stratified sample of RITUALS_SAMPLE_N topics from the holiday
+    whole-topic groups (data/export/story/rituals_review/holidays.json): at least RITUALS_MIN_PER_HOLIDAY per holiday,
+    the rest proportional to group size; each topic once. Never overwrites a sheet that already has labels."""
+    if RITUALS_REVIEW_CSV.exists() and (pd.read_csv(RITUALS_REVIEW_CSV, dtype=str, keep_default_na=False)
+                                        .label.str.strip() != "").any():
+        sys.exit(f"{RITUALS_REVIEW_CSV} already has hand labels: not overwritten")
+    j = load_json(EXPORT / "story" / "rituals_review" / "holidays.json")
+    f = j["fields"]
+    groups = {h: [dict(zip(f, r)) for r in v["rows"]] for h, v in j["holidays"].items() if v["rows"]}
+    size = {h: len(v) for h, v in groups.items()}
+    alloc = {h: min(n, RITUALS_MIN_PER_HOLIDAY) for h, n in size.items()}
+    while sum(alloc.values()) < RITUALS_SAMPLE_N:      # rest proportional to group size (largest remainder)
+        h = max(size, key=lambda h: (size[h] / (alloc[h] + 1)) if alloc[h] < size[h] else -1)
+        alloc[h] += 1
+    rng = random.Random(RITUALS_SEED)
+    seen, rows = set(), []
+    for h, k in alloc.items():
+        pool = [x for x in sorted(groups[h], key=lambda x: x["topic_id"]) if x["topic_id"] not in seen]
+        for x in rng.sample(pool, min(k, len(pool))):
+            seen.add(x["topic_id"])
+            rows.append({"holiday": h, "topic_id": x["topic_id"], "topic": x["name"],
+                         "phrasings": " | ".join(x["phrasings"]), "countries": x["countries"], "trends": x["trends"],
+                         "label": "", "notes": ""})
+    pd.DataFrame(rows).to_csv(RITUALS_REVIEW_CSV, index=False)
+    print(f"wrote {RITUALS_REVIEW_CSV} ({len(rows)} topics). label = {' / '.join(RITUALS_LABEL_CHOICES)}")
+    print(pd.DataFrame(rows).holiday.value_counts().to_string())
+
+
 if __name__ == "__main__":
     stage = sys.argv[1] if len(sys.argv) > 1 else ""
-    if stage in ("waves-sample", "waves-score", "waves-verify-sheet"):
-        {"waves-sample": waves_sample, "waves-score": waves_score, "waves-verify-sheet": waves_verify_sheet}[stage]()
+    if stage in ("waves-sample", "waves-score", "waves-verify-sheet", "rituals-sample"):
+        {"waves-sample": waves_sample, "waves-score": waves_score, "waves-verify-sheet": waves_verify_sheet,
+         "rituals-sample": rituals_sample}[stage]()
         sys.exit()
     if stage == "waves-label":
         import importlib.util

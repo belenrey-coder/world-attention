@@ -1402,6 +1402,53 @@ Sample 1 (`docs/shock_validation_sample.csv`, 100 moments) is now the **tuning**
   - Wave returns sit between the two: a small share within the first hour, like everything else, but half their countries within about 4 hours. That is faster than the typical slow build, because several returns are driven by shocks or launches.
   - The ordering holds at both thresholds.
 
+### Step 9, round 32 (2026-11-24): Rituals validation round (`rituals_review.json`)
+
+- **Rule** (pipeline/kinds.py `topic_ritual`): a topic is ritual if any of:
+  - its Claude category is weather;
+  - its Claude type is holiday;
+  - its name matches RITUAL_RE (lotteries, prayer times, horoscopes, daily puzzles, rates, weather words, TV guide);
+  - it is not sport, its type is other / product / company / unlabeled, and it has 15+ moments of 10+ countries.
+
+  Every moment of a ritual topic is ritual unless it is a shock.
+- **Ritual topics:** 13,573 not hidden with national rows. They are listed in `rituals_review/ritual_topics_1..5.json` with name, phrasings, countries, trends, peak day and proposed cycle. Proposed cycles:
+  - daily 49, weekly 140, yearly 1,269;
+  - unclear (sporadic) 1,897; under 5 trends 10,218.
+  - The daily rule is active on 30%+ of a 60+ day span: Trending Now flags surges, so even a daily ritual misses most days.
+  - 55 look like sport (27 of the 3,355 with 5+ trends): UEFA, Livescore, "Today's matches", IPL fixtures …
+- **Weather clock:**
+  - "Today" phrasings peak at 06:00 local (31%; 61% between 05:00 and 09:59). "Tomorrow" phrasings peak at 20:00 local (78%; 98% between 18:00 and 23:59).
+  - Local time: US, CA and RU use regional feeds in each region's zone; every other country uses one zone per country.
+  - Without the 14 countries with several UTC offsets (pytz: AU BR CA CD CL EC ES ID MX NZ PT RU UA US) the peaks are the same.
+  - Countries' peak hour: 06:00 for 90 countries, 20:00 for 18, 07:00 for 11, 05:00 for 5. The counts barely change without the 19 UTC hour.
+- **Scrapes:**
+  - The archive has collection dates, not scrape times; the scraper runs once a day.
+  - Proxy: the latest trend start in each day's collection. It falls at 09:00–11:00 UTC on 477 of 486 days (10:00 on 48%), so the daily run is in the UTC morning, not at 19:00.
+  - Trends starting at 19:00 UTC are not more often 20 h+ (14.7% vs 13.4% median for other hours) or estimated.
+  - So the 19:00 UTC excess is not a cut-off at the edge of the 24-hour window. Its cause stays open (CHECKS C4); the `utc19_bump` flag stays.
+- **Weather days** (full-coverage days, 10+ countries): (a) the 22 topics named "Weather", 409 of 486 days; (a') the single "Weather" id, 294; (b) any of the 6,212 weather topics, 486. Listed: the 22 named topics and a random 40 (seed 41).
+- **Holidays** (whole-topic groups by Claude topic name; topics, the two occurrences' peak days, countries in both years):
+  - Ramadan: 332 topics; 28 Feb 2025 (74) / 17 Feb 2026 (75); 82 countries in both years.
+  - Eid: 575; 30 Mar 2025 (81) / 20 Mar 2026 (67); 86.
+  - Easter: 418; 20 Apr 2025 (83) / 5 Apr 2026 (77); 95.
+  - Christmas: 1,220; 24 Dec 2024 (100) / 24 Dec 2025 (98); 107.
+  - New Year: 726; 31 Dec 2024 (125) / 31 Dec 2025 (123); 125.
+  - Valentine's Day: 289; 13 Feb 2025 (86) / 14 Feb 2026 (73); 106.
+  - Lunar New Year: 178; 28 Jan 2025 (39) / 17 Feb 2026 (51); 54.
+  - Mother's Day: 124; 11 May 2025 (68) / 10 May 2026 (72); 88.
+  - Black Friday: 260; 28 Nov 2024 (42) / 27 Nov 2025 (38); 54.
+  - Once in the archive: Halloween (75 topics; 31 Oct 2025, 53) and Diwali (49; 20 Oct 2025, 48).
+  - Small extra peaks are false matches the labels should catch: Eid and Lunar New Year on 31 Dec 2024, Christmas on 26 Mar 2026. Occurrences use the UTC year (New Year counts New Year's Eve with the new year), and both-years is taken between the two largest.
+  - Hand-label sheet: `docs/rituals_review.csv` (local, `09_validate_shocks.py rituals-sample`), 60 topics, at least 3 per holiday, the rest proportional (seed 43).
+- **Cycle scan.** It covers non-sport topics only: no sport topics, athletes or mostly-sport topics, and the step-4 sport check on the candidates drops 1,256 more. It works per topic and country in local dates and hours.
+  - Daily (50+ days, 60%+ at one local hour ±1): 335 topics. Weather in its many languages (06:00; tomorrow 21:00), lotteries, Wordle and NYT hints, Fajr prayer, TV channels.
+  - Weekly (8+ weeks, 70%+ on one weekday): 140 topics. Lotteries on their draw days, "cuma mesajları" (Friday messages), and US/GB/CA service keywords (investments, childcare, flu shots, loans) that may be a Trending Now artifact.
+  - Yearly (same local date ±1 in both years, at most 10 active days): 9,897 topics. Led by New Year's Eve (117 countries), New Year's Day, International Women's Day, Valentine's Day, Christmas, Mother's Day …
+  - Some sport still passes (PGA Tour, NASCAR, Moto2, Masters Tournament).
+- **"Is it down":**
+  - 652 topics, 3,941 trends; 47% of them fall inside an outage shock (2 h before to 24 h after its start; 74 outage shocks).
+  - All of its top 10 days match an outage. The top three: Cloudflare (18 Nov 2025, 99 countries), Cloudflare with Canva and Bet365 (5 Dec 2025, 63), X (10 Mar 2025, 60).
+
 ## Open issues (need a decision)
 
 _Updated 2026-11-09, after the short-string, sport, 19:00 UTC and Wrapped fixes (rerun from combine: combine, link, validation, moments, export, profile, checks)._
