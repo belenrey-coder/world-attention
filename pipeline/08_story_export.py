@@ -646,6 +646,71 @@ for mo, g in units.assign(month=units.first_utc.str[:7]).groupby("month"):
                           int(r.multi_day), int(r.event_reach_total) if r.multi_day else None,
                           [c for _, c in r.curve]] for r in g.itertuples()]})
     appt_files.append(rel)
+# Appointments calendar day rule: each event counts once, on the UTC day of its cited scheduled start (start_utc),
+# else of its first moment; the multi-day Winter Olympics counts on its opening-ceremony day.
+_u = units.copy()
+_u["day"] = [(st if isinstance(st, str) and st else fu)[:10] for st, fu in
+             zip(_u.get("start_utc", pd.Series([None] * len(_u), index=_u.index)), _u.first_utc)]
+_u = _u.sort_values(["event_reach", "rank_reach_60"], ascending=False)
+NON_SPORT_CATS = [c for c in AP.CATEGORIES if c not in ("football", "other sport", "holiday")]
+# league matches (reach comparison): football singles whose text (name + Claude's summary + phrasings) names a
+# domestic league and no cup, European, international, friendly or final/knockout round; catalogue events (finals,
+# draws) are never league matches
+LEAGUE_RE = re.compile(r"\b(la ?liga|liga ea|premier league|serie a|bundesliga|ligue 1|eredivisie|primeira liga|"
+                       r"liga espa[nñ]ola|liga santander|liga portugal|s[uü]per lig|saudi pro league|roshn|mls|major league soccer|liga mx|"
+                       r"brasileir[aã]o|liga profesional|championship|league one|league two|"
+                       r"scottish premiership|j1? league|k league|matchweek|jornada|giornata|spieltag)\b", re.I)
+NOT_LEAGUE_RE = re.compile(r"champions league|\bucl\b|europa league|conference league|libertadores|sudamericana|"
+                           r"concacaf|\bafc\b|copa del rey|\bcopa\b|\bcup\b|pokal|coppa|coupe|supercopa|super ?cup|"
+                           r"supercoppa|club world cup|mundial de clubes|friendly|amistoso|pre-?season|\btour\b|"
+                           r"trophy|troph[eé]e|semi-?final|quarter-?final|\bfinale?\b|play-?offs?|"
+                           r"knockout|round of 16|last 16|octavos|nations league|world cup|qualif", re.I)
+_ev_text = appt.assign(text=appt["text"].fillna("").astype(str) if "text" in appt else "") \
+    .groupby("event_id").text.apply(" | ".join).to_dict()
+# Claude's summaries cover few football moments, so the text also takes the searches and Google's related queries of
+# the fixture's topics inside its window (they name "la liga", "copa del rey", "champions league" ...)
+_fx = _u[(_u.category == "football") & ~_u.is_catalogue.astype(bool) & _u.event.astype(str).str.contains(r"\bvs\b")]
+_fx_t = sorted({x for v in _fx.topics for x in v})
+_fr = pd.read_parquet(INTERIM / "topics.parquet", columns=["topic_id", "level", "start_time_utc", "query_raw", "related"],
+                      filters=[("topic_id", "in", _fx_t)]) if _fx_t else pd.DataFrame(
+    columns=["topic_id", "level", "start_time_utc", "query_raw", "related"])
+_fr = {k_: g_ for k_, g_ in _fr[_fr.level == "country"].groupby("topic_id")}
+for r in _fx.itertuples():
+    lo, hi = (pd.Timestamp(x.replace("Z", ""), tz="UTC") for x in r.window_utc)
+    parts = []
+    for x in r.topics:
+        g_ = _fr.get(x)
+        if g_ is None:
+            continue
+        g_ = g_[(g_.start_time_utc >= lo) & (g_.start_time_utc < hi)]
+        parts += g_.query_raw.astype(str).tolist()
+        parts += [str(q) for v in g_.related.dropna() for q in (v if not isinstance(v, str) else [v])]
+    _ev_text[r.event_id] = _ev_text.get(r.event_id, "") + " | " + " | ".join(parts)
+_u["league"] = [e in set(_fx.event_id) and bool(LEAGUE_RE.search(_ev_text.get(e, ""))) and
+                not NOT_LEAGUE_RE.search(_ev_text.get(e, "")) and not NOT_LEAGUE_RE.search(str(n))
+                for e, n in zip(_u.event_id, _u.event)]
+
+
+def _cmp_item(r):
+    return {"event_id": r.event_id, "event": r.event, "date": r.day, "category": r.category,
+            "event_reach": int(r.event_reach)}
+
+
+_fb = _u[_u.category == "football"]
+REACH_COMPARISON = {
+    "note": "Event reach of football matches vs other appointments (same events and day rule as appointments_daily."
+            "json). League matches = football events outside the catalogue whose text (name, Claude's one-line "
+            "summary, searches) names a domestic league and no cup, European, international, friendly, final or "
+            "knockout round.",
+    "football": {"events": int(len(_fb)), "median_event_reach": float(_fb.event_reach.median()),
+                 "reached_50_plus": int((_fb.event_reach >= 50).sum()),
+                 "reached_100_plus": int((_fb.event_reach >= 100).sum()),
+                 "reached_120_plus": int((_fb.event_reach >= 120).sum()),
+                 "league_matches": int(_u.league.sum()),
+                 "widest_league_matches": [_cmp_item(r) for r in _u[_u.league].head(5).itertuples()]},
+    "non_sport_40_plus": [_cmp_item(r) for r in _u[_u.category.isin(NON_SPORT_CATS) & (_u.event_reach >= 40)]
+                          .sort_values(["event_reach", "day"], ascending=[False, True]).itertuples()],
+    "other_sport_widest": [_cmp_item(r) for r in _u[_u.category == "other sport"].head(5).itertuples()]}
 _g_all = int((m.is_global & ~m.topic_id.isin(hidden)).sum())
 _in_all = appt[appt.event_id.notna()]
 _in = _in_all[_in_all.moment_id.isin(set(m[m.is_global].moment_id))]     # global moments only, for the share
@@ -682,29 +747,53 @@ write("appointments.json", {
               "verified": int(APPT_CHART.verified.sum()), "events": [_unit_item(r) for r in APPT_CHART.itertuples()]},
     "top20_by_event_reach": [_unit_item(r, curve=False) for r in units.head(20).itertuples()],
     "catalogue_events": [_unit_item(r, curve=False) for r in units[units.is_catalogue.astype(bool)].itertuples()],
+    "reach_comparison": REACH_COMPARISON,
     "files": appt_files})
-# Appointments calendar: one row per archive day. Each event counts once, on the UTC day of its cited scheduled start
-# (start_utc), else of its first moment; the multi-day Winter Olympics counts on its opening-ceremony day.
-_u = units.copy()
-_u["day"] = [(st if isinstance(st, str) and st else fu)[:10] for st, fu in
-             zip(_u.get("start_utc", pd.Series([None] * len(_u), index=_u.index)), _u.first_utc)]
-_u = _u.sort_values(["event_reach", "rank_reach_60"], ascending=False)
+# Appointments calendar: one row per archive day (day rule above)
 _by_day = {d: g for d, g in _u.groupby("day")}
 _days = pd.date_range(t.day.min(), t.day.max(), freq="D").strftime("%Y-%m-%d")
 _gap = set(gap_days)
+_cats = [c for c in AP.CATEGORIES if c != "holiday"]
+
+
+def _searches(r, k=3):
+    """Up to k real searches of the event, in their original language: the phrasings trended in the most countries
+    in the event's window, over its topics (hidden sensitive topics excluded)."""
+    lo, hi = (pd.Timestamp(x.replace("Z", ""), tz="UTC") for x in r.window_utc)
+    w = tv[tv.topic_id.isin(set(r.topics) - hidden) & (tv.start_time_utc >= lo) & (tv.start_time_utc < hi)]
+    if w.empty:
+        return []
+    q = w.assign(qn=w.query_raw.astype(str).str.strip().str.lower()).groupby("qn").agg(
+        n=("country_code", "nunique"), raw=("query_raw", lambda s: s.astype(str).str.strip().value_counts().index[0]))
+    return q.sort_values(["n", "raw"], ascending=[False, True]).raw.head(k).tolist()
+
+
+def _widest(g):
+    return None if g is None or g.empty else {"event": g.iloc[0].event, "category": g.iloc[0].category,
+                                              "event_reach": int(g.iloc[0].event_reach)}
+
+
 cal = []
 for d in _days:
     g = _by_day.get(d)
     w = g.iloc[0] if g is not None else None
+    nf = g[g.category != "football"] if g is not None else None
     cal.append([d, 0 if g is None else int(len(g)), None if w is None else w.event, None if w is None else w.category,
-                None if w is None else int(w.event_reach), int(d in _gap)])
+                None if w is None else int(w.event_reach), int(d in _gap),
+                {c: (0 if g is None else int((g.category == c).sum())) for c in _cats},
+                _widest(nf), [] if w is None else _searches(w)])
+_fields = ["date", "events", "widest_event", "widest_category", "widest_event_reach", "gap", "events_by_category",
+           "widest_non_football", "widest_searches"]
 write("appointments_daily.json", {
     "note": "One row per day of the archive (UTC). events = appointment events that day (the event-based units of "
             "appointments.json; each event counts once, on the UTC day of its cited scheduled start, else of its first "
             "moment; the multi-day Winter Olympics on its opening-ceremony day). widest = the event with the largest "
-            "event reach that day. gap = 1 if the day has a collection gap (counts are lower there).",
-    "fields": ["date", "events", "widest_event", "widest_category", "widest_event_reach", "gap"], "days": cal})
-_cal = pd.DataFrame(cal, columns=["date", "events", "widest_event", "widest_category", "widest_event_reach", "gap"])
+            "event reach that day. events_by_category = the day's events per category. widest_non_football = the "
+            "widest event that is not football (null if none). widest_searches = up to 3 real searches of the widest "
+            "event in their original language (the phrasings trended in the most countries in the event's window; "
+            "hidden sensitive topics excluded). gap = 1 if the day has a collection gap (counts are lower there).",
+    "fields": _fields, "categories": _cats, "days": cal})
+_cal = pd.DataFrame(cal, columns=_fields)
 _full = _cal[_cal.gap == 0]
 num("Appointments", "Calendar: archive days / days with at least one appointment event",
     f"{len(_cal)} / {int((_cal.events > 0).sum())}", "appointments_daily.json", "days")
@@ -713,6 +802,39 @@ num("Appointments", "Calendar: median appointment events per day (full-coverage 
 _bd = _cal.sort_values("events", ascending=False).iloc[0]
 num("Appointments", "Calendar: busiest day (most appointment events)", f"{_bd.date}: {int(_bd.events)}",
     "appointments_daily.json", "days")
+# without football: full-coverage days that still have a 15+ country appointment event, and events per day
+_nf_reach = _full.widest_non_football.map(lambda x: x["event_reach"] if x else 0)
+_nf_events = _full.events - _full.events_by_category.map(lambda x: x["football"])
+_share15 = float((_nf_reach >= 15).mean())
+print(f"  check, full-coverage days: {_share15:.1%} still have an appointment event in 15+ countries without football;"
+      f" median events per day without football {float(_nf_events.median()):g} (with football "
+      f"{float(_full.events.median()):g})", flush=True)
+num("Appointments", "Calendar: full-coverage days with a non-football appointment event in 15+ countries",
+    f"{int((_nf_reach >= 15).sum())} of {len(_full)} ({_share15:.1%})", "appointments_daily.json",
+    "days[].widest_non_football")
+num("Appointments", "Calendar: median appointment events per day without football (full-coverage days)",
+    float(_nf_events.median()), "appointments_daily.json", "days[].events_by_category")
+_rc = REACH_COMPARISON["football"]
+num("Appointments", "Reach comparison: football events / median event reach",
+    f"{_rc['events']:,} / {_rc['median_event_reach']:g}", "appointments.json", "reach_comparison.football")
+num("Appointments", "Reach comparison: football events reaching 50+ / 100+ / 120+ countries",
+    f"{_rc['reached_50_plus']:,} / {_rc['reached_100_plus']:,} / {_rc['reached_120_plus']:,}", "appointments.json",
+    "reach_comparison.football")
+num("Appointments", "Reach comparison: league matches (domestic league named, no cup/European/friendly/final)",
+    f"{_rc['league_matches']:,}", "appointments.json", "reach_comparison.football.league_matches")
+for x in _rc["widest_league_matches"]:
+    num("Appointments", f"Widest league match: {x['event']} ({x['date']}), event reach", x["event_reach"],
+        "appointments.json", "reach_comparison.football.widest_league_matches")
+num("Appointments", "Reach comparison: non-sport events with event reach 40+",
+    len(REACH_COMPARISON["non_sport_40_plus"]), "appointments.json", "reach_comparison.non_sport_40_plus")
+for x in REACH_COMPARISON["non_sport_40_plus"]:
+    num("Appointments", f"Non-sport 40+: {x['event']} ({x['date']}, {x['category']}), event reach", x["event_reach"],
+        "appointments.json", "reach_comparison.non_sport_40_plus")
+for x in REACH_COMPARISON["other_sport_widest"]:
+    num("Appointments", f"Widest other sport: {x['event']} ({x['date']}), event reach", x["event_reach"],
+        "appointments.json", "reach_comparison.other_sport_widest")
+for r in _u[(_u.category == "football") & ~_u.is_catalogue.astype(bool)].head(25).itertuples():   # league check
+    print(f"  football {r.event_reach:>3} {r.day} league={int(r.league)} {r.event}", flush=True)
 num("Appointments", "Global appointment moments in events (share of all global moments)",
     f"{len(_in):,} ({len(_in) / _g_all:.1%})", "appointments.json", "counts")
 num("Appointments", "... sport / non-sport moments", f"{int(_in.is_sport.sum()):,} / {int((~_in.is_sport).sum()):,}",

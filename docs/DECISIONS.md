@@ -1268,6 +1268,26 @@ Sample 1 (`docs/shock_validation_sample.csv`, 100 moments) is now the **tuning**
 - **The widest days:** Europa League final (21 May 2025), Club World Cup final (13 Jul 2025) and Barcelona vs Inter (6 May 2025), each at 125 countries.
 - **Super Bowl days:** Super Bowl LIX's day (9 Feb 2025) is led by Plymouth Argyle vs Liverpool (117) ahead of the Super Bowl (106).
 
+### Step 9, round 26 (2026-11-23): Calendar detail and reach comparison
+
+- **`appointments_daily.json` rewritten** (167 kB). It uses the same events and day rule as before and keeps the old fields and the gap flag. New per-day fields:
+  - `events_by_category`: counts for the 7 categories; the totals still sum to 7,151.
+  - `widest_non_football`: name, category and event reach, or null.
+  - `widest_searches`: up to 3 real searches of the widest event, in their original language. These are the phrasings trended in the most countries in the event's window; hidden sensitive topics are excluded. For the multi-day Winter Olympics the window is the whole Games.
+- **`appointments.json` gains `reach_comparison`:**
+  - Football: 5,752 events, median event reach 35; 1,882 reach 50+ countries, 331 reach 100+ and 25 reach 120+.
+  - The 5 widest league matches, all La Liga, at 122–123: Real Madrid vs Rayo Vallecano (1 Feb 2026), Sevilla vs Barcelona, Alavés vs Real Madrid, Barcelona vs Alavés, Real Madrid vs Rayo Vallecano (9 Mar 2025).
+  - Every non-sport event with event reach 40+: 27 events, led by the Conclave (115) and the Grammys 2025 (102).
+  - The 5 widest other-sport events: Winter Olympics 109, Super Bowl LIX 106, Roland Garros men's final 105, Wimbledon men's final 103, NBA Finals game 7 (22 Jun 2025) 101.
+- **League-match rule:**
+  - A league match is a football fixture ("A vs B") outside the catalogue whose text names a domestic league ("la liga", "liga española", "premier league", "serie a" …) and no cup, European, international, friendly, final or knockout round.
+  - The text is the name, Claude's summary, and the fixture's searches and Google related queries inside its window. Claude's summaries cover few football moments, and the related queries are what name the competition.
+  - 1,037 of 5,752 football events pass. This is a conservative count: matches without league evidence are left out.
+  - Spot checks: Real Madrid vs Leganés (5 Feb 2025, Copa del Rey) and Talavera vs Real Madrid (Copa del Rey) are excluded; so are Atlético vs Barcelona (2 Apr 2025 cup semi, no league evidence) and Kairat vs Real Madrid (Champions League).
+- **Check without football** (full-coverage days):
+  - 422 of 486 days (86.8%) still have an appointment event in 15+ countries.
+  - The median is 2 events per day without football, against 13 with it.
+
 ## Open issues (need a decision)
 
 _Updated 2026-11-09, after the short-string, sport, 19:00 UTC and Wrapped fixes (rerun from combine: combine, link, validation, moments, export, profile, checks)._

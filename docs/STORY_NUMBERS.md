@@ -79,6 +79,49 @@ Conventions: national feeds; UTC unless a local hour is named; a moment is one t
 | Calendar: archive days / days with at least one appointment event | 537 / 484 | `appointments_daily.json` | `days` |
 | Calendar: median appointment events per day (full-coverage days) | 13.0 | `appointments_daily.json` | `days[].events` |
 | Calendar: busiest day (most appointment events) | 2025-05-18: 44 | `appointments_daily.json` | `days` |
+| Calendar: full-coverage days with a non-football appointment event in 15+ countries | 422 of 486 (86.8%) | `appointments_daily.json` | `days[].widest_non_football` |
+| Calendar: median appointment events per day without football (full-coverage days) | 2.0 | `appointments_daily.json` | `days[].events_by_category` |
+| Reach comparison: football events / median event reach | 5,752 / 35 | `appointments.json` | `reach_comparison.football` |
+| Reach comparison: football events reaching 50+ / 100+ / 120+ countries | 1,882 / 331 / 25 | `appointments.json` | `reach_comparison.football` |
+| Reach comparison: league matches (domestic league named, no cup/European/friendly/final) | 1,037 | `appointments.json` | `reach_comparison.football.league_matches` |
+| Widest league match: Real Madrid vs Rayo Vallecano (2026-02-01), event reach | 123 | `appointments.json` | `reach_comparison.football.widest_league_matches` |
+| Widest league match: Sevilla vs Barcelona (2025-10-05), event reach | 123 | `appointments.json` | `reach_comparison.football.widest_league_matches` |
+| Widest league match: Deportivo Alavés vs Real Madrid (2025-12-14), event reach | 123 | `appointments.json` | `reach_comparison.football.widest_league_matches` |
+| Widest league match: Barcelona vs Deportivo Alavés (2025-11-29), event reach | 122 | `appointments.json` | `reach_comparison.football.widest_league_matches` |
+| Widest league match: Real Madrid vs Rayo Vallecano (2025-03-09), event reach | 122 | `appointments.json` | `reach_comparison.football.widest_league_matches` |
+| Reach comparison: non-sport events with event reach 40+ | 27 | `appointments.json` | `reach_comparison.non_sport_40_plus` |
+| Non-sport 40+: Conclave 2025 (Pope Leo XIV) (2025-05-08, religious), event reach | 115 | `appointments.json` | `reach_comparison.non_sport_40_plus` |
+| Non-sport 40+: Grammys 2025 (2025-02-03, award/ceremony), event reach | 102 | `appointments.json` | `reach_comparison.non_sport_40_plus` |
+| Non-sport 40+: Stranger Things 5 finale (2026-01-01, launch/release), event reach | 87 | `appointments.json` | `reach_comparison.non_sport_40_plus` |
+| Non-sport 40+: Stranger Things 5 release (2025-11-27, launch/release), event reach | 86 | `appointments.json` | `reach_comparison.non_sport_40_plus` |
+| Non-sport 40+: Apple event, Feb 2025 (iPhone 16e) (2025-02-19, launch/release), event reach | 85 | `appointments.json` | `reach_comparison.non_sport_40_plus` |
+| Non-sport 40+: Grammys 2026 (2026-02-02, award/ceremony), event reach | 84 | `appointments.json` | `reach_comparison.non_sport_40_plus` |
+| Non-sport 40+: Oscars 2026 (2026-03-15, award/ceremony), event reach | 81 | `appointments.json` | `reach_comparison.non_sport_40_plus` |
+| Non-sport 40+: Trump inauguration 2025 (2025-01-20, election/politics), event reach | 78 | `appointments.json` | `reach_comparison.non_sport_40_plus` |
+| Non-sport 40+: German federal election 2025 (2025-02-23, election/politics), event reach | 78 | `appointments.json` | `reach_comparison.non_sport_40_plus` |
+| Non-sport 40+: Eurovision 2025 final (2025-05-17, award/ceremony), event reach | 74 | `appointments.json` | `reach_comparison.non_sport_40_plus` |
+| Non-sport 40+: Oscars 2025 (2025-03-03, award/ceremony), event reach | 70 | `appointments.json` | `reach_comparison.non_sport_40_plus` |
+| Non-sport 40+: Nobel Peace Prize 2025 (2025-10-10, award/ceremony), event reach | 70 | `appointments.json` | `reach_comparison.non_sport_40_plus` |
+| Non-sport 40+: Samsung (2025-12-30, launch/release), event reach | 66 | `appointments.json` | `reach_comparison.non_sport_40_plus` |
+| Non-sport 40+: BTS (2026-03-04, launch/release), event reach | 65 | `appointments.json` | `reach_comparison.non_sport_40_plus` |
+| Non-sport 40+: Eurovision 2026 final (2026-05-16, award/ceremony), event reach | 61 | `appointments.json` | `reach_comparison.non_sport_40_plus` |
+| Non-sport 40+: The Game Awards 2024 (2024-12-13, award/ceremony), event reach | 58 | `appointments.json` | `reach_comparison.non_sport_40_plus` |
+| Non-sport 40+: Oscar nominations 2025 (2025-01-23, award/ceremony), event reach | 57 | `appointments.json` | `reach_comparison.non_sport_40_plus` |
+| Non-sport 40+: Epic Games (2025-05-15, launch/release), event reach | 57 | `appointments.json` | `reach_comparison.non_sport_40_plus` |
+| Non-sport 40+: Steam Machine (2025-11-12, launch/release), event reach | 53 | `appointments.json` | `reach_comparison.non_sport_40_plus` |
+| Non-sport 40+: Victoria's Secret Fashion Show 2025 (2025-10-15, award/ceremony), event reach | 52 | `appointments.json` | `reach_comparison.non_sport_40_plus` |
+| Non-sport 40+: The Game Awards 2025 (2025-12-12, award/ceremony), event reach | 51 | `appointments.json` | `reach_comparison.non_sport_40_plus` |
+| Non-sport 40+: Apple event, Mar 2026 (iPhone 17e) (2026-03-02, launch/release), event reach | 47 | `appointments.json` | `reach_comparison.non_sport_40_plus` |
+| Non-sport 40+: Eurovision 2025, semi-final 1 (2025-05-13, award/ceremony), event reach | 44 | `appointments.json` | `reach_comparison.non_sport_40_plus` |
+| Non-sport 40+: Grammy nominations 2026 (2025-11-07, award/ceremony), event reach | 43 | `appointments.json` | `reach_comparison.non_sport_40_plus` |
+| Non-sport 40+: Kash Patel (2025-02-20, election/politics), event reach | 42 | `appointments.json` | `reach_comparison.non_sport_40_plus` |
+| Non-sport 40+: Eurovision 2026, semi-final 1 (2026-05-12, award/ceremony), event reach | 42 | `appointments.json` | `reach_comparison.non_sport_40_plus` |
+| Non-sport 40+: Epic Games (2025-04-29, launch/release), event reach | 41 | `appointments.json` | `reach_comparison.non_sport_40_plus` |
+| Widest other sport: Winter Olympics 2026 (4-22 Feb, multi-day) (2026-02-06), event reach | 109 | `appointments.json` | `reach_comparison.other_sport_widest` |
+| Widest other sport: Super Bowl LIX (2025-02-09), event reach | 106 | `appointments.json` | `reach_comparison.other_sport_widest` |
+| Widest other sport: Roland Garros men's final 2025 (2025-06-08), event reach | 105 | `appointments.json` | `reach_comparison.other_sport_widest` |
+| Widest other sport: Wimbledon men's final 2025 (2025-07-13), event reach | 103 | `appointments.json` | `reach_comparison.other_sport_widest` |
+| Widest other sport: NBA (2025-06-22), event reach | 101 | `appointments.json` | `reach_comparison.other_sport_widest` |
 | Global appointment moments in events (share of all global moments) | 7,236 (90.5%) | `appointments.json` | `counts` |
 | ... sport / non-sport moments | 7,120 / 116 | `appointments.json` | `counts` |
 | Scheduled events (catalogue events / single-moment units) | 7,151 (36 / 7,115) | `appointments.json` | `counts` |
