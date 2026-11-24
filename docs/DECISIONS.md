@@ -1288,6 +1288,26 @@ Sample 1 (`docs/shock_validation_sample.csv`, 100 moments) is now the **tuning**
   - 422 of 486 days (86.8%) still have an appointment event in 15+ countries.
   - The median is 2 events per day without football, against 13 with it.
 
+### Step 9, round 27 (2026-11-23): Waves validation round
+
+- **Claude category** (`09_validate_shocks.py waves-label`; claude-haiku-5-5 via the Batches API, prompt `wave-v1`, cached in `cache/claude/waves/`):
+  - One category per wave topic, from its name, type, searches, related searches and Wikidata description: AI/tech, politics/conflict, finance/markets, entertainment/culture, people/celebrity, science/health, generic/always-on query, or other.
+  - All 360 of 360 answers were valid. The run cost $0.0076, bringing total Claude spend to $3.29.
+- **`waves_review.json`** (step 8): one row per wave topic. Each row has its name, up to 5 phrasings (those trended in the most countries), category with Claude's reason, months at 15+ (count and list), peak month and countries, distinct countries, `is_constant`, shock moments (count and dates), and countries for every month. A `month_coverage` block gives days collected / days per month and flags gap months.
+- **Months and gaps, as the data has them:**
+  - The archive spans 19 calendar months (2024-11 to 2026-05), with a 4-day November 2024 and a 17-day May 2026.
+  - Gap months by `gap_days` are 2024-11, 2025-09 (21 of 30 days), 2025-12 (28 of 31) and 2026-01 (5 of 31).
+- **`waves.json` gains `by_category`:** topics and country-months per category, plus the top 30 by months at 15+ and by distinct countries. The same tables come again without constant topics and generic queries.
+- **Checks:**
+  - (a) AI/tech is not the largest category. People/celebrity leads both by topics (91; AI/tech 44) and by country-months (20,131; AI/tech 12,192). Without constants it still leads, 86 vs 33 topics and 17,892 vs 6,487 country-months. All 19 generic topics are constants, so dropping generic changes nothing further.
+  - (b) S&P 500 (8 months), Nasdaq (3) and Dow Jones Industrial Average (5) are each a single wave topic.
+  - (b, continued) No tariff topic is a wave: the best, "Trump tariffs", has 15+ countries in only 1 month. The 250 tariff-matching topics taken together have 9 such months, but the wave rule is per topic, and the loose keyword match includes non-Trump tariffs.
+  - (c) 110 of 360 wave topics also have at least one shock moment (220 shock moments).
+- **Hand-label sheet** (`09_validate_shocks.py waves-sample`; `docs/waves_review.csv`, git-ignored):
+  - It lists all 360 topics; 40 are flagged `in_sample`, drawn per Claude category (at least 2 per category, the rest proportional, seed 31).
+  - Labels: real recurring story / always-on query / misgrouped topic / should be sport or ritual.
+  - Claude's category is left out of the sheet so the labels stay blind. The sheet is never overwritten once labelled.
+
 ## Open issues (need a decision)
 
 _Updated 2026-11-09, after the short-string, sport, 19:00 UTC and Wrapped fixes (rerun from combine: combine, link, validation, moments, export, profile, checks)._

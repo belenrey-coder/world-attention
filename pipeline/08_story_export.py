@@ -562,6 +562,124 @@ write("waves.json", {"note": "Countries per UTC month whose national feed had th
                      "topics_matched": {k: len(v) for k, v in {**SER, **DAILY}.items()}})
 num("Waves", f"Wave topics (15+ countries in >= {WAVE_MIN_MONTHS} months; not hidden)", len(wave_topics), "waves.json",
     "wave_topics")
+
+# waves validation round (Step 9 round 27): one row per wave topic for review; category = one-line Claude
+# classification (09_validate_shocks.py waves-label, cache/claude/waves/labels.jsonl)
+WAVE_CATS = ["AI/tech", "politics/conflict", "finance/markets", "entertainment/culture", "people/celebrity",
+             "science/health", "generic/always-on query", "other"]
+_wl = {}
+_wlp = ROOT / "cache" / "claude" / "waves" / "labels.jsonl"
+if _wlp.exists():
+    for line in _wlp.read_text().splitlines():
+        x_ = json.loads(line)
+        if x_.get("prompt_version") == "wave-v1":
+            _wl[x_["key"]] = x_
+_cov_days = t.groupby("month").day.nunique()           # days with any national row = days collected
+_mcov = {mo: {"days_collected": int(_cov_days.get(mo, 0)), "days": int(pd.Period(mo).days_in_month),
+              "coverage_share": round(int(_cov_days.get(mo, 0)) / pd.Period(mo).days_in_month, 3),
+              "gap": mo in gap_months} for mo in months}
+_ph = wv.assign(qn=wv.query_raw.astype(str).str.strip().str.lower()).groupby(["topic_id", "qn"]).agg(
+    n=("country_code", "nunique"), rows=("query_raw", "size"),
+    raw=("query_raw", lambda s: s.astype(str).str.strip().value_counts().index[0])).reset_index() \
+    .sort_values(["topic_id", "n", "rows"], ascending=[True, False, False])
+_ph = _ph.groupby("topic_id").raw.apply(lambda s: s.head(5).tolist()).to_dict()
+_shk = m[m.kind.eq("shock") & m.topic_id.isin(WAVE)].sort_values("start_utc")
+_shk = _shk.groupby("topic_id").start_utc.apply(lambda s: [f"{pd.Timestamp(x):%Y-%m-%d}" for x in s]).to_dict()
+wr = []
+for tid, row in zip(wcc.index, wcc.values):
+    if tid in hidden:
+        continue
+    cpm = [int(x) for x in row]
+    on = [mo for mo, c in zip(months, cpm) if c >= 15]
+    pk = int(np.argmax(cpm))
+    wr.append({"topic_id": tid, "name": name.get(tid), "category": _wl.get(tid, {}).get("category"),
+               "category_why": _wl.get(tid, {}).get("why"), "phrasings": _ph.get(tid, []),
+               "months_15plus": len(on), "months_15plus_list": on, "peak_month": months[pk], "peak_countries": cpm[pk],
+               "distinct_countries": int(_reach_all.get(tid, 0)),
+               "is_constant": bool(meta.is_constant.get(tid, False)),
+               "shock_moments": len(_shk.get(tid, [])), "shock_dates": _shk.get(tid, []), "countries_per_month": cpm})
+_wr = pd.DataFrame(wr)
+_wr["country_months"] = _wr.countries_per_month.map(sum)
+_wr["generic"] = _wr.category.eq("generic/always-on query")
+write("waves_review.json", {
+    "note": "One row per wave topic (15+ countries in 3+ separate UTC months; not hidden, not junk). category = "
+            "one-line Claude classification (claude-haiku-5-5, prompt wave-v1, from the topic's name, type, searches, "
+            "related searches and Wikidata description). months_15plus counts calendar months with 15+ countries "
+            "(the wave rule; a month with collection gaps can fall below 15 from missing days). is_constant = 15+ "
+            "countries in 12+ months. shock_moments = moments of the topic whose kind is shock. countries_per_month "
+            "follows `months`; month_coverage gives days collected / days per month (gap months flagged).",
+    "months": months, "gap_months": list(gap_months), "month_coverage": _mcov, "categories": WAVE_CATS,
+    "labelled": int(_wr.category.notna().sum()), "topics": wr})
+
+
+def _wtab(d, k=30):
+    return {"by_months_15plus": [{"name": r.name, "category": r.category, "months_15plus": int(r.months_15plus),
+                                  "distinct_countries": int(r.distinct_countries)}
+                                 for r in d.sort_values(["months_15plus", "distinct_countries"], ascending=False)
+                                 .head(k).itertuples()],
+            "by_distinct_countries": [{"name": r.name, "category": r.category,
+                                       "distinct_countries": int(r.distinct_countries),
+                                       "months_15plus": int(r.months_15plus)}
+                                      for r in d.sort_values(["distinct_countries", "months_15plus"], ascending=False)
+                                      .head(k).itertuples()]}
+
+
+def _wcat(d):
+    return {"topics": d.category.value_counts().reindex(WAVE_CATS, fill_value=0).astype(int).to_dict(),
+            "country_months": d.groupby("category").country_months.sum().reindex(WAVE_CATS, fill_value=0)
+            .astype(int).to_dict()}
+
+
+_wf = _wr[~_wr.is_constant & ~_wr.generic]
+WAVE_BY_CATEGORY = {"all": {**_wcat(_wr), **_wtab(_wr)},
+                    "without_constant_and_generic": {**_wcat(_wf), **_wtab(_wf)},
+                    "without_constant": _wcat(_wr[~_wr.is_constant])}
+_wj = json.load(open(OUT / "waves.json"))
+_wj["by_category_note"] = ("Wave topics by one-line Claude category (waves_review.json). country_months = sum over the "
+                           "months of countries trending the topic. without_constant_and_generic drops is_constant "
+                           "topics (12+ months) and generic/always-on queries.")
+_wj["by_category"] = WAVE_BY_CATEGORY
+write("waves.json", _wj)
+# checks: (a) largest category; (b) Tariffs / S&P 500 / Nasdaq / Dow Jones against the wave rule; (c) shock overlap
+for k_, d_ in (("all wave topics", _wr), ("without constants", _wr[~_wr.is_constant]),
+               ("without constants and generic", _wf)):
+    c_ = _wcat(d_)
+    tp = max(c_["topics"], key=c_["topics"].get)
+    cm = max(c_["country_months"], key=c_["country_months"].get)
+    print(f"  waves check (a) {k_}: largest by topics {tp} ({c_['topics'][tp]}; AI/tech {c_['topics']['AI/tech']}); "
+          f"by country-months {cm} ({c_['country_months'][cm]:,}; AI/tech {c_['country_months']['AI/tech']:,})",
+          flush=True)
+    num("Waves", f"Largest category, {k_}: by topics / by country-months",
+        f"{tp} ({c_['topics'][tp]}) / {cm} ({c_['country_months'][cm]:,})", "waves.json", "by_category")
+    num("Waves", f"AI/tech, {k_}: topics / country-months",
+        f"{c_['topics']['AI/tech']} / {c_['country_months']['AI/tech']:,}", "waves.json", "by_category")
+WAVE_RULE_CHECK = {}
+for k_ in ("Tariffs", "S&P 500", "Nasdaq", "Dow Jones"):
+    ids_ = DAILY[k_]
+    r_ = tv[tv.topic_id.isin(ids_)]
+    mo15 = int((r_.groupby("month").country_code.nunique() >= 15).sum())
+    per = meta.wave_months.reindex(list(ids_)).fillna(0)
+    best = per.idxmax() if len(per) else None
+    WAVE_RULE_CHECK[k_] = {"topics_matched": len(ids_), "wave_topics": int(len(ids_ & WAVE)),
+                           "best_topic": name.get(best) if best else None,
+                           "best_topic_months_15plus": int(per.max()) if len(per) else 0,
+                           "series_months_15plus": mo15, "series_meets_rule": mo15 >= WAVE_MIN_MONTHS}
+    print(f"  waves check (b) {k_}: {WAVE_RULE_CHECK[k_]}", flush=True)
+    num("Waves", f"{k_}: wave topics among matched / best topic months at 15+ / all matched topics together, months at 15+",
+        f"{WAVE_RULE_CHECK[k_]['wave_topics']} of {len(ids_)} / {WAVE_RULE_CHECK[k_]['best_topic_months_15plus']} / {mo15}",
+        "waves_review.json", "topics")
+_wsh = int((_wr.shock_moments > 0).sum())
+print(f"  waves check (c): {_wsh} of {len(_wr)} wave topics have a shock moment "
+      f"({int(_wr.shock_moments.sum())} shock moments)", flush=True)
+num("Waves", "Wave topics with at least one shock moment (shock moments in them)",
+    f"{_wsh} of {len(_wr)} ({int(_wr.shock_moments.sum())})", "waves_review.json", "topics[].shock_moments")
+num("Waves", "Wave topics labelled by Claude (category)", f"{int(_wr.category.notna().sum())} of {len(_wr)}",
+    "waves_review.json", "topics[].category")
+num("Waves", "Constant wave topics (15+ countries in 12+ months)", int(_wr.is_constant.sum()), "waves_review.json",
+    "topics[].is_constant")
+for c_, v_ in _wcat(_wr)["topics"].items():
+    num("Waves", f"... category {c_}: topics / country-months", f"{v_} / {_wcat(_wr)['country_months'][c_]:,}",
+        "waves.json", "by_category.all")
 for k, rows in monthly.items():
     b = max(rows, key=lambda d: d["countries"])
     num("Waves", f"{k}: peak month and countries", f"{b['month']}: {b['countries']}", "waves.json", f"monthly.{k}")

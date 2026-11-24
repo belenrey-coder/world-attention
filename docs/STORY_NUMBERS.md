@@ -59,6 +59,27 @@ Conventions: national feeds; UTC unless a local hour is named; a moment is one t
 | number | value | file | key |
 |---|---|---|---|
 | Wave topics (15+ countries in >= 3 months; not hidden) | 360 | `waves.json` | `wave_topics` |
+| Largest category, all wave topics: by topics / by country-months | people/celebrity (91) / people/celebrity (20,131) | `waves.json` | `by_category` |
+| AI/tech, all wave topics: topics / country-months | 44 / 12,192 | `waves.json` | `by_category` |
+| Largest category, without constants: by topics / by country-months | people/celebrity (86) / people/celebrity (17,892) | `waves.json` | `by_category` |
+| AI/tech, without constants: topics / country-months | 33 / 6,487 | `waves.json` | `by_category` |
+| Largest category, without constants and generic: by topics / by country-months | people/celebrity (86) / people/celebrity (17,892) | `waves.json` | `by_category` |
+| AI/tech, without constants and generic: topics / country-months | 33 / 6,487 | `waves.json` | `by_category` |
+| Tariffs: wave topics among matched / best topic months at 15+ / all matched topics together, months at 15+ | 0 of 250 / 1 / 9 | `waves_review.json` | `topics` |
+| S&P 500: wave topics among matched / best topic months at 15+ / all matched topics together, months at 15+ | 1 of 31 / 8 / 10 | `waves_review.json` | `topics` |
+| Nasdaq: wave topics among matched / best topic months at 15+ / all matched topics together, months at 15+ | 1 of 21 / 3 / 7 | `waves_review.json` | `topics` |
+| Dow Jones: wave topics among matched / best topic months at 15+ / all matched topics together, months at 15+ | 1 of 29 / 5 / 6 | `waves_review.json` | `topics` |
+| Wave topics with at least one shock moment (shock moments in them) | 110 of 360 (220) | `waves_review.json` | `topics[].shock_moments` |
+| Wave topics labelled by Claude (category) | 360 of 360 | `waves_review.json` | `topics[].category` |
+| Constant wave topics (15+ countries in 12+ months) | 39 | `waves_review.json` | `topics[].is_constant` |
+| ... category AI/tech: topics / country-months | 44 / 12,192 | `waves.json` | `by_category.all` |
+| ... category politics/conflict: topics / country-months | 57 / 14,057 | `waves.json` | `by_category.all` |
+| ... category finance/markets: topics / country-months | 20 / 4,210 | `waves.json` | `by_category.all` |
+| ... category entertainment/culture: topics / country-months | 90 / 18,505 | `waves.json` | `by_category.all` |
+| ... category people/celebrity: topics / country-months | 91 / 20,131 | `waves.json` | `by_category.all` |
+| ... category science/health: topics / country-months | 9 / 1,899 | `waves.json` | `by_category.all` |
+| ... category generic/always-on query: topics / country-months | 19 / 5,980 | `waves.json` | `by_category.all` |
+| ... category other: topics / country-months | 30 / 6,596 | `waves.json` | `by_category.all` |
 | ChatGPT: peak month and countries | 2025-01: 123 | `waves.json` | `monthly.ChatGPT` |
 | Gemini: peak month and countries | 2025-11: 99 | `waves.json` | `monthly.Gemini` |
 | Claude: peak month and countries | 2026-04: 75 | `waves.json` | `monthly.Claude` |

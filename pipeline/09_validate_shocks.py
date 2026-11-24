@@ -12,6 +12,8 @@
     python pipeline/09_validate_shocks.py estimate     # true number of shocks = flagged x precision / recall (+ 95% CI)
     python pipeline/09_validate_shocks.py event-groups # candidate topics per chart event -> docs/event_groups_review.csv
     python pipeline/09_validate_shocks.py sport-check  # proposed is_sport fix (pipeline/sport.py) on all candidates
+    python pipeline/09_validate_shocks.py waves-label  # one-line Claude category per wave topic (Batches API, cached)
+    python pipeline/09_validate_shocks.py waves-sample # after make story: local hand-label sheet docs/waves_review.csv
 
 Candidates: every non-sport global moment (is_global, is_sport false, topic not hidden). "Current shocks" are the
 moments in data/export/story/shocks.json as last exported (built with the old 20-country rule).
@@ -1120,8 +1122,215 @@ def sport_check(cand, meta):
     print("\n".join(L))
 
 
+# ------------------------------------------------------------------ waves validation (Step 9 round 27)
+WAVE_VERSION = "wave-v1"
+WDIR = CACHE / "claude" / "waves"
+WAVE_LABELS = WDIR / "labels.jsonl"
+WAVE_BATCH_LOG = WDIR / "batches.json"
+WAVE_CATEGORIES = ["AI/tech", "politics/conflict", "finance/markets", "entertainment/culture", "people/celebrity",
+                   "science/health", "generic/always-on query", "other"]
+WAVE_SYSTEM = """You classify topics of Google search attention that trended in many countries in several different months.
+
+Each input line is one JSON object:
+  i: id to echo back
+  name: the topic's name (English, from an earlier labelling step; may be imperfect)
+  type: a coarse type from an earlier labelling step (person, media, product, company, event, place, other)
+  phrasings: the searches people typed, in several languages, most frequent first
+  related: other searches Google grouped with them, most frequent first
+  wikidata: a matching Wikidata item (label, description), if one was found
+
+For every object return one item:
+  category: one of
+    "AI/tech"                  AI tools and models, apps, gadgets, platforms, tech companies and their products
+    "politics/conflict"        politicians as political actors, governments, elections, wars, policies, tariffs
+    "finance/markets"          stocks, indices, crypto, gold, currencies, prices, banks
+    "entertainment/culture"    films, series, music, games, shows, books, fashion
+    "people/celebrity"         a person trending as a person (actor, singer, influencer, royal) rather than for a policy
+    "science/health"           space, science, disease, medicine, health
+    "generic/always-on query"  an everyday utility or habit query with no single story: weather, news, translate,
+                               maps, time, calculator, email, a search engine or a word
+    "other"                    none of the above
+  why: one short sentence, based only on the evidence
+
+Rules:
+- Rely only on the evidence given. Many of these topics are from after your training data.
+- A product or service people open every day (a search engine, mail, translate, weather) is "generic/always-on query",
+  even if it belongs to a tech company. A tech product people search because of news or launches is "AI/tech".
+
+Return exactly one item per input id."""
+WAVE_SCHEMA = {"type": "object", "properties": {"items": {"type": "array", "items": {
+    "type": "object", "properties": {"i": {"type": "integer"}, "category": {"type": "string", "enum": WAVE_CATEGORIES},
+                                     "why": {"type": "string"}},
+    "required": ["i", "category", "why"], "additionalProperties": False}}},
+    "required": ["items"], "additionalProperties": False}
+WAVE_REVIEW_CSV = DOCS / "waves_review.csv"        # git-ignored (hand labels)
+WAVE_SAMPLE_N = 40
+WAVE_SEED = 31
+WAVE_LABEL_CHOICES = ["real recurring story", "always-on query", "misgrouped topic", "should be sport or ritual"]
+
+
+def load_wave_labels():
+    out = {}
+    if WAVE_LABELS.exists():
+        for line in WAVE_LABELS.read_text().splitlines():
+            r = json.loads(line)
+            if r.get("prompt_version") == WAVE_VERSION:
+                out[r["key"]] = r
+    return out
+
+
+def wave_topic_ids(t, meta):
+    """Wave topics as in the story export: is_wave, not junk, not hidden."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("export05", Path(__file__).parent / "05_export.py")
+    ex = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(ex)
+    hidden, _, _ = ex.visibility(t, meta)
+    w = meta[meta.is_wave.astype(bool) & ~meta.is_junk.fillna(False).astype(bool)].index
+    return sorted(set(w) - hidden)
+
+
+def waves_label(t, meta, m):
+    """One-line Claude category for every wave topic (Batches API, cached in cache/claude/waves/)."""
+    from dotenv import load_dotenv
+    load_dotenv(ROOT / ".env")
+    import anthropic
+    from anthropic.types.message_create_params import MessageCreateParamsNonStreaming
+    from anthropic.types.messages.batch_create_params import Request
+    WDIR.mkdir(parents=True, exist_ok=True)
+    ids = wave_topic_ids(t, meta)
+    done = load_wave_labels()
+    todo = [x for x in ids if x not in done]
+    tr = pd.read_parquet(INTERIM / "topics.parquet", columns=["topic_id", "level", "query_raw", "related"],
+                         filters=[("topic_id", "in", todo or ["-"])])
+    tr = tr[tr.level == "country"]
+    wd = wikidata_for(meta)
+    recs = {}
+    for tid, g in tr.groupby("topic_id"):
+        rel = pd.Series([str(q).lower() for v in g.related.dropna() for q in (v if not isinstance(v, str) else [v])])
+        rec = {"name": str(meta.topic_name.get(tid, tid)), "type": str(meta["type"].get(tid)),
+               "phrasings": g.query_raw.astype(str).str.lower().value_counts().head(8).index.tolist(),
+               "related": rel.value_counts().head(8).index.tolist() if len(rel) else []}
+        if tid in wd:
+            rec["wikidata"] = {"label": wd[tid]["label"], "desc": wd[tid]["desc"]}
+        recs[tid] = rec
+    log = load_json(WAVE_BATCH_LOG, {"batches": []})
+    spent_all = total_spent_all(load_json(BATCH_LOG, {"batches": []})) + spent(log)
+    n_chars = sum(len(json.dumps(v, ensure_ascii=False)) for v in recs.values())
+    est = (n_chars / 2.5 + (len(recs) / CHUNK + 1) * 600) * PRICE_IN_PER_MTOK / 1e6 + \
+        len(recs) * 40 * PRICE_OUT_PER_MTOK / 1e6
+    print(f"{len(ids)} wave topics, {len(done)} already labelled, {len(recs)} to send; estimated cost ${est:.4f} "
+          f"with {CLAUDE_MODEL}; Claude spend so far (all runs) ${spent_all:.4f}")
+    if spent_all + est > SPEND_ALERT_USD:
+        sys.exit(f"would exceed the ${SPEND_ALERT_USD:.0f} alert level (limit ${SPEND_LIMIT_USD:.0f}); not sending")
+    client = anthropic.Anthropic()        # reads ANTHROPIC_API_KEY from the environment; never printed
+    for attempt in range(2):              # the second pass retries malformed / missing answers once
+        items = [(k, recs[k]) for k in recs if k not in load_wave_labels()]
+        if not items:
+            break
+        reqs, members = [], {}
+        for k in range(0, len(items), CHUNK):
+            chunk = items[k:k + CHUNK]
+            cid = f"wave{attempt}-{k // CHUNK:04d}"
+            members[cid] = [key for key, _ in chunk]
+            lines = [json.dumps({"i": j, **rec}, ensure_ascii=False) for j, (_, rec) in enumerate(chunk)]
+            reqs.append(Request(custom_id=cid, params=MessageCreateParamsNonStreaming(
+                model=CLAUDE_MODEL, max_tokens=8000, system=WAVE_SYSTEM, thinking={"type": "disabled"},
+                output_config={"effort": "low", "format": {"type": "json_schema", "schema": WAVE_SCHEMA}},
+                messages=[{"role": "user", "content": "\n".join(lines)}])))
+        b = client.messages.batches.create(requests=reqs)
+        entry = {"id": b.id, "prefix": f"wave{attempt}", "created": time.time(), "members": members}
+        log["batches"].append(entry)
+        save_json(WAVE_BATCH_LOG, log)
+        print(f"submitted batch {b.id}: {len(reqs)} requests, {len(items)} topics", flush=True)
+        while client.messages.batches.retrieve(b.id).processing_status != "ended":
+            time.sleep(20)
+        usage, good, bad = {"input_tokens": 0, "output_tokens": 0}, [], []
+        for res in client.messages.batches.results(b.id):
+            keys = members[res.custom_id]
+            if res.result.type != "succeeded":
+                bad += keys
+                continue
+            msg = res.result.message
+            usage["input_tokens"] += msg.usage.input_tokens
+            usage["output_tokens"] += msg.usage.output_tokens
+            text = next((blk.text for blk in msg.content if blk.type == "text"), "")
+            try:
+                its = json.loads(text)["items"]
+            except (json.JSONDecodeError, KeyError, TypeError):
+                its = []
+            got = {it["i"]: it for it in its if isinstance(it, dict) and it.get("i") in range(len(keys))
+                   and it.get("category") in WAVE_CATEGORIES and isinstance(it.get("why"), str)}
+            for j, key in enumerate(keys):
+                if j in got:
+                    good.append({"key": key, "prompt_version": WAVE_VERSION, "batch_id": b.id,
+                                 "category": got[j]["category"], "why": got[j]["why"].strip()[:300]})
+                else:
+                    bad.append(key)
+        with open(WAVE_LABELS, "a") as fh:
+            for g_ in good:
+                fh.write(json.dumps(g_, ensure_ascii=False) + "\n")
+        cost = (usage["input_tokens"] * PRICE_IN_PER_MTOK + usage["output_tokens"] * PRICE_OUT_PER_MTOK) / 1e6
+        entry.update(status="ended", usage=usage, cost_usd=cost, n_good=len(good), invalid=bad)
+        save_json(WAVE_BATCH_LOG, log)
+        print(f"  {len(good)} valid, {len(bad)} invalid; cost ${cost:.4f}", flush=True)
+    lab = pd.DataFrame(load_wave_labels().values())
+    print(f"labelled {len(lab)}/{len(ids)}; waves cost ${spent(log):.4f}; all Claude runs "
+          f"${total_spent_all(load_json(BATCH_LOG, {'batches': []})) + spent(log):.4f}")
+    if len(lab):
+        print(lab[lab.key.isin(ids)].category.value_counts().to_string())
+
+
+def waves_sample():
+    """Local hand-label sheet docs/waves_review.csv: every wave topic from data/export/story/waves_review.json, with
+    a stratified sample of WAVE_SAMPLE_N (by Claude category, proportional, at least 2 per category where possible)
+    flagged in_sample and listed first. The Claude category is NOT in the sheet (labels are blind). Never overwrites
+    a sheet that already has labels."""
+    if WAVE_REVIEW_CSV.exists() and (pd.read_csv(WAVE_REVIEW_CSV, dtype=str, keep_default_na=False).label.str.strip()
+                                     != "").any():
+        sys.exit(f"{WAVE_REVIEW_CSV} already has hand labels: not overwritten")
+    j = load_json(EXPORT / "story" / "waves_review.json")
+    d = pd.DataFrame(j["topics"])
+    rng = random.Random(WAVE_SEED)
+    cats = d.category.value_counts()
+    alloc = {c: min(n, 2) for c, n in cats.items()}
+    while sum(alloc.values()) < WAVE_SAMPLE_N:      # rest proportional to size (largest remainder)
+        c = max(cats.index, key=lambda c: (cats[c] / (alloc[c] + 1)) if alloc[c] < cats[c] else -1)
+        alloc[c] += 1
+    pick = []
+    for c, k in alloc.items():
+        ids_ = sorted(d[d.category == c].topic_id)
+        pick += rng.sample(ids_, k)
+    d["in_sample"] = d.topic_id.isin(pick).astype(int)
+    months = j["months"]
+    out = pd.DataFrame({
+        "in_sample": d.in_sample, "topic_id": d.topic_id, "topic": d["name"],
+        "sample_phrasings": d.phrasings.map(" | ".join), "months_15plus": d.months_15plus,
+        "months_15plus_list": d.months_15plus_list.map(", ".join), "peak_month": d.peak_month,
+        "peak_countries": d.peak_countries, "distinct_countries": d.distinct_countries, "is_constant": d.is_constant,
+        "shock_moments": d.shock_moments, "shock_dates": d.shock_dates.map(", ".join),
+        **{f"c_{mo}{'_gap' if mo in j['gap_months'] else ''}": d.countries_per_month.map(lambda v, i=i: v[i])
+           for i, mo in enumerate(months)},
+        "label": "", "notes": ""})
+    out = out.sort_values(["in_sample", "months_15plus"], ascending=False)
+    out.to_csv(WAVE_REVIEW_CSV, index=False)
+    print(f"wrote {WAVE_REVIEW_CSV} ({len(out)} topics, {int(out.in_sample.sum())} in the sample). label = "
+          + " / ".join(WAVE_LABEL_CHOICES))
+    print(d[d.in_sample == 1].category.value_counts().to_string())
+
+
 if __name__ == "__main__":
     stage = sys.argv[1] if len(sys.argv) > 1 else ""
+    if stage == "waves-sample":
+        waves_sample()
+        sys.exit()
+    if stage == "waves-label":
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("export05", Path(__file__).parent / "05_export.py")
+        ex = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(ex)
+        waves_label(*ex.load())
+        sys.exit()
     if stage == "score":
         score()
     elif stage == "score2":
