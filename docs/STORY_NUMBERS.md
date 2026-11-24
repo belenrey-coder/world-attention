@@ -84,27 +84,41 @@ Conventions: national feeds; UTC unless a local hour is named; a moment is one t
 | Waves sample: share of real recurring stories, weighted by category (95% CI) | 57% (45%-70%) | `waves_review.json` | `hand labels (local)` |
 | Waves sample: Claude 'generic' that are hand always-on / hand always-on caught by 'generic' | 2 of 2 / 2 of 10 | `waves_review.json` | `hand labels (local)` |
 | Athletes and other sport topics kept out of the wave rule (3+ months at 15+, step-4 sporty check) | 926 | `topic_meta` | `is_athlete` |
-| Clean waves still in Claude's generic/always-on category (unlabelled) | 12: YouTube, Outlook, Spotify, Classroom, Flightradar24, Reddit | `waves.json` | `clean` |
-| Clean wave set: stories (wave topics minus constants and hand-dropped topics, duplicates merged) | 291 (from 353 topics: 39 constant, 8 hand-dropped, 15 merged) | `waves.json` | `clean` |
-| Clean waves: largest category by stories / by country-months | entertainment/culture (79) / people/celebrity (15,955) | `waves.json` | `clean.by_category` |
-| Clean waves, category AI/tech: stories / country-months | 26 / 5,898 | `waves.json` | `clean.by_category` |
+| Clean wave set: stories (constants, hand-dropped topics, generic and merged-constant stories out; duplicates merged) | 277 (from 353 topics: 39 constant, 8 hand-dropped, 15 merged; then 14 stories removed) | `waves.json` | `clean` |
+| Clean waves: stories removed as generic/always-on / as constant after merge (12+ months) | 12 / 3 | `waves.json` | `clean.removed_stories` |
+| Removed story: iPhone 17 (14 months) | constant after merge (12+ months) | `waves.json` | `clean.removed_stories` |
+| Removed story: PlayStation 5 (14 months) | constant after merge (12+ months) | `waves.json` | `clean.removed_stories` |
+| Removed story: YouTube (12 months) | generic/always-on category; constant after merge (12+ months) | `waves.json` | `clean.removed_stories` |
+| Removed story: Outlook (10 months) | generic/always-on category | `waves.json` | `clean.removed_stories` |
+| Removed story: Spotify (9 months) | generic/always-on category | `waves.json` | `clean.removed_stories` |
+| Removed story: Classroom (8 months) | generic/always-on category | `waves.json` | `clean.removed_stories` |
+| Removed story: Flightradar24 (6 months) | generic/always-on category | `waves.json` | `clean.removed_stories` |
+| Removed story: Reddit (5 months) | generic/always-on category | `waves.json` | `clean.removed_stories` |
+| Removed story: Downdetector (4 months) | generic/always-on category | `waves.json` | `clean.removed_stories` |
+| Removed story: Google Maps (3 months) | generic/always-on category | `waves.json` | `clean.removed_stories` |
+| Removed story: Amazon Prime (3 months) | generic/always-on category | `waves.json` | `clean.removed_stories` |
+| Removed story: Meet (3 months) | generic/always-on category | `waves.json` | `clean.removed_stories` |
+| Removed story: Uber (3 months) | generic/always-on category | `waves.json` | `clean.removed_stories` |
+| Removed story: Football matches today (3 months) | generic/always-on category | `waves.json` | `clean.removed_stories` |
+| Clean waves: largest category by stories / by country-months | entertainment/culture (78) / people/celebrity (15,955) | `waves.json` | `clean.by_category` |
+| Clean waves, category AI/tech: stories / country-months | 25 / 5,395 | `waves.json` | `clean.by_category` |
 | Clean waves, category politics/conflict: stories / country-months | 50 / 11,258 | `waves.json` | `clean.by_category` |
 | Clean waves, category finance/markets: stories / country-months | 16 / 3,288 | `waves.json` | `clean.by_category` |
-| Clean waves, category entertainment/culture: stories / country-months | 79 / 14,857 | `waves.json` | `clean.by_category` |
+| Clean waves, category entertainment/culture: stories / country-months | 78 / 14,468 | `waves.json` | `clean.by_category` |
 | Clean waves, category people/celebrity: stories / country-months | 76 / 15,955 | `waves.json` | `clean.by_category` |
 | Clean waves, category science/health: stories / country-months | 7 / 1,127 | `waves.json` | `clean.by_category` |
-| Clean waves, category generic/always-on query: stories / country-months | 12 / 3,013 | `waves.json` | `clean.by_category` |
+| Clean waves, category generic/always-on query: stories / country-months | 0 / 0 | `waves.json` | `clean.by_category` |
 | Clean waves, category other: stories / country-months | 25 / 4,547 | `waves.json` | `clean.by_category` |
-| Clean waves top 10 by months at 15+: 1. iPhone 17 (AI/tech): months / countries | 14 / 78 | `waves.json` | `clean.by_months_15plus` |
-| Clean waves top 10 by months at 15+: 2. PlayStation 5 (entertainment/culture): months / countries | 14 / 62 | `waves.json` | `clean.by_months_15plus` |
-| Clean waves top 10 by months at 15+: 3. YouTube (generic/always-on query): months / countries | 12 / 108 | `waves.json` | `clean.by_months_15plus` |
-| Clean waves top 10 by months at 15+: 4. Iran (politics/conflict): months / countries | 11 / 123 | `waves.json` | `clean.by_months_15plus` |
-| Clean waves top 10 by months at 15+: 5. Dua Lipa (people/celebrity): months / countries | 11 / 58 | `waves.json` | `clean.by_months_15plus` |
-| Clean waves top 10 by months at 15+: 6. IPTV (other): months / countries | 11 / 43 | `waves.json` | `clean.by_months_15plus` |
-| Clean waves top 10 by months at 15+: 7. Samsung (AI/tech): months / countries | 10 / 112 | `waves.json` | `clean.by_months_15plus` |
-| Clean waves top 10 by months at 15+: 8. Outlook (generic/always-on query): months / countries | 10 / 90 | `waves.json` | `clean.by_months_15plus` |
-| Clean waves top 10 by months at 15+: 9. Shakira (people/celebrity): months / countries | 10 / 72 | `waves.json` | `clean.by_months_15plus` |
-| Clean waves top 10 by months at 15+: 10. Justin Bieber (entertainment/culture): months / countries | 10 / 61 | `waves.json` | `clean.by_months_15plus` |
+| Clean waves top 10 by months at 15+: 1. Iran (politics/conflict): months / countries | 11 / 123 | `waves.json` | `clean.by_months_15plus` |
+| Clean waves top 10 by months at 15+: 2. Dua Lipa (people/celebrity): months / countries | 11 / 58 | `waves.json` | `clean.by_months_15plus` |
+| Clean waves top 10 by months at 15+: 3. IPTV (other): months / countries | 11 / 43 | `waves.json` | `clean.by_months_15plus` |
+| Clean waves top 10 by months at 15+: 4. Samsung (AI/tech): months / countries | 10 / 112 | `waves.json` | `clean.by_months_15plus` |
+| Clean waves top 10 by months at 15+: 5. Shakira (people/celebrity): months / countries | 10 / 72 | `waves.json` | `clean.by_months_15plus` |
+| Clean waves top 10 by months at 15+: 6. Justin Bieber (entertainment/culture): months / countries | 10 / 61 | `waves.json` | `clean.by_months_15plus` |
+| Clean waves top 10 by months at 15+: 7. Prime Video (entertainment/culture): months / countries | 10 / 60 | `waves.json` | `clean.by_months_15plus` |
+| Clean waves top 10 by months at 15+: 8. Meta (AI/tech): months / countries | 10 / 57 | `waves.json` | `clean.by_months_15plus` |
+| Clean waves top 10 by months at 15+: 9. Sabrina Carpenter (people/celebrity): months / countries | 10 / 53 | `waves.json` | `clean.by_months_15plus` |
+| Clean waves top 10 by months at 15+: 10. Bitcoin price (finance/markets): months / countries | 10 / 50 | `waves.json` | `clean.by_months_15plus` |
 | Clean waves top 5 by distinct countries: 1. Iran: countries / months | 123 / 11 | `waves.json` | `clean.by_distinct_countries` |
 | Clean waves top 5 by distinct countries: 2. Pope Francis: countries / months | 122 / 5 | `waves.json` | `clean.by_distinct_countries` |
 | Clean waves top 5 by distinct countries: 3. Venezuela: countries / months | 120 / 9 | `waves.json` | `clean.by_distinct_countries` |

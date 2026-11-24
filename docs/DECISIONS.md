@@ -1332,6 +1332,22 @@ Sample 1 (`docs/shock_validation_sample.csv`, 100 moments) is now the **tuning**
 - **Merged stories can pass 12 months:** iPhone 17 and PlayStation 5 reach 14 months at 15+ once merged, though no single topic of theirs is constant.
 - **Verification sheet** (`09_validate_shocks.py waves-verify-sheet`; `docs/wave_chart_verification.csv`, local): the top 30 clean waves by months at 15+. For each month at 15+ it shows that month's searches, the related searches that are new that month, and Claude's summary of shock moments that month.
 
+### Step 9, round 29 (2026-11-23): Clean waves without generic and merged-constant stories
+
+- **Two rules after merging** (step 8). The clean set now also drops:
+  - stories in Claude's generic/always-on category (2 of 2 were hand always-on in the sample);
+  - merged stories at 12+ months at 15+ (the constant rule applied to the story).
+- **14 stories removed** (`waves.json` `clean.removed_stories`; 12 generic, 3 constant, YouTube both):
+  - Constant after merge: iPhone 17 (14 months; iPhone 17 + 17 Pro + 17 Pro Max), PlayStation 5 (14; + PlayStation), YouTube (12; + YouTube outage, also generic).
+  - Generic: Outlook (10), Spotify (9), Classroom (8), Flightradar24 (6), Reddit (5), Downdetector (4), Google Maps, Amazon Prime, Meet, Uber and Football matches today (3 each).
+- **Clean set:** 277 stories.
+- **Categories:**
+  - By country-months, people/celebrity is still first (15,955), ahead of entertainment/culture (14,468), politics/conflict (11,258) and AI/tech (5,395).
+  - By stories, entertainment/culture is first (78), with people/celebrity at 76.
+- **Top by months at 15+:** Iran, Dua Lipa and IPTV (11 each), then Samsung, Shakira, Justin Bieber, Prime Video, Meta, Sabrina Carpenter, Bitcoin price, Jason Statham and Julia Roberts (10 each).
+- **Top by distinct countries:** Iran (123), Pope Francis (122), Venezuela (120), DeepSeek (117), Facebook (115).
+- **Verification sheet regenerated** (it had no labels): `docs/wave_chart_verification.csv` (local), the top 30 of the new clean set. Ranks 25–30 tie at 8 months and are ordered by distinct countries.
+
 ## Open issues (need a decision)
 
 _Updated 2026-11-09, after the short-string, sport, 19:00 UTC and Wrapped fixes (rerun from combine: combine, link, validation, moments, export, profile, checks)._

@@ -131,7 +131,7 @@ def topics_where(rx, types=None, exclude=None):
 
 # ------------------------------------------------------------------ KIND RULES (pipeline/kinds.py)
 print("kinds ...", flush=True)
-from kinds import LOCAL_MAX_REACH, MOMENT_KINDS, WAVE_MIN_MONTHS, topic_features  # noqa: E402
+from kinds import CONSTANT_MIN_MONTHS, LOCAL_MAX_REACH, MOMENT_KINDS, WAVE_MIN_MONTHS, topic_features  # noqa: E402
 best = m.sort_values(["reach", "reach_60"], ascending=False).drop_duplicates("topic_id").set_index("topic_id")
 f = topic_features(t, m, meta)
 kind = meta.kind           # topic SUMMARY kind (its biggest moment's kind); charts use moment / row kinds
@@ -742,6 +742,20 @@ for sid, g in _cl.groupby("story", sort=False):
                   "country_months": int(sum(cpm)), "shock_moments": int(g.shock_moments.sum()),
                   "countries_per_month": cpm})
 _cs = pd.DataFrame(clean)
+# after merging (Step 9 round 29): drop stories Claude calls generic/always-on (2 of 2 hand always-on in the sample)
+# and merged stories at 12+ months at 15+ (the constant rule applied to the story, e.g. iPhone 17, PlayStation 5)
+_cs["_generic"] = _cs.category.eq("generic/always-on query")
+_cs["_constant"] = _cs.months_15plus >= CONSTANT_MIN_MONTHS
+WAVE_STORIES_REMOVED = [{"name": r["name"], "category": r["category"], "topics": r["topics"],
+                         "months_15plus": int(r["months_15plus"]), "distinct_countries": int(r["distinct_countries"]),
+                         "removed_by": [x for x, f in (("generic/always-on category", r["_generic"]),
+                                                       ("constant after merge (12+ months)", r["_constant"])) if f]}
+                        for _, r in _cs[_cs._generic | _cs._constant].sort_values(
+                            ["months_15plus", "distinct_countries"], ascending=False).iterrows()]
+for x in WAVE_STORIES_REMOVED:
+    print(f"  clean waves, removed: {x['name']} ({x['category']}; {x['months_15plus']} months; "
+          f"{' + '.join(x['topics'])}): {', '.join(x['removed_by'])}", flush=True)
+_cs = _cs[~_cs._generic & ~_cs._constant].drop(columns=["_generic", "_constant"]).reset_index(drop=True)
 
 
 def _ctab(d, k=30):
@@ -764,10 +778,17 @@ _wj["clean"] = {
             "hand-labelled always-on query / misgrouped topic / should be sport or ritual (40-topic sample; the "
             "other topics are unlabelled and kept), athletes and sport already out of the wave rule, and duplicate "
             "topics of one story merged (merges). A merged story's countries per month = distinct countries over "
-            "its topics. countries_per_month follows months; gap_months have collection gaps (counts lower).",
+            "its topics. After merging, stories in Claude's generic/always-on category and stories at 12+ months "
+            "at 15+ (the constant rule on the merged story) are dropped (removed_stories). countries_per_month "
+            "follows months; gap_months have collection gaps (counts lower).",
     "months": months, "gap_months": list(gap_months),
     "dropped": {"constant": int(_wr.is_constant.sum()),
-                "hand_label": int((~_wr.is_constant & _wr.hand_label.isin(WAVE_DROP_LABELS)).sum())},
+                "hand_label": int((~_wr.is_constant & _wr.hand_label.isin(WAVE_DROP_LABELS)).sum()),
+                "generic_stories": sum("generic/always-on category" in x["removed_by"] for x in WAVE_STORIES_REMOVED),
+                "constant_after_merge": sum("constant after merge (12+ months)" in x["removed_by"]
+                                            for x in WAVE_STORIES_REMOVED),
+                "stories_removed": len(WAVE_STORIES_REMOVED)},
+    "removed_stories": WAVE_STORIES_REMOVED,
     "merges": [{"topic": _nm[a_], "into": _nm[b_]} for a_, b_ in WAVE_MERGES.items()],
     "stories": int(len(_cs)), "by_category": _ccat, **_ctab(_cs)}
 write("waves.json", _wj)
@@ -791,13 +812,15 @@ if _wval:                                   # 09_validate_shocks.py waves-score 
 num("Waves", "Athletes and other sport topics kept out of the wave rule (3+ months at 15+, step-4 sporty check)",
     int((meta.is_athlete.astype(bool) & (meta.wave_months >= WAVE_MIN_MONTHS) & ~meta.is_junk.astype(bool)).sum()),
     "topic_meta", "is_athlete")
-_gen_cl = _cs[_cs.category.eq("generic/always-on query")]
-num("Waves", "Clean waves still in Claude's generic/always-on category (unlabelled)",
-    f"{len(_gen_cl)}: {', '.join(_gen_cl.sort_values('months_15plus', ascending=False).name.head(6))}",
-    "waves.json", "clean")
-num("Waves", "Clean wave set: stories (wave topics minus constants and hand-dropped topics, duplicates merged)",
-    f"{len(_cs)} (from {len(_wr)} topics: {_wj['clean']['dropped']['constant']} constant, "
-    f"{_wj['clean']['dropped']['hand_label']} hand-dropped, {len(WAVE_MERGES)} merged)", "waves.json", "clean")
+_dr = _wj["clean"]["dropped"]
+num("Waves", "Clean wave set: stories (constants, hand-dropped topics, generic and merged-constant stories out; "
+    "duplicates merged)", f"{len(_cs)} (from {len(_wr)} topics: {_dr['constant']} constant, {_dr['hand_label']} "
+    f"hand-dropped, {len(WAVE_MERGES)} merged; then {_dr['stories_removed']} stories removed)", "waves.json", "clean")
+num("Waves", "Clean waves: stories removed as generic/always-on / as constant after merge (12+ months)",
+    f"{_dr['generic_stories']} / {_dr['constant_after_merge']}", "waves.json", "clean.removed_stories")
+for x in WAVE_STORIES_REMOVED:
+    num("Waves", f"Removed story: {x['name']} ({x['months_15plus']} months)", "; ".join(x["removed_by"]),
+        "waves.json", "clean.removed_stories")
 num("Waves", "Clean waves: largest category by stories / by country-months",
     f"{_ct} ({_ccat['topics'][_ct]}) / {_cc} ({_ccat['country_months'][_cc]:,})", "waves.json", "clean.by_category")
 for c_ in WAVE_CATS:
