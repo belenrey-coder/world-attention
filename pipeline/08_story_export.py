@@ -680,6 +680,135 @@ num("Waves", "Constant wave topics (15+ countries in 12+ months)", int(_wr.is_co
 for c_, v_ in _wcat(_wr)["topics"].items():
     num("Waves", f"... category {c_}: topics / country-months", f"{v_} / {_wcat(_wr)['country_months'][c_]:,}",
         "waves.json", "by_category.all")
+
+# clean wave set (Step 9 round 28): the wave topics without constants (12+ months), without topics hand-labelled
+# always-on / misgrouped / sport-or-ritual (docs/waves_review.csv, local; athletes and sport are already out of
+# is_wave), and with obvious duplicates of one story merged (WAVE_MERGES, reviewed by hand from the clean topics that
+# share a name word: same entity or same launch, most 15+ months shared; e.g. "Rockstar Games GTA 6" + "Rockstar
+# Games"). Different people (Brigitte / Emmanuel Macron), different products of one maker (Sora / OpenAI), different
+# phones (iPhone 16 / 17 / 18) and annual rituals of a service (Spotify Wrapped / Spotify) stay apart. Countries per
+# month of a merged story = distinct countries over all its topics.
+WAVE_DROP_LABELS = {"always-on query", "misgrouped topic", "should be sport or ritual"}
+WAVE_MERGES_BY_NAME = {   # story name: its topics (the first is the story's main topic)
+    "iPhone 17": ["iPhone 17", "iPhone 17 Pro", "iPhone 17 Pro Max"],
+    "iPhone 18": ["iPhone 18", "iPhone 18 Pro", "iPhone 18 Pro Max"],
+    "PlayStation 5": ["PlayStation 5", "PlayStation"],
+    "YouTube": ["YouTube", "YouTube outage"],
+    "Bitcoin price": ["Bitcoin price (BTC/USD)", "Bitcoin price USD"],
+    "Jeffrey Epstein": ["Jeffrey Epstein", "Epstein files"],
+    "Claude": ["Claude", "Claude AI"],
+    "Pope Francis": ["Pope Francis", "Pope Francis Vatican"],
+    "Rockstar Games GTA 6": ["Rockstar Games GTA 6", "Rockstar Games"],
+    "Squid Game": ["Squid Game", "Squid Game season 3"],
+    "Samsung": ["Samsung", "Samsung Galaxy S26 Ultra"],
+    "Iran": ["Iran", "Iran–Israel war"],
+    "Meta": ["Meta Platforms", "Meta stock"]}
+_whl = {}
+_wcsv = DOCS / "waves_review.csv"
+if _wcsv.exists():
+    _wh = pd.read_csv(_wcsv, dtype=str, keep_default_na=False)
+    _whl = {a: b.strip() for a, b in zip(_wh.topic_id, _wh.label) if b.strip()}
+_wr["hand_label"] = _wr.topic_id.map(_whl)
+_cl = _wr[~_wr.is_constant & ~_wr.hand_label.isin(WAVE_DROP_LABELS)].copy()
+_nm = dict(zip(_cl.topic_id, _cl["name"].astype(str)))
+_by_name = {v: k for k, v in _nm.items()}
+WAVE_MERGES, _story_name = {}, {}
+for sname, tops in WAVE_MERGES_BY_NAME.items():
+    have = [_by_name[x] for x in tops if x in _by_name]
+    missing = [x for x in tops if x not in _by_name]
+    if missing:
+        print(f"  clean waves: merge '{sname}' topics not in the clean set: {missing}", flush=True)
+    if len(have) >= 2:
+        for x in have[1:]:
+            WAVE_MERGES[x] = have[0]
+        _story_name[have[0]] = sname
+print("  clean waves, merges: " + "; ".join(f"{_nm[a_]} -> {_nm[b_]}" for a_, b_ in WAVE_MERGES.items()), flush=True)
+_cl["story"] = _cl.topic_id.map(lambda x: WAVE_MERGES.get(x, x))
+_wv_cl = wv[wv.topic_id.isin(set(_cl.topic_id))].assign(story=lambda d: d.topic_id.map(lambda x: WAVE_MERGES.get(x, x)))
+_scpm = _wv_cl.groupby(["story", "month"]).country_code.nunique().unstack(fill_value=0).reindex(columns=months,
+                                                                                                 fill_value=0)
+_sdist = _wv_cl.groupby("story").country_code.nunique()
+clean = []
+for sid, g in _cl.groupby("story", sort=False):
+    cpm = [int(x) for x in _scpm.loc[sid]]
+    on = [mo for mo, c in zip(months, cpm) if c >= 15]
+    pk = int(np.argmax(cpm))
+    main = g[g.topic_id == sid].iloc[0] if (g.topic_id == sid).any() else g.iloc[0]
+    clean.append({"story_id": sid, "name": _story_name.get(sid, main["name"]), "category": main.category, "topics": g["name"].tolist(),
+                  "topic_ids": g.topic_id.tolist(),
+                  "hand_label": main.hand_label if isinstance(main.hand_label, str) else None,
+                  "months_15plus": len(on), "months_15plus_list": on, "peak_month": months[pk],
+                  "peak_countries": cpm[pk], "distinct_countries": int(_sdist.get(sid, 0)),
+                  "country_months": int(sum(cpm)), "shock_moments": int(g.shock_moments.sum()),
+                  "countries_per_month": cpm})
+_cs = pd.DataFrame(clean)
+
+
+def _ctab(d, k=30):
+    def it(r):
+        return {"story_id": r["story_id"], "name": r["name"], "category": r["category"], "topics": r["topics"],
+                "topic_ids": r["topic_ids"],
+                "months_15plus": int(r["months_15plus"]), "distinct_countries": int(r["distinct_countries"]),
+                "peak_month": r["peak_month"], "countries_per_month": r["countries_per_month"]}
+    return {"by_months_15plus": [it(r) for _, r in d.sort_values(["months_15plus", "distinct_countries"],
+                                                                   ascending=False).head(k).iterrows()],
+            "by_distinct_countries": [it(r) for _, r in d.sort_values(["distinct_countries", "months_15plus"],
+                                                                        ascending=False).head(k).iterrows()]}
+
+
+_ccat = {"topics": _cs.category.value_counts().reindex(WAVE_CATS, fill_value=0).astype(int).to_dict(),
+         "country_months": _cs.groupby("category").country_months.sum().reindex(WAVE_CATS, fill_value=0)
+         .astype(int).to_dict()}
+_wj["clean"] = {
+    "note": "Clean wave set: wave topics without constants (15+ countries in 12+ months), without topics "
+            "hand-labelled always-on query / misgrouped topic / should be sport or ritual (40-topic sample; the "
+            "other topics are unlabelled and kept), athletes and sport already out of the wave rule, and duplicate "
+            "topics of one story merged (merges). A merged story's countries per month = distinct countries over "
+            "its topics. countries_per_month follows months; gap_months have collection gaps (counts lower).",
+    "months": months, "gap_months": list(gap_months),
+    "dropped": {"constant": int(_wr.is_constant.sum()),
+                "hand_label": int((~_wr.is_constant & _wr.hand_label.isin(WAVE_DROP_LABELS)).sum())},
+    "merges": [{"topic": _nm[a_], "into": _nm[b_]} for a_, b_ in WAVE_MERGES.items()],
+    "stories": int(len(_cs)), "by_category": _ccat, **_ctab(_cs)}
+write("waves.json", _wj)
+_ct = max(_ccat["topics"], key=_ccat["topics"].get)
+_cc = max(_ccat["country_months"], key=_ccat["country_months"].get)
+print(f"  clean waves: {len(_cs)} stories from {len(_wr)} wave topics; largest by topics {_ct} "
+      f"({_ccat['topics'][_ct]}), by country-months {_cc} ({_ccat['country_months'][_cc]:,})", flush=True)
+_wval = load_json(WORK / "waves_validation.json", None) if (WORK / "waves_validation.json").exists() else None
+if _wval:                                   # 09_validate_shocks.py waves-score (hand labels vs Claude categories)
+    num("Waves", "Waves sample (hand labels): real recurring story / always-on / misgrouped / sport or ritual",
+        " / ".join(str(_wval["labels"].get(k, 0)) for k in ("real recurring story", "always-on query",
+                                                             "misgrouped topic", "should be sport or ritual"))
+        + f" of {_wval['labelled']}", "waves_review.json", "hand labels (local)")
+    num("Waves", "Waves sample: share of real recurring stories, weighted by category (95% CI)",
+        f"{_wval['real_story_share_weighted']:.0%} ({_wval['real_story_share_ci95'][0]:.0%}-"
+        f"{_wval['real_story_share_ci95'][1]:.0%})", "waves_review.json", "hand labels (local)")
+    num("Waves", "Waves sample: Claude 'generic' that are hand always-on / hand always-on caught by 'generic'",
+        f"{_wval['generic_category_precision_for_always_on'][0]} of {_wval['generic_category_precision_for_always_on'][1]}"
+        f" / {_wval['always_on_labels_caught_by_generic'][0]} of {_wval['always_on_labels_caught_by_generic'][1]}",
+        "waves_review.json", "hand labels (local)")
+num("Waves", "Athletes and other sport topics kept out of the wave rule (3+ months at 15+, step-4 sporty check)",
+    int((meta.is_athlete.astype(bool) & (meta.wave_months >= WAVE_MIN_MONTHS) & ~meta.is_junk.astype(bool)).sum()),
+    "topic_meta", "is_athlete")
+_gen_cl = _cs[_cs.category.eq("generic/always-on query")]
+num("Waves", "Clean waves still in Claude's generic/always-on category (unlabelled)",
+    f"{len(_gen_cl)}: {', '.join(_gen_cl.sort_values('months_15plus', ascending=False).name.head(6))}",
+    "waves.json", "clean")
+num("Waves", "Clean wave set: stories (wave topics minus constants and hand-dropped topics, duplicates merged)",
+    f"{len(_cs)} (from {len(_wr)} topics: {_wj['clean']['dropped']['constant']} constant, "
+    f"{_wj['clean']['dropped']['hand_label']} hand-dropped, {len(WAVE_MERGES)} merged)", "waves.json", "clean")
+num("Waves", "Clean waves: largest category by stories / by country-months",
+    f"{_ct} ({_ccat['topics'][_ct]}) / {_cc} ({_ccat['country_months'][_cc]:,})", "waves.json", "clean.by_category")
+for c_ in WAVE_CATS:
+    num("Waves", f"Clean waves, category {c_}: stories / country-months",
+        f"{_ccat['topics'][c_]} / {_ccat['country_months'][c_]:,}", "waves.json", "clean.by_category")
+for i_, x in enumerate(_wj["clean"]["by_months_15plus"][:10], 1):
+    num("Waves", f"Clean waves top 10 by months at 15+: {i_}. {x['name']} ({x['category']}): months / countries",
+        f"{x['months_15plus']} / {x['distinct_countries']}", "waves.json", "clean.by_months_15plus")
+for i_, x in enumerate(_wj["clean"]["by_distinct_countries"][:5], 1):
+    num("Waves", f"Clean waves top 5 by distinct countries: {i_}. {x['name']}: countries / months",
+        f"{x['distinct_countries']} / {x['months_15plus']}", "waves.json", "clean.by_distinct_countries")
 for k, rows in monthly.items():
     b = max(rows, key=lambda d: d["countries"])
     num("Waves", f"{k}: peak month and countries", f"{b['month']}: {b['countries']}", "waves.json", f"monthly.{k}")

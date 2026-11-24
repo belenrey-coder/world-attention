@@ -153,7 +153,7 @@ Selected automatically: the lowest-similarity semantic merges, and typo/semantic
 - Moments lasting ≥ 7 days: 153
 - Topics with more than one moment: 231,556
 - Moments reaching ≥ 2 countries: 218,239; ≥ 10: 26,652
-- Global moments (>= 15 countries started by 60 min after the 3rd): **8,014** (top 300 in `docs/GLOBAL_MOMENTS.md`); excluding matches and clubs: 1,932
+- Global moments (>= 15 countries started by 60 min after the 3rd): **8,014** (top 300 in `docs/GLOBAL_MOMENTS.md`); excluding matches and clubs: 827
 
 ## 20 biggest global moments
 
@@ -182,4 +182,4 @@ Selected automatically: the lowest-similarity semantic merges, and typo/semantic
 
 ## Exports
 
-- 198 files, 71.7 MB; largest `topics_index/003.json` 2.00 MB (limit 2 MB)
+- 198 files, 71.7 MB; largest `topics_index/000.json` 2.00 MB (limit 2 MB)

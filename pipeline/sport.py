@@ -378,3 +378,47 @@ def sport_moments(cand, meta, entity, moments=None):
                     "override": ov, "override_kind": kind, "sport_moment": bool(ev) and not ov,
                     "moment_text_sample": " | ".join(terms)[:300]})
     return pd.DataFrame(out)
+
+
+# ------------------------------------------------------------------ wave athletes (Step 9 round 28)
+# Athletes without a Wikidata item (the lookups that failed from rate limiting) and with few sport searches among the
+# top 10 related searches of their strings passed the wave rule (Nick Woltemade, Dani Olmo, Prashant Veer in the
+# hand-labelled waves sample). For wave candidates of type person / other / unlabeled, the check looks wider: the
+# topic's top WAVE_ATH_TOP Google related searches over all its national rows, and counts those that are fixtures,
+# sport terms, athletes / clubs with a sport Wikidata item, or the extra football / cricket words below. >= 4 signals =
+# athlete (at 3, singers whose related searches name a famous partner or a footballer fan would also go).
+WAVE_ATH_TOP = 30
+WAVE_ATH_MIN = 4
+WAVE_ATH_TERM_RE = re.compile(
+    r"cricket|transfermarkt|sport ?bild|\bu ?21\b|\bfc\b|\bcf\b|\bsc\b|ла ?лига|لا ?لي[جگغ]ا|لاليگا|турнирная таблица|"
+    r"ترتيب|clasificaci[oó]n|fichaje|transfer|wechsel|\bcsk\b|\brcb\b|\bmi\b|auction|stats\b|squad|plantilla|kader|"
+    r"selecci[oó]n|national team|nationalmannschaft|united$|\bcity$|fútbol|futbol|football|soccer|calcio|tennis|"
+    r"ballon d'?or|world cup|mundial", re.I)
+# one related search with an athlete-only word is enough (Diogo Jota: "diogo jota transfermarkt", but only 2 signals)
+WAVE_ATH_STRONG_RE = re.compile(r"transfermarkt|cricketer|footballer|futbolista|futebolista|fu[sß]baller|"
+                                r"calciatore|ipl auction", re.I)
+
+
+def wave_athletes(topic_ids, meta):
+    """-> DataFrame(topic_id, signals, examples) for the person / other / unlabeled topics among topic_ids that have
+    >= WAVE_ATH_MIN sport signals in their top WAVE_ATH_TOP related searches."""
+    from common import INTERIM
+    from recall import raw_match_key
+    ids = sorted(x for x in topic_ids if meta["type"].get(x) in ("person", "other", "unlabeled"))
+    if not ids:
+        return pd.DataFrame(columns=["topic_id", "signals", "examples"])
+    tr = pd.read_parquet(INTERIM / "topics.parquet", columns=["topic_id", "level", "related"],
+                         filters=[("topic_id", "in", ids)])
+    tr = tr[tr.level == "country"]
+    ath = athlete_strings()
+    rows = []
+    for tid, g in tr.groupby("topic_id"):
+        rel = pd.Series([str(q).lower() for v in g.related.dropna() for q in (v if not isinstance(v, str) else [v])])
+        top = rel.value_counts().head(WAVE_ATH_TOP).index.tolist()
+        own = {x[:5] for x in _tokens(meta.topic_name.get(tid, tid))}
+        q = meta.qid.get(tid)
+        sig = [r for r in top if raw_match_key(r) is not None or SPORT_TERM_RE.search(r) or
+               WAVE_ATH_TERM_RE.search(r) or sport_entities(r, ath, q, own)]
+        if len(sig) >= WAVE_ATH_MIN or any(WAVE_ATH_STRONG_RE.search(r) for r in top):
+            rows.append({"topic_id": tid, "signals": len(sig), "examples": sig[:6]})
+    return pd.DataFrame(rows, columns=["topic_id", "signals", "examples"])

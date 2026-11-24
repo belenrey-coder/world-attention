@@ -193,8 +193,13 @@ def sporty(mi: pd.DataFrame, m: pd.DataFrame, ids: set) -> pd.Series:
     g = m[m.is_global]
     share = g.groupby("topic_id").is_sport.mean()
     by_moments = share[share >= 0.5].index
+    # wider related-search check for people without a sport Wikidata item (Step 9 round 28; sport.wave_athletes)
+    from sport import wave_athletes
+    wa = wave_athletes(set(ids) - set(sig.index[sig]) - set(by_moments), mi)
+    print(f"wave athletes by the wider related-search check: {len(wa)} "
+          f"({', '.join(str(mi.topic_name.get(x, x)) for x in wa.topic_id)})", flush=True)
     out = pd.Series(False, index=mi.index)
-    out[out.index.isin(set(sig.index[sig]) | set(by_moments))] = True
+    out[out.index.isin(set(sig.index[sig]) | set(by_moments) | set(wa.topic_id))] = True
     return out
 
 

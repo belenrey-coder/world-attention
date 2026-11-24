@@ -29,6 +29,8 @@ docs/shock_chart_verification*.csv
 docs/appointment_chart_verification*.csv
 docs/event_groups_review*.csv
 docs/waves_review*.csv
+docs/wave_chart_verification*.csv
+docs/WAVES_VALIDATION.md
 
 # R session history
 docs/.Rhistory

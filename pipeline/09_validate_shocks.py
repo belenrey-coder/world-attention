@@ -14,6 +14,8 @@
     python pipeline/09_validate_shocks.py sport-check  # proposed is_sport fix (pipeline/sport.py) on all candidates
     python pipeline/09_validate_shocks.py waves-label  # one-line Claude category per wave topic (Batches API, cached)
     python pipeline/09_validate_shocks.py waves-sample # after make story: local hand-label sheet docs/waves_review.csv
+    python pipeline/09_validate_shocks.py waves-score  # hand labels vs Claude categories -> docs/WAVES_VALIDATION.md
+    python pipeline/09_validate_shocks.py waves-verify-sheet # top 30 clean waves -> docs/wave_chart_verification.csv
 
 Candidates: every non-sport global moment (is_global, is_sport false, topic not hidden). "Current shocks" are the
 moments in data/export/story/shocks.json as last exported (built with the old 20-country rule).
@@ -1319,10 +1321,125 @@ def waves_sample():
     print(d[d.in_sample == 1].category.value_counts().to_string())
 
 
+WAVES_REPORT = DOCS / "WAVES_VALIDATION.md"       # local only (names the sample's topics with their labels)
+
+
+def waves_score():
+    """Hand labels of the waves sample (docs/waves_review.csv) against Claude's categories: confusion table, and the
+    share of real recurring stories per category and overall (weighted by category size: the sample is stratified by
+    Claude category; bootstrap 95% CI within strata). -> docs/WAVES_VALIDATION.md (local)."""
+    d = pd.read_csv(WAVE_REVIEW_CSV, dtype=str, keep_default_na=False)
+    lab = load_wave_labels()
+    d["category"] = d.topic_id.map(lambda x: lab.get(x, {}).get("category"))
+    pop = d.category.value_counts()                    # the topics on the sheet (all wave topics when it was drawn)
+    s = d[(d.in_sample == "1") & (d.label.str.strip() != "")].copy()
+    s["label"] = s.label.str.strip()
+    bad = sorted(set(s.label) - set(WAVE_LABEL_CHOICES))
+    if bad:
+        sys.exit(f"unknown labels: {bad}")
+    ct = pd.crosstab(s.category, s.label).reindex(index=[c for c in WAVE_CATEGORIES if c in set(s.category)],
+                                                  columns=WAVE_LABEL_CHOICES, fill_value=0)
+    ct["n"] = ct.sum(axis=1)
+    ct["sheet topics"] = pop.reindex(ct.index).astype(int)
+    real = s.label.eq("real recurring story")
+    w = s.category.map(pop / s.category.value_counts())
+    est = float((real * w).sum() / w.sum())
+    rng = np.random.default_rng(WAVE_SEED)
+    boots = []
+    groups = {c: g for c, g in s.groupby("category")}
+    for _ in range(4000):
+        num_, den_ = 0.0, 0.0
+        for c, g in groups.items():
+            x = g.label.eq("real recurring story").values
+            b = rng.choice(x, len(x), replace=True)
+            num_ += b.mean() * pop[c]
+            den_ += pop[c]
+        boots.append(num_ / den_)
+    lo, hi = np.percentile(boots, [2.5, 97.5])
+    gen = s.category.eq("generic/always-on query")
+    aon = s.label.eq("always-on query")
+    out = {"labelled": int(len(s)), "labels": s.label.value_counts().to_dict(),
+           "real_story_share_raw": round(float(real.mean()), 3),
+           "real_story_share_weighted": round(est, 3), "real_story_share_ci95": [round(lo, 3), round(hi, 3)],
+           "generic_category_precision_for_always_on": [int((gen & aon).sum()), int(gen.sum())],
+           "always_on_labels_caught_by_generic": [int((gen & aon).sum()), int(aon.sum())],
+           "always_on_by_claude_category": s[aon].category.value_counts().to_dict()}
+    save_json(WORK / "waves_validation.json", out)
+    L = ["# Waves validation (hand labels vs Claude categories)", "",
+         f"Sample: {len(s)} wave topics, stratified by Claude category (docs/waves_review.csv). Rows: Claude's "
+         "category; columns: hand label.", "", md(ct), "",
+         f"- Real recurring story: {int(real.sum())} of {len(s)} ({real.mean():.0%} raw); weighted by category size "
+         f"{est:.0%} (95% CI {lo:.0%}-{hi:.0%}).",
+         f"- Claude's generic/always-on category: {int((gen & aon).sum())} of {int(gen.sum())} are hand-labelled "
+         f"always-on; it catches {int((gen & aon).sum())} of the {int(aon.sum())} always-on labels (the others: "
+         + ", ".join(f"{k} {v}" for k, v in out["always_on_by_claude_category"].items()) + ").", "",
+         "| topic | Claude category | hand label | notes |", "|---|---|---|---|"]
+    for r in s.sort_values(["category", "label"]).itertuples():
+        L.append(f"| {r.topic} | {r.category} | {r.label} | {str(r.notes).replace('|', '/')} |")
+    WAVES_REPORT.write_text("\n".join(L) + "\n")
+    print(md(ct))
+    print(json.dumps(out, indent=1, ensure_ascii=False))
+
+
+def waves_verify_sheet():
+    """Verification sheet for the top 30 clean waves by months at 15+ (data/export/story/waves.json `clean`): for each
+    month at 15+, what drove the return (that month's most common searches, its related searches that are not among
+    the story's usual ones, and Claude's one-line summary of shock moments that month). Writes the next numbered file
+    docs/wave_chart_verification[_N].csv (never overwrites; local only)."""
+    j = load_json(EXPORT / "story" / "waves.json")["clean"]
+    months, gaps = j["months"], set(j["gap_months"])
+    top = j["by_months_15plus"][:30]
+    ids = sorted({x for s in top for x in s["topic_ids"]})
+    tr = pd.read_parquet(INTERIM / "topics.parquet", columns=["topic_id", "level", "country_code", "start_time_utc",
+                                                               "query_raw", "related"], filters=[("topic_id", "in", ids)])
+    tr = tr[tr.level == "country"].copy()
+    tr["month"] = tr.start_time_utc.dt.strftime("%Y-%m")
+    m = pd.read_parquet(INTERIM / "moments.parquet", columns=["topic_id", "start_utc", "kind"])
+    m = m[m.topic_id.isin(ids) & m.kind.eq("shock")]
+    summ = {}
+    if LABELS.exists():
+        for line in LABELS.read_text().splitlines():
+            x = json.loads(line)
+            if x.get("prompt_version") == PROMPT_VERSION_V2:
+                summ[x["key"]] = x["what_happened"]
+
+    def rel_list(g):
+        return pd.Series([str(q).lower() for v in g.related.dropna() for q in (v if not isinstance(v, str) else [v])])
+
+    rows = []
+    for rank, s_ in enumerate(top, 1):
+        g = tr[tr.topic_id.isin(s_["topic_ids"])]
+        usual = set(rel_list(g).value_counts().head(8).index) | {str(n).lower() for n in s_["topics"]}
+        drivers = []
+        for mo, c in zip(months, s_["countries_per_month"]):
+            if c < 15:
+                continue
+            gm = g[g.month == mo]
+            ph = gm.query_raw.astype(str).str.lower().value_counts().head(3).index.tolist()
+            rl = [x for x in rel_list(gm).value_counts().index if x not in usual][:5]
+            sh = [summ.get(f"{r.topic_id}|{pd.Timestamp(r.start_utc):%Y-%m-%dT%H:%MZ}") for r in
+                  m[m.topic_id.isin(s_["topic_ids"]) & (m.start_utc.dt.strftime("%Y-%m") == mo)].itertuples()]
+            sh = [x for x in sh if x]
+            drivers.append(f"{mo}{' (gap)' if mo in gaps else ''}: {c} countries; searches: {', '.join(ph)}; "
+                           f"new related: {', '.join(rl) or '-'}" + (f"; shock: {' / '.join(sh[:2])}" if sh else ""))
+        rows.append({"rank": rank, "story_id": s_["story_id"], "story": s_["name"],
+                     "topics_merged": " + ".join(s_["topics"]), "months_15plus": s_["months_15plus"],
+                     "distinct_countries": s_["distinct_countries"], "peak_month": s_["peak_month"],
+                     "countries_per_month": " ".join(f"{mo[2:]}:{c}{'*' if mo in gaps else ''}"
+                                                     for mo, c in zip(months, s_["countries_per_month"])),
+                     "what_drove_each_return": "\n".join(drivers), "label": "", "notes": ""})
+    base = DOCS / "wave_chart_verification.csv"
+    p, i = base, 2
+    while p.exists():
+        p, i = DOCS / f"wave_chart_verification_{i}.csv", i + 1
+    pd.DataFrame(rows).to_csv(p, index=False)
+    print(f"wrote {p} ({len(rows)} stories). label = {' / '.join(WAVE_LABEL_CHOICES)}; '*' = gap month")
+
+
 if __name__ == "__main__":
     stage = sys.argv[1] if len(sys.argv) > 1 else ""
-    if stage == "waves-sample":
-        waves_sample()
+    if stage in ("waves-sample", "waves-score", "waves-verify-sheet"):
+        {"waves-sample": waves_sample, "waves-score": waves_score, "waves-verify-sheet": waves_verify_sheet}[stage]()
         sys.exit()
     if stage == "waves-label":
         import importlib.util

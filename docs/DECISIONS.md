@@ -1308,6 +1308,30 @@ Sample 1 (`docs/shock_validation_sample.csv`, 100 moments) is now the **tuning**
   - Labels: real recurring story / always-on query / misgrouped topic / should be sport or ritual.
   - Claude's category is left out of the sheet so the labels stay blind. The sheet is never overwritten once labelled.
 
+### Step 9, round 28 (2026-11-23): Waves sample scored, athlete leak fixed, clean wave set
+
+- **Score** (`09_validate_shocks.py waves-score`; report in `docs/WAVES_VALIDATION.md`, local):
+  - The 40 hand labels: 23 real recurring story, 10 always-on query, 4 misgrouped topic, 3 should be sport or ritual.
+  - Real recurring stories, weighted by category size: 57% (95% CI 45–70%).
+  - Claude's generic/always-on category is precise (2 of 2 are hand always-on) but catches only 2 of the 10 always-on labels. The others were Claude-categorised as entertainment/culture (3: Disney, Harry Potter, Titanic), AI/tech (2: Tesla, Epic Games), people/celebrity (2: Jennifer Lopez, Robin Williams) and other (1: The New York Times).
+  - The 3 sport labels were all athletes, Claude-categorised as people/celebrity. Misgrouped: Saudi Arabia, Dubai, Fast, Solar eclipse.
+- **Athlete leak** (`sport.wave_athletes`, called from `04_moments.sporty`):
+  - Nick Woltemade, Dani Olmo and Prashant Veer have no Wikidata item and too few sport searches among the top 10 related searches of their strings.
+  - The new check looks at the topic's top 30 related searches over all its rows. It counts fixtures, sport terms, sport entities and extra football/cricket words; 4+ signals, or one athlete-only word ("transfermarkt", "cricketer", "footballer" …), marks an athlete. At 3 signals, Justin Timberlake and Olivia Rodrigo would go too (partners and fans).
+  - It removes 7 wave topics: Nick Woltemade, Dani Olmo, Prashant Veer, Gavi, Eduardo Camavinga, Dean Huijsen and Diogo Jota. Wave topics: 360 → 353.
+- **Clean wave set** (`waves.json` `clean`):
+  - The 353 wave topics minus 39 constants and 8 hand-dropped topics. Athletes are already out.
+  - 15 topics are merged into 13 stories through a hand-reviewed list (`WAVE_MERGES_BY_NAME`). Candidates were clean topics sharing a name word; merged were the same entity or the same launch, with most 15+ months shared: iPhone 17 / 17 Pro / 17 Pro Max; iPhone 18 / 18 Pro / 18 Pro Max; PlayStation 5 / PlayStation; YouTube / YouTube outage; both Bitcoin price topics; Jeffrey Epstein / Epstein files; Claude / Claude AI; Pope Francis / Pope Francis Vatican; Rockstar Games GTA 6 / Rockstar Games; Squid Game / season 3; Samsung / Galaxy S26 Ultra; Iran / Iran–Israel war; Meta Platforms / Meta stock.
+  - Kept apart: different people (Brigitte / Emmanuel Macron), different products of one maker (Sora / OpenAI), different phone generations (iPhone, 16, 17, 18) and annual rituals of a service (Spotify Wrapped / Spotify).
+  - Result: 291 stories.
+- **Clean-set categories:**
+  - People/celebrity is still first by country-months (15,955; entertainment/culture 14,857, politics/conflict 11,258, AI/tech 5,898).
+  - By stories, entertainment/culture is first (79, against 77 people/celebrity).
+  - The top 30 by months at 15+ and by distinct countries carry countries per month, with the gap months listed.
+- **Not dropped:** 12 unlabelled stories Claude calls generic/always-on (YouTube, Outlook, Spotify, Classroom, Flightradar24, Reddit …). The clean rule drops hand labels only.
+- **Merged stories can pass 12 months:** iPhone 17 and PlayStation 5 reach 14 months at 15+ once merged, though no single topic of theirs is constant.
+- **Verification sheet** (`09_validate_shocks.py waves-verify-sheet`; `docs/wave_chart_verification.csv`, local): the top 30 clean waves by months at 15+. For each month at 15+ it shows that month's searches, the related searches that are new that month, and Claude's summary of shock moments that month.
+
 ## Open issues (need a decision)
 
 _Updated 2026-11-09, after the short-string, sport, 19:00 UTC and Wrapped fixes (rerun from combine: combine, link, validation, moments, export, profile, checks)._
