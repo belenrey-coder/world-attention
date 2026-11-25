@@ -17,6 +17,7 @@
     python pipeline/09_validate_shocks.py waves-score  # hand labels vs Claude categories -> docs/WAVES_VALIDATION.md
     python pipeline/09_validate_shocks.py waves-verify-sheet # top 30 clean waves -> docs/wave_chart_verification.csv
     python pipeline/09_validate_shocks.py rituals-sample # after make story: 60 holiday topics -> docs/rituals_review.csv
+    python pipeline/09_validate_shocks.py rituals-score  # hand labels -> precision per holiday (work/rituals_validation.json)
 
 Candidates: every non-sport global moment (is_global, is_sport false, topic not hidden). "Current shocks" are the
 moments in data/export/story/shocks.json as last exported (built with the old 20-country rule).
@@ -1473,11 +1474,67 @@ def rituals_sample():
     print(pd.DataFrame(rows).holiday.value_counts().to_string())
 
 
+def _wilson(k, n, z=1.96):
+    if not n:
+        return [None, None]
+    p = k / n
+    c = (p + z * z / (2 * n)) / (1 + z * z / n)
+    h = z * ((p * (1 - p) / n + z * z / (4 * n * n)) ** 0.5) / (1 + z * z / n)
+    return [round(c - h, 3), round(c + h, 3)]
+
+
+def rituals_score():
+    """Score docs/rituals_review.csv (holiday sample drawn from the round 32 groups): precision per holiday, and how
+    the round 33 clean groups (data/export/story/rituals_review/holidays.json, after make story) treat each labelled
+    topic. Writes WORK/rituals_validation.json, read by step 8 (run make story again afterwards)."""
+    d = pd.read_csv(RITUALS_REVIEW_CSV, dtype=str, keep_default_na=False)
+    d["label"] = d.label.str.strip()
+    bad = d[~d.label.isin(RITUALS_LABEL_CHOICES)]
+    if len(bad):
+        sys.exit(f"{len(bad)} rows without a valid label ({' / '.join(RITUALS_LABEL_CHOICES)})")
+    j = load_json(EXPORT / "story" / "rituals_review" / "holidays.json")
+    kept = {h: {r[0] for r in v["rows"]} for h, v in j["holidays"].items()}
+    removed = {h: {r[0]: r[-1] for r in v.get("removed", [])} for h, v in j["holidays"].items()}
+
+    def status(r):
+        if r.topic_id in kept.get(r.holiday, set()):
+            return "kept"
+        if r.topic_id in removed.get(r.holiday, {}):
+            return "removed: " + removed[r.holiday][r.topic_id]
+        moved = [h for h, s in kept.items() if r.topic_id in s]
+        return ("moved to " + ", ".join(moved)) if moved else "not matched by the clean rule"
+    d["clean_rule"] = d.apply(status, axis=1)
+    d["about"] = d.label.eq("about the holiday")
+    d["moved"] = d.clean_rule.str.contains("moved to")
+    d["out"] = ~d.clean_rule.eq("kept") & ~d.moved
+    per = []
+    for h, g in d.groupby("holiday", sort=False):
+        per.append({"holiday": h, "n": len(g), "about": int(g.about.sum()), "precision": round(g.about.mean(), 3),
+                    "ci95": _wilson(int(g.about.sum()), len(g)),
+                    "unrelated_removed": int((~g.about & g.out).sum()), "about_removed": int((g.about & g.out).sum())})
+    res = {"n": len(d), "about": int(d.about.sum()), "precision": round(d.about.mean(), 3),
+           "ci95": _wilson(int(d.about.sum()), len(d)), "unrelated": int((~d.about).sum()),
+           "unrelated_removed": int((~d.about & d.out).sum()), "about_removed": int((d.about & d.out).sum()),
+           "moved_to_other_holiday": d[d.moved][["holiday", "topic", "clean_rule"]].to_dict("records"),
+           "note": "Unweighted: the sample has at least 3 topics per holiday, the rest proportional to group size. "
+                   "Labels are on the round 32 groups; clean_rule is what the round 33 rule does with each topic.",
+           "by_holiday": per,
+           "unrelated_topics": d[~d.about][["holiday", "topic", "clean_rule"]].to_dict("records"),
+           "about_topics_removed": d[d.about & d.out][["holiday", "topic", "clean_rule"]].to_dict("records")}
+    (WORK / "rituals_validation.json").write_text(json.dumps(res, ensure_ascii=False, indent=1))
+    print(pd.DataFrame(per).to_string(index=False))
+    print(f"all: {res['about']} of {res['n']} about the holiday ({res['precision']:.0%}, 95% {res['ci95']}); "
+          f"unrelated removed by the clean rule {res['unrelated_removed']} of {res['unrelated']}; "
+          f"holiday topics removed {res['about_removed']}")
+    for r in res["unrelated_topics"] + res["about_topics_removed"]:
+        print("  ", r)
+
+
 if __name__ == "__main__":
     stage = sys.argv[1] if len(sys.argv) > 1 else ""
-    if stage in ("waves-sample", "waves-score", "waves-verify-sheet", "rituals-sample"):
+    if stage in ("waves-sample", "waves-score", "waves-verify-sheet", "rituals-sample", "rituals-score"):
         {"waves-sample": waves_sample, "waves-score": waves_score, "waves-verify-sheet": waves_verify_sheet,
-         "rituals-sample": rituals_sample}[stage]()
+         "rituals-sample": rituals_sample, "rituals-score": rituals_score}[stage]()
         sys.exit()
     if stage == "waves-label":
         import importlib.util

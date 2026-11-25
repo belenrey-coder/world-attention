@@ -437,3 +437,31 @@ def get_p54(qids):
             p.parent.mkdir(parents=True, exist_ok=True)
             p.write_text(json.dumps([x for x in teams if x]))
     return {q: json.loads(path(q).read_text()) for q in qids if path(q).exists()}
+
+
+# ============================================================================================
+# P31 ("instance of") and P625 (has coordinates) for the holiday name-match check (step 8, Rituals round 33).
+# ============================================================================================
+CLAIM31_DIR = CACHE / "wikidata" / "claims_p31"
+HUMAN_QID = "Q5"
+
+
+def get_p31(qids):
+    """{qid: {"p31": [class qids], "coords": bool}} from wbgetentities props=claims, 50 ids per request."""
+    qids = sorted({q for q in qids if isinstance(q, str) and q.startswith("Q")})
+    path = lambda q: CLAIM31_DIR / q[-2:] / f"{q}.json"  # noqa: E731
+    todo = [q for q in qids if not path(q).exists()]
+    for k in range(0, len(todo), 50):
+        chunk = todo[k:k + 50]
+        data = _get({"action": "wbgetentities", "ids": "|".join(chunk), "props": "claims", "format": "json",
+                     "maxlag": READ_MAXLAG})
+        if data is None or "entities" not in data:
+            print(f"  P31 lookup failed for {chunk[0]}..; will retry on the next run")
+            continue
+        for q in chunk:
+            cl = (data["entities"].get(q) or {}).get("claims") or {}
+            p31 = [c.get("mainsnak", {}).get("datavalue", {}).get("value", {}).get("id") for c in cl.get("P31", [])]
+            p = path(q)
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text(json.dumps({"p31": [x for x in p31 if x], "coords": "P625" in cl}))
+    return {q: json.loads(path(q).read_text()) for q in qids if path(q).exists()}

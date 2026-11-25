@@ -413,7 +413,45 @@ if EVENT_GROUPS is not None:
     chart = sorted(pool_, key=lambda d: (-d["event_reach"], -d["event_reach_60"], -d["reach"]))[:CHART_N]
 chart_by_event = sorted(chart, key=lambda d: (-d.get("event_reach", d["reach"]), -d.get("event_reach_60", d["reach_60"])))
 _est = load_json(WORK / "shock_estimate.json") if (WORK / "shock_estimate.json").exists() else None
-write("shocks.json", {"note": "Sport-free global moments (>= 15 countries within 60 min of the third country) that "
+# "Is it down": outage-driven searches (moved here from Rituals in Step 9 round 33)
+DOWN_RE = r"^is \S+( \S+)? down|\bdown right now|not working|\bca[ií]do\b|\bcaiu\b|fora do ar|\bpanne\b|st[oö]rung|downdetector"
+_down_ids = topics_where(r"outage|\bdown\b|not working", exclude=r"power|electric|blackout|apag")
+_dr = tv[tv.topic_id.isin(_down_ids)]
+_dstrict = tv[tv.query_raw.str.lower().str.contains(DOWN_RE, regex=True, na=False)]
+_out = [x for x in shocks if x["kind"] == "outage"]
+_ow = [(pd.Timestamp(x["date_utc"].replace("Z", ""), tz="UTC"), x) for x in _out]
+_in = np.zeros(len(_dr), bool)
+_st = _dr.start_time_utc.astype("int64").to_numpy() // 10**9
+for s0, _ in _ow:
+    lo_, hi_ = int(s0.timestamp()) - 2 * 3600, int(s0.timestamp()) + 24 * 3600
+    _in |= (_st >= lo_) & (_st < hi_)
+_dday = _dr.groupby("day").agg(countries=("country_code", "nunique"), trends=("country_code", "size"))
+_sday = _dstrict.groupby("day").agg(countries=("country_code", "nunique"), trends=("country_code", "size"),
+                                    top=("query_raw", lambda s: s.str.lower().value_counts().index[0]))
+_top10 = []
+for d_, x_ in _dday.sort_values(["countries", "trends"], ascending=False).head(10).iterrows():
+    dd = pd.Timestamp(d_, tz="UTC")
+    match = [x["name"] for s0, x in _ow if s0 - pd.Timedelta(hours=2) < dd + pd.Timedelta(days=1)
+             and s0 + pd.Timedelta(hours=24) > dd]
+    _top10.append({"day": d_, "countries": int(x_.countries), "trends": int(x_.trends),
+                   "outage_shocks": sorted(set(match))})
+is_it_down = {"note": "Outage-named topics (Claude name with outage / down / not working; power cuts and blackouts left "
+                      "out). Moved from Rituals: its peaks are outages. by_day = [UTC day, countries, trends]; "
+                      "strict_by_day = searches phrased 'is ... down' / 'not working' / 'caído' ..., with the top phrasing.",
+              "topics": len(_down_ids), "trends": int(len(_dr)), "countries": int(_dr.country_code.nunique()),
+              "outage_shocks": len(_out), "trends_inside_outage_shocks": int(_in.sum()),
+              "share_inside_outage_shocks": round(float(_in.mean()), 4) if len(_dr) else None,
+              "window": "from 2 h before to 24 h after each outage shock's start (kind outage)",
+              "top10_days": _top10,
+              "by_day": [[d, int(x.countries), int(x.trends)] for d, x in _dday.iterrows()],
+              "strict_by_day": [[d, int(x.countries), int(x.trends), x.top] for d, x in _sday.iterrows()]}
+num("Shocks", f"'Is it down' ({len(_down_ids)} topics): trends inside outage shocks (share)",
+    f"{is_it_down['trends_inside_outage_shocks']:,} of {is_it_down['trends']:,} ({is_it_down['share_inside_outage_shocks']:.0%})",
+    "shocks.json", "is_it_down")
+num("Shocks", "'Is it down': widest day (countries) / top 10 days with a matching outage shock",
+    f"{_top10[0]['day']} ({_top10[0]['countries']}) / {sum(1 for x in _top10 if x['outage_shocks'])} of 10",
+    "shocks.json", "is_it_down.top10_days")
+write("shocks.json", {"is_it_down": is_it_down,"note": "Sport-free global moments (>= 15 countries within 60 min of the third country) that "
                                "Claude (shock-v2, the moment's own searches) calls unscheduled with confidence >= 0.5 "
                                "(DECISIONS.md, Step 9). curve_first_3h = [minutes from the moment's first trend, "
                                "countries started]. kind (death / outage / other) is a keyword rule: death on the topic name, "
@@ -1496,63 +1534,10 @@ weather_days = {"archive_days": len(all_days), "full_coverage_days": len(full_da
                         "'topic Weather' = every topic Claude named exactly 'Weather' (one per language group, e.g. "
                         "'hava durumu', '天気'); plain_id = only the topic whose id is 'Weather' (English 'weather'); "
                         "any = every topic in the weather category (city forecasts, storms, ...)."}
-WHEN_RE = r"^(when is|when does|cu[aá]ndo es|cu[aá]ndo empieza|quando [eé]|quando come[cç]a|wann ist|wann beginnt|quand est|quand commence|kapan|ne zaman)\b"
-FEST = {"Ramadan": r"ramadan|ramad[aã]n|ramazan|puasa", "Eid": r"\beid\b|bayram|lebaran|aid el|a[iï]d al", "Easter": r"easter|pascua|p[aá]scoa|ostern|p[aâ]ques|pasqua"}
-DOWN_RE = r"^is \S+( \S+)? down|\bdown right now|not working|\bca[ií]do\b|\bcaiu\b|fora do ar|\bpanne\b|st[oö]rung|downdetector"
-ql = tv.query_raw.str.lower()
-when = {}
-for k, rx in FEST.items():
-    r = tv[ql.str.contains(WHEN_RE, regex=True, na=False) & ql.str.contains(rx, regex=True, na=False)]
-    g = r.groupby("day").agg(countries=("country_code", "nunique"), trends=("country_code", "size"))
-    when[k] = [[d, int(x.countries), int(x.trends)] for d, x in g.iterrows()]
-dn = tv[ql.str.contains(DOWN_RE, regex=True, na=False)]
-dg = dn.groupby("day").agg(countries=("country_code", "nunique"), trends=("country_code", "size"),
-                          top=("query_raw", lambda s: s.str.lower().value_counts().index[0]))
-WHOLE = {"Ramadan": topics_where(r"\bramadan\b|ramazan|ramad[aã]n"),
-         "Eid": topics_where(r"\beid\b|eid al|eid-al|bayram|lebaran|hari raya|aid el"),
-         "Easter": topics_where(r"\beaster\b"),
-         "Is it down": topics_where(r"outage|\bdown\b|not working", exclude=r"power|electric|blackout|apag")}
-STRICT_RX = {k: (WHEN_RE, rx) for k, rx in FEST.items()} | {"Is it down": (DOWN_RE, None)}
-
-
-def day_series(rows):
-    g = rows.groupby("day").agg(countries=("country_code", "nunique"), trends=("country_code", "size"))
-    return g
-
-
-def summary(rows):
-    g = day_series(rows)
-    if g.empty:
-        return {"trends": 0, "countries": 0, "peak_day": None, "peak_countries": 0}, []
-    pk = g.countries.idxmax()
-    return ({"trends": int(len(rows)), "countries": int(rows.country_code.nunique()), "peak_day": pk,
-             "peak_countries": int(g.countries.max())}, [[d, int(x.countries), int(x.trends)] for d, x in g.iterrows()])
-
-
-by_topic_counts = {}
-for k in WHOLE:
-    rx1, rx2 = STRICT_RX[k]
-    strict = tv[ql.str.contains(rx1, regex=True, na=False) & (ql.str.contains(rx2, regex=True, na=False) if rx2 else True)]
-    whole = tv[tv.topic_id.isin(WHOLE[k])]
-    s_sum, s_days = summary(strict)
-    w_sum, w_days = summary(whole)
-    by_topic_counts[k] = {"strict": s_sum | {"rule": "searches phrased 'when is ...' / 'is ... down' only"},
-                          "whole_topic": w_sum | {"topics": len(WHOLE[k]),
-                                                  "rule": "every trend of topics whose Claude name matches (the article uses this)"},
-                          "strict_by_day": s_days, "whole_topic_by_day": w_days}
-rituals = {"note": "Weather topics (category weather) by local hour, weekday (Mon-Fri) vs weekend (Sat-Sun). US, CA and RU "
-                   "use regional feeds in each region's zone; all others one zone per country. 'all_without_19utc_bump' "
-                   "leaves out trends starting 19:00-19:59 UTC (CHECKS.md C4). Date series are UTC days: [day, countries, trends].",
-           "weather_all_countries": split(w), "weather_tomorrow_all_countries": split(w[w.tomorrow]),
-           "per_country": per_c,
-           "weather_days": weather_days,
-           "when_is": when, "is_x_down": [[d, int(x.countries), int(x.trends), x.top] for d, x in dg.iterrows()],
-           "by_topic": by_topic_counts}
-write("rituals.json", rituals)
-allh = pd.Series(rituals["weather_all_countries"]["all"])
-nob = pd.Series(rituals["weather_all_countries"]["all_without_19utc_bump"])
+allh = pd.Series(split(w)["all"])
+nob = pd.Series(split(w)["all_without_19utc_bump"])
 num("Rituals", "Weather: busiest local hour, all countries (with / without 19 UTC bump)", f"{allh.idxmax()} / {nob.idxmax()}",
-    "rituals.json", "weather_all_countries")
+    "rituals.json", "weather_clock.share_by_local_hour")
 num("Rituals", "Archive days (first to last data day) / of which full collection coverage",
     f"{weather_days['archive_days']} / {weather_days['full_coverage_days']}", "rituals.json", "weather_days.full_coverage_days")
 num("Rituals", f"(a) Full-coverage days on which the topic 'Weather' ({len(wx_named)} topics named so) trended in 10+ countries",
@@ -1561,16 +1546,6 @@ num("Rituals", "(a') ... the single topic with id 'Weather' only", weather_days[
     "rituals.json", "weather_days.topic_weather_plain_id_days_10plus")
 num("Rituals", f"(b) Full-coverage days on which any weather topic ({len(weather_ids):,} topics) trended in 10+ countries",
     weather_days["any_weather_topic_days_10plus"], "rituals.json", "weather_days.any_weather_topic_days_10plus")
-for k, v in by_topic_counts.items():
-    w_, s_ = v["whole_topic"], v["strict"]
-    num("Rituals", f"{k}, whole topic ({w_['topics']} topics): peak day and countries (ARTICLE)",
-        f"{w_['peak_day']}: {w_['peak_countries']}", "rituals.json", f"by_topic.{k}.whole_topic")
-    num("Rituals", f"{k}, whole topic: countries ever / trends", f"{w_['countries']} / {w_['trends']:,}", "rituals.json",
-        f"by_topic.{k}.whole_topic")
-    num("Rituals", f"{k}, strict phrasing: peak day and countries", f"{s_['peak_day']}: {s_['peak_countries']}",
-        "rituals.json", f"by_topic.{k}.strict")
-    num("Rituals", f"{k}, strict phrasing: countries ever / trends", f"{s_['countries']} / {s_['trends']:,}", "rituals.json",
-        f"by_topic.{k}.strict")
 
 
 # ------------------------------------------------------------------ 6b rituals validation (Step 9 round 32)
@@ -1587,7 +1562,7 @@ _rit = topic_ritual(meta, m)
 _msport = m.groupby("topic_id").is_sport.mean()
 SPORT_LIKE = set(meta.index[meta.is_sport.fillna(False).astype(bool) | meta.is_athlete.fillna(False).astype(bool)]) | \
     set(_msport.index[_msport >= 0.5])
-RIT_IDS = set(_rit.index[_rit]) - hidden
+RIT_IDS = set(_rit.index[_rit]) - hidden - _down_ids    # "is it down" is with Shocks (round 33)
 _nm_l = name.str.lower()
 _rit_part = pd.DataFrame({"weather": meta.category.eq("weather"), "holiday": meta["type"].eq("holiday"),
                           "name_pattern": _nm_l.str.contains(RITUAL_RE, regex=True)}).reindex(list(RIT_IDS))
@@ -1715,51 +1690,225 @@ weather_topics = {"named_weather": [_wx_item(x) for x in sorted(wx_named, key=la
                   "random_sample_40": [_wx_item(x) for x in _rng.sample(sorted(weather_ids), 40)],
                   "n_weather_topics": len(weather_ids), "days_10plus": weather_days}
 
-# holidays: whole-topic groups (Claude topic name), occurrences per year
-HOLIDAYS = {"Ramadan": r"\bramadan\b|ramazan|ramad[aã]n",
-            "Eid": r"\beid\b|eid al|eid-al|bayram|lebaran|hari raya|aid el",
-            "Easter": r"\beaster\b|pascua|p[aá]scoa|ostern|p[aâ]ques|pasqua|semana santa",
+# holidays (Step 9 round 33): a broad name rule per holiday (Claude topic name), then cleaned of name matches
+# (people, places, clubs, brands) and of other days that share the word. Lunar New Year greetings belong to Lunar
+# New Year, not New Year. Every list below is on topics with national trends (not hidden).
+from wikidata import HUMAN_QID, get_p31  # noqa: E402
+LNY_RX = (r"lunar new year|chinese new year|new year.*(chinese|lunar)|gong xi fa cai|gong hei fat choy|kung hei fat cho|"
+          r"xin nian kuai le|capodanno cinese|nouvel an chinois|a[ñn]o nuevo chino|ano novo chin[eê]s|mondneujahr|"
+          r"chinesisches neujahr|t[eế]t (nguy[eê]n [dđ][aá]n|[aâ]m l[iị]ch)|\btết\b|seollal|\bimlek\b|春节|春節|"
+          r"spring festival gala|農曆新年|农历新年|설날")
+HOLIDAYS = {"Ramadan": r"\bramadan\b|ramazan|ramad[aã]n|ramadhan",
+            "Eid": r"\beid\b|eid al|eid-al|bayram|lebaran|hari raya|aidilfitri|idul fitri|idul adha|aid el|a[iï]d al",
+            "Easter": r"\beaster\b|pascua|p[aá]scoa|ostern\b|p[aâ]ques|pasqua|semana santa",
             "Christmas": r"christmas|\bxmas\b|navidad|\bnatal\b|no[eë]l|weihnacht|\bnatale\b|рождеств|kerst",
-            "New Year": r"new year(?!.*(chinese|lunar))|a[ñn]o nuevo|ano novo|nouvel an|neujahr|capodanno|"
-                        r"новый год|nochevieja|silvester|r[ée]veillon|yılbaşı|yilbasi",
+            "New Year": r"new year|a[ñn]o nuevo|ano novo|nouvel an|neujahr|capodanno|новый год|nochevieja|silvester|"
+                        r"r[ée]veillon|yılbaşı|yilbasi|t[eế]t d[uư][oơ]ng l[iị]ch",
             "Halloween": r"halloween",
-            "Valentine's Day": r"valentin|san valent[ií]n|dia dos namorados",
+            "Valentine's Day": r"valentin|dia dos namorados|情人節|情人节",
             "Diwali": r"diwali|deepavali|dipawali",
-            "Lunar New Year": r"lunar new year|chinese new year|\bt[eế]t\b|spring festival|seollal|imlek|春节|春節",
+            "Lunar New Year": LNY_RX,
             "Mother's Day": r"mother'?s day|d[ií]a de (la|las) madres?|dia das m[ãa]es|f[eê]te des m[eè]res|muttertag|"
                             r"festa della mamma|anneler g[uü]n[uü]|moederdag",
-            "Black Friday": r"black friday"}
-holidays = {}
-for hname, rx in HOLIDAYS.items():
-    ids = topics_where(rx)
-    rows = tv[tv.topic_id.isin(ids)].assign(qn=lambda d: d.query_raw.astype(str).str.strip().str.lower())
-    if rows.empty:
-        holidays[hname] = {"topics": [], "occurrences": []}
-        continue
-    ag = rows.groupby("topic_id").agg(trends=("country_code", "size"), countries=("country_code", "nunique"))
-    ph = rows.groupby("topic_id").qn.agg(lambda s: s.value_counts().head(3).index.tolist()).to_dict()
-    tops = [{"topic_id": x, "name": name.get(x), "phrasings": ph.get(x, []), "countries": int(ag.countries[x]),
-             "trends": int(ag.trends[x])} for x in ag.sort_values("trends", ascending=False).index]
-    # occurrence = year of (UTC day + 15 days), so New Year's Eve counts with the new year
-    # occurrence = UTC year; New Year counts New Year's Eve with the new year
-    rows = rows.assign(occ=(pd.to_datetime(rows.day) + pd.Timedelta(days=15 if hname == "New Year" else 0)).dt.year)
+            "Black Friday": r"black friday",
+            "Women's Day": r"women'?s day|d[ií]a (internacional )?de la mujer|dia (internacional )?da mulher|"
+                           r"journ[ée]e (internationale )?des (droits des )?femmes|frauentag|festa della donna|"
+                           r"(?<!\d)8 (mart|марта|march|marzo|marca)|kad[ıi]nlar g[uü]n[uü]|международный женский|"
+                           r"ng[aà]y qu[oố]c t[eế] ph[uụ] n[uữ]|hari perempuan|妇女节|婦女節|يوم المرأة|dzie[nń] kobiet"}
+# holiday words used as names of people, places, clubs or brands
+HOL_NAME_RE = {
+    "Ramadan": r"ramazan (tetik|ar[ıi]kan|ba[sş]ak|bing[oö]l|can\b|kurto[gğ]lu|g[uü]lten|ka[sş]l[ıi]|demir|y[ıi]ld[ıi]z|"
+               r"sar[ıi])|ramazani|mert ramazan|survivor ramazan|g[oö]n[uü]l da[gğ][ıi] ramazan|"
+               r"ramadan (sobh|ahmeti|rouabah)|tariq ramadan|karar ramadan|nahla ramadan|mohamed ramadan|said ramadan",
+    "Eid": r"\w+bayram|bayram(ov|o[gğ]lu)|serkan bayram|bayram ali|emin bayram|[oö]mer bayram|tuna bayram|"
+           r"hac[ıi] bayram veli|bayrami[cç]|bayrampa[sş]a|(mahmoud|soliman|amir|said) eid\b",
+    "Easter": r"pascual|pasquale|pascoal|pasqual\b|pasqualini|pasquali\b|pasquarosa|pasquantino|pasqualone|"
+              r"easter island|klosterneuburg",
+    "Christmas": r"noel o.callaghan|no[eë]l[ií]a|no[eë]lle|no[eë]line|noelvi|manoel|noel 格闘家|no[eë]l-baker|"
+                 r"(jean|marie|mar[ií]a|cl[eé]ment|jules|fran[cç]ois|matthieu|tim|tova|brandon|gifton|david|kervon|"
+                 r"nerlens|jaylin|geert)[- ]no[eë]ls?\b|"
+                 r"no[eë]l (gallagher|fielding|edmonds|clarke|tata|robinson|johansen|ebenezer|stanton|barrionuevo|"
+                 r"t[oö]rnqvist|leeming|mcgrath|radford|meade|fitzpatrick|leon|eichinger|rosal|nordh|van kleef|hunt|"
+                 r"farrell|hoefenmayer|rodriguez|acciari|phillips|as[eé]ko|dempsey|gunler|futkeu|coward)|"
+                 r"kerstin|kersti\b|kersting|bickerstaff|kerstrand|akkerstr|zuckerstreu|carnatal|baunatal|natal chart|"
+                 r"natalee|kwazulu|santa cruz de natal|am[eé]rica de natal|am[eé]rica-rn|abc .*natal|"
+                 r"aeroporto de natal|natal-rn|natal/rn|natal \(rn\)|em natal\b|(andrea|enzo|antonio di|tot[oò] di) natale\b|"
+                 r"natale dalla|natal \w+ (x|vs)|(x|vs) .*natal\b|christmas island",
+    "Valentine's Day": r"valentin[aoie]?\b|valentini\b",
+    "Lunar New Year": r"\b(ap|assam|ctet|htet|reet|mahatet|kartet) (tet|result)|tet (result|certificate|e certificate|exam|"
+                      r"admit|answer|response)|\bap tet\b|ille sur tet",
+}
+# always a name, even next to a holiday word
+HOL_STRONG_RE = {"Valentine's Day": r"james valentine|carrington valentine|valentine (holmes|ozigbo|rosales|cadic)|"
+                                    r"my bloody valentine|bullet for my valentine|blue valentine|bill martin valentine"}
+# holiday context: a name word next to one of these phrases is the holiday (Père Noël, veglia pasquale, San Valentín)
+HOL_CTX = {
+    "Christmas": r"(papa|papá|p[eè]re|papai|pai|baba|ng[aà]y|nh[aạ]c|de|du|chant|joyeux|film|loto|march[eé]|parade|sapin|"
+                 r"solde|soldes|vacances|cadeaux?|b[uû]che|cr[eè]che|repas|menu|apr[eè]s|veille|r[ée]veillon|ouvert|"
+                 r"ferm[eé]|calendrier|lettre|chanson|musique|jeux|feu|night|panne|benediction|livreur|sciarada) no[eë]l\b|"
+                 r"no[eë]l (20\d\d|baba|night|au |dans |\d|à|en |de |des |du |tree|market)|^no[eë]l$|joyeux noel",
+    "Easter": r"(veglia|colomba|vigilia|domenica|luned[iì]) pas(quale|cual)|vigilia pascual",
+    "Valentine's Day": r"valentine'?s|valentine (day|week|gift|card)|san valent|saint[- ]?valentin|st\.? valentin|"
+                       r"sfantul valentin|valentin ?nap|valentinstag|valentino diena|valentinsdag|dia de s[aã]o valentim|"
+                       r"情人|valentinovo|valentines|valentine\b(?!.*(holmes|ozigbo|rosales|cadic|museum))",
+}
+# other days that share the word (not this holiday); New Year's Lunar topics go to Lunar New Year
+HOL_OTHER_RE = {
+    "Eid": r"cumhuriyet bayram|zafer bayram|kabotaj|[cç]ocuk bayram|egemenlik|t[ıi]p bayram|gen[cç]lik ve spor|"
+           r"23 nisan|29 ekim|30 a[gğ]ustos|19 may[ıi]s|1 temmuz|hari raya (natal|nyepi|waisak|galungan|kuningan|"
+           r"imlek|pentakosta|paskah)|nevruz|dil bayram|paskalya|i[sş][cç]i bayram|nardugan|new year|رأس السنة",
+    "New Year": r"chinese|lunar|cinese|chinois|chino\b|chin[eê]s|mondneujahr|chinesisch|gong xi|kung hei|xin nian",
+    "Lunar New Year": r"t[eế]t [dđ]oan ng[oọ]|t[eế]t [dđ][oộ]c l[aậ]p|thanh minh|t[eế]t d[uư][oơ]ng l[iị]ch",
+    # Women's Day: national women's days on other dates (Paraguay 24 Feb, Bolivia 11 Oct, Colombia 14 Oct, Honduras
+    # 25 Jan, South Africa 9 Aug, UAE 28 Aug, Viet Nam 20 Oct), profession days, and searches that only share the date
+    "Women's Day": r"20/10|20-10|vi[eệ]t nam|vietnamese women|paraguaya|boliviana|colombiana|hondure[ñn]a|"
+                   r"mujer (ingeniera|medica|m[eé]dica|policia)|ni[ñn]a en la ciencia|"
+                   r"mulher (negra|advogada)|(?<!inter)national women|south africa|emirati|الإماراتية|البحرينية|"
+                   r"\b8 mart (ma[cç]|s[uü]per lig)|alt[ıi]n fiyat|loto|survivor|беспилотник|гороскоп|магнитн|лото|"
+                   r"шоу маска|наша раша",
+}
+# 情人節 / 七夕 / Qixi: Chinese for Valentine's Day, but also Qixi (August), White Day (14 Mar) and other 14ths:
+# kept only when the topic's widest day is within 7 days of 14 February
+HOL_PEAK_RULE = {"Valentine's Day": (r"情人|七夕|qixi", 2, 14, 7)}
+# the holiday's date per year in the archive (2024-11-27 to 2026-05-17); series pairs the same holiday across years.
+# Mother's Day = second Sunday of May (US and most countries; the UK's Mothering Sunday in March is its own peak);
+# Ramadan = first day of fasting (Saudi calendar); Eid al-Adha 2026 (27 May) is after the archive ends.
+HOLIDAY_DATES = {
+    "Ramadan": [("Ramadan", "2025-03-01"), ("Ramadan", "2026-02-18")],
+    "Eid": [("Eid al-Fitr", "2025-03-30"), ("Eid al-Fitr", "2026-03-20"), ("Eid al-Adha", "2025-06-06")],
+    "Easter": [("Easter", "2025-04-20"), ("Easter", "2026-04-05")],
+    "Christmas": [("Christmas", "2024-12-25"), ("Christmas", "2025-12-25")],
+    "New Year": [("New Year", "2025-01-01"), ("New Year", "2026-01-01")],
+    "Halloween": [("Halloween", "2025-10-31")],
+    "Valentine's Day": [("Valentine's Day", "2025-02-14"), ("Valentine's Day", "2026-02-14")],
+    "Diwali": [("Diwali", "2025-10-20")],
+    "Lunar New Year": [("Lunar New Year", "2025-01-29"), ("Lunar New Year", "2026-02-17")],
+    "Mother's Day": [("Mother's Day", "2025-05-11"), ("Mother's Day", "2026-05-10")],
+    "Black Friday": [("Black Friday", "2024-11-29"), ("Black Friday", "2025-11-28")],
+    "Women's Day": [("Women's Day", "2025-03-08"), ("Women's Day", "2026-03-08")]}
+HOL_BEFORE, HOL_AFTER = 10, 5
+# round 32 rules, kept to show what the cleaning changed
+HOLIDAYS_R32 = {"Eid": r"\beid\b|eid al|eid-al|bayram|lebaran|hari raya|aid el",
+                "Lunar New Year": r"lunar new year|chinese new year|\bt[eế]t\b|spring festival|seollal|imlek|春节|春節",
+                "Christmas": r"christmas|\bxmas\b|navidad|\bnatal\b|no[eë]l|weihnacht|\bnatale\b|рождеств|kerst"}
+ODD_PEAKS = [("Eid", "2024-12-31"), ("Lunar New Year", "2024-12-31"), ("Christmas", "2026-03-26")]
+
+_tv_ids = set(tv.topic_id.unique())
+_day_cc = None
+_arch_days = set(all_days)
+
+
+def _hol_rows(ids):
+    return tv[tv.topic_id.isin(ids)]
+
+
+def _peak_day(rows):
+    g = rows.groupby("day").agg(c=("country_code", "nunique"), n=("country_code", "size"))
+    return g.sort_values(["c", "n"], ascending=False).index[0] if len(g) else None
+
+
+_hol_cand = {h: (topics_where(rx) & _tv_ids) for h, rx in HOLIDAYS.items()}
+_p31 = get_p31({q for ids in _hol_cand.values() for q in meta.qid.reindex(list(ids)).dropna()})
+hol_clean, hol_removed = {}, {}
+for hname, ids in _hol_cand.items():
+    d = meta.loc[sorted(ids)]
+    low = d.topic_name.astype(str).str.lower()
+    ctx = low.str.contains(HOL_CTX.get(hname, "^$"), regex=True)
+    strong = low.str.contains(HOL_STRONG_RE.get(hname, "^$"), regex=True)
+    q = d.qid
+    why = pd.Series("", index=d.index)
+    why[q.map(lambda x: x in _p31 and _p31[x]["coords"] and HUMAN_QID not in _p31[x]["p31"]) & ~ctx] = "Wikidata place"
+    why[d["type"].isin(["place"]) & ~ctx & why.eq("")] = "Claude type place"
+    why[q.map(lambda x: x in _p31 and HUMAN_QID in _p31[x]["p31"]) & ~ctx & why.eq("")] = "Wikidata human"
+    why[d["type"].isin(["person"]) & ~ctx & why.eq("")] = "Claude type person"
+    why[(low.str.contains(HOL_NAME_RE.get(hname, "^$"), regex=True) & ~ctx | strong) & why.eq("")] = "holiday word used as a name"
+    why[low.str.contains(HOL_OTHER_RE.get(hname, "^$"), regex=True) & why.eq("")] = (
+        "moved to Lunar New Year" if hname == "New Year" else "another day sharing the word")
+    if hname in HOL_PEAK_RULE:
+        rx_, mo_, dy_, tol_ = HOL_PEAK_RULE[hname]
+        for tid in d.index[low.str.contains(rx_, regex=True) & why.eq("")]:
+            pk = pd.Timestamp(_peak_day(_hol_rows({tid})))
+            off = abs((pk - pd.Timestamp(year=pk.year, month=mo_, day=dy_)).days)
+            if off > tol_:
+                why[tid] = f"Chinese 情人節 / 七夕 topic not within {tol_} days of {mo_:02d}-{dy_:02d}"
+    hol_clean[hname] = set(why.index[why.eq("")])
+    hol_removed[hname] = why[why.ne("")]
+    print(f"  holiday {hname}: {len(ids)} matched, {len(hol_clean[hname])} clean; removed "
+          f"{why[why.ne('')].value_counts().to_dict()}", flush=True)
+
+
+def _hol_item(rows, tid, ph):
+    r = rows[rows.topic_id == tid]
+    return {"topic_id": tid, "name": name.get(tid), "phrasings": ph.get(tid, []),
+            "countries": int(r.country_code.nunique()), "trends": int(len(r)), "peak_day": _peak_day(r)}
+
+
+holidays, hol_chart = {}, {}
+for hname, ids in hol_clean.items():
+    rows = _hol_rows(ids)
+    allr = _hol_rows(ids | set(hol_removed[hname].index))
+    ph = allr.assign(qn=allr.query_raw.astype(str).str.strip().str.lower()).groupby("topic_id").qn.agg(
+        lambda s: s.value_counts().head(3).index.tolist()).to_dict()
+    tops = sorted([_hol_item(rows, x, ph) for x in ids], key=lambda x: -x["trends"])
+    rem = sorted([_hol_item(allr, x, ph) | {"reason": hol_removed[hname][x]} for x in hol_removed[hname].index],
+                 key=lambda x: -x["trends"])
+    dcc = rows.groupby("day").country_code.agg(set)
     occ = []
-    for y_, g_ in rows.groupby("occ"):
-        dc = g_.groupby("day").country_code.nunique()
-        if dc.max() < 10:
-            continue
-        occ.append({"occurrence": int(y_), "peak_day": dc.idxmax(), "peak_countries": int(dc.max()),
-                    "countries": int(g_.country_code.nunique()), "trends": int(len(g_)),
-                    "_cc": set(g_.country_code)})
-    _two = sorted(occ, key=lambda o_: -o_["peak_countries"])[:2]
-    both = len(_two[0]["_cc"] & _two[1]["_cc"]) if len(_two) >= 2 else None
+    for series_, dt_ in HOLIDAY_DATES[hname]:
+        d0 = pd.Timestamp(dt_)
+        win = [(d0 + pd.Timedelta(days=k)).strftime("%Y-%m-%d") for k in range(-HOL_BEFORE, HOL_AFTER + 1)]
+        ser = [[k - HOL_BEFORE, dd, (len(dcc[dd]) if dd in dcc.index else 0) if dd in _arch_days else None,
+                dd in set(gap_days)] for k, dd in enumerate(win)]
+        inw = [x for x in ser if x[2] is not None]
+        pk = max(inw, key=lambda x: x[2]) if inw else None
+        ccs = set().union(*[dcc[dd] for dd in win if dd in dcc.index]) if any(dd in dcc.index for dd in win) else set()
+        occ.append({"series": series_, "year": d0.year, "date": dt_,
+                    "days_in_archive": len(inw), "peak_day": pk[1] if pk else None,
+                    "peak_countries": pk[2] if pk else None, "countries_in_window": len(ccs),
+                    "countries_per_day": [x[:3] for x in ser],
+                    "gap_days_in_window": [x[1] for x in ser if x[3]], "_cc": ccs})
+    both = {}
+    for series_ in dict.fromkeys(o_["series"] for o_ in occ):
+        oo = [o_ for o_ in occ if o_["series"] == series_ and o_["days_in_archive"] > 0]
+        if len(oo) >= 2:
+            cc2 = oo[0]["_cc"] & oo[1]["_cc"]
+            both[series_] = {"years": [oo[0]["year"], oo[1]["year"]], "countries": len(cc2),
+                             "country_codes": sorted(cc2), "country_names": [cname.get(c, c) for c in sorted(cc2)]}
     for o_ in occ:
         o_.pop("_cc")
-    holidays[hname] = {"rule": rx, "n_topics": len(tops), "topics": tops, "occurrences": occ,
-                       "countries_in_both_years": both}
-    print(f"  holiday {hname}: {len(tops)} topics; occurrences "
-          + "; ".join(f"{o_['occurrence']} peak {o_['peak_day']} ({o_['peak_countries']}), {o_['countries']} countries"
-                      for o_ in occ) + (f"; both years {both}" if both is not None else ""), flush=True)
+    dc_all = rows.groupby("day").country_code.nunique().sort_values(ascending=False)
+    holidays[hname] = {"rule": HOLIDAYS[hname], "name_rule": HOL_NAME_RE.get(hname), "other_day_rule": HOL_OTHER_RE.get(hname),
+                       "n_matched": len(ids) + len(hol_removed[hname]), "n_topics": len(tops),
+                       "removed_by_reason": hol_removed[hname].value_counts().to_dict(),
+                       "topics": tops, "removed": rem, "occurrences": occ, "countries_in_both_years": both,
+                       "top_days_anywhere": [[d_, int(v_)] for d_, v_ in dc_all.head(5).items()]}
+    hol_chart[hname] = {"topics": len(tops), "trends": int(len(rows)), "occurrences": occ,
+                        "countries_in_both_years": both}
+# odd peaks of round 32: countries that day with the round 32 group vs the clean group, and the widest topics before
+odd_peaks = []
+for hname, day_ in ODD_PEAKS:
+    old_ids = topics_where(HOLIDAYS_R32[hname]) & _tv_ids
+    r_old = tv[tv.topic_id.isin(old_ids) & (tv.day == day_)]
+    r_new = tv[tv.topic_id.isin(hol_clean[hname]) & (tv.day == day_)]
+    tt = r_old.groupby("topic_id").country_code.nunique().sort_values(ascending=False).head(5)
+    odd_peaks.append({"holiday": hname, "day": day_, "countries_round32": int(r_old.country_code.nunique()),
+                      "countries_clean": int(r_new.country_code.nunique()),
+                      "top_topics_round32": [{"name": name.get(k), "countries": int(v),
+                                              "in_clean_group": k in hol_clean[hname],
+                                              "phrasings": r_old[r_old.topic_id == k].query_raw.str.lower()
+                                              .value_counts().head(3).index.tolist()} for k, v in tt.items()]})
+ODD_PEAK_NOTES = {
+    ("Eid", "2024-12-31"): "Arabic 'عيد رأس السنة' (feast of the new year), a topic Claude named 'Eid al-Nahda (New Year's "
+                           "Eve)', plus New Year greetings merged into an Eid greetings topic ('كل عام وانتم بخير' is said "
+                           "for both). The New Year topic is now in New Year only; the greetings topic stays in Eid.",
+    ("Lunar New Year", "2024-12-31"): "Real searches, not a matching error: at the Gregorian New Year people look up the "
+                                      "coming Chinese New Year ('chinese new year 2025', 'chinese zodiac 2025', '除夕'). "
+                                      "The same echo appears on 2025-12-31. Kept; the charts use the window around the "
+                                      "Lunar New Year date.",
+    ("Christmas", "2026-03-26"): "Name match: Noelia Castillo, a Spanish euthanasia case in the news (matched 'noel'). "
+                                 "Removed by the name rule."}
+for o_ in odd_peaks:
+    o_["explanation"] = ODD_PEAK_NOTES[(o_["holiday"], o_["day"])]
 
 # cycle scan (non-sport topics; national feeds, local dates and hours; per topic and country)
 _ns = tv[~tv.topic_id.isin(SPORT_LIKE)]          # non-sport: no sport topics, athletes or mostly-sport topics
@@ -1841,30 +1990,6 @@ cycle_scan = {
                "yearly_topic_countries": int(len(_yearly)), "yearly_topics": int(_yearly.topic_id.nunique())}}
 print(f"  cycle scan: {cycle_scan['counts']}", flush=True)
 
-# "Is it down": share of its trends inside outage shocks
-_down_ids = WHOLE["Is it down"]
-_dr = tv[tv.topic_id.isin(_down_ids)]
-_out = [x for x in shocks if x["kind"] == "outage"]
-_ow = [(pd.Timestamp(x["date_utc"].replace("Z", ""), tz="UTC"), x) for x in _out]
-_in = np.zeros(len(_dr), bool)
-_st = _dr.start_time_utc.astype("int64").to_numpy() // 10**9
-for s0, _ in _ow:
-    lo_, hi_ = int(s0.timestamp()) - 2 * 3600, int(s0.timestamp()) + 24 * 3600
-    _in |= (_st >= lo_) & (_st < hi_)
-_dday = _dr.groupby("day").agg(countries=("country_code", "nunique"), trends=("country_code", "size"))
-_top10 = []
-for d_, x_ in _dday.sort_values(["countries", "trends"], ascending=False).head(10).iterrows():
-    dd = pd.Timestamp(d_, tz="UTC")
-    match = [x["name"] for s0, x in _ow if s0 - pd.Timedelta(hours=2) < dd + pd.Timedelta(days=1)
-             and s0 + pd.Timedelta(hours=24) > dd]
-    _top10.append({"day": d_, "countries": int(x_.countries), "trends": int(x_.trends),
-                   "outage_shocks": sorted(set(match))})
-is_it_down = {"topics": len(_down_ids), "trends": int(len(_dr)), "outage_shocks": len(_out),
-              "trends_inside_outage_shocks": int(_in.sum()),
-              "share_inside_outage_shocks": round(float(_in.mean()), 4) if len(_dr) else None,
-              "window": "from 2 h before to 24 h after each outage shock's start (shocks.json kind outage)",
-              "top10_days": _top10}
-
 # compact rows, split into files under 1 MB: rituals_review/ritual_topics_N.json and rituals_review/holidays.json
 RIT_FIELDS = ["topic_id", "name", "rule", "phrasings", "countries", "trends", "peak_day", "peak_countries",
               "active_local_days", "proposed_cycle", "sport_like"]
@@ -1875,25 +2000,64 @@ for i_ in range(0, len(_rit_rows), RIT_CHUNK):
     rel_ = f"rituals_review/ritual_topics_{i_ // RIT_CHUNK + 1}.json"
     write(rel_, {"fields": RIT_FIELDS, "rows": _rit_rows[i_:i_ + RIT_CHUNK]})
     _rit_files.append(rel_)
-HOL_FIELDS = ["topic_id", "name", "phrasings", "countries", "trends"]
+HOL_FIELDS = ["topic_id", "name", "phrasings", "countries", "trends", "peak_day"]
 write("rituals_review/holidays.json", {
-    "fields": HOL_FIELDS,
-    "holidays": {k_: {"rule": v_.get("rule"), "rows": [[x[f] for f in HOL_FIELDS] for x in v_["topics"]]}
+    "fields": HOL_FIELDS, "removed_fields": HOL_FIELDS + ["reason"],
+    "holidays": {k_: {"rule": v_["rule"], "rows": [[x[f] for f in HOL_FIELDS] for x in v_["topics"]],
+                      "removed": [[x[f] for f in HOL_FIELDS + ["reason"]] for x in v_["removed"]]}
                  for k_, v_ in holidays.items()}})
+_rv = WORK / "rituals_validation.json"
+rituals_score = load_json(_rv) if _rv.exists() else None
 write("rituals_review.json", {
     "note": "Rituals validation round. ritual_topics (in ritual_topic_files) = every topic of the ritual kind (not "
-            "hidden), most trends first; proposed_cycle is a rule on the topic's local dates: yearly (holiday type "
+            "hidden; 'is it down' topics are with Shocks), most trends first; proposed_cycle is a rule on the topic's "
+            "local dates: yearly (holiday type "
             "with half its trends within 10 days of the peak date, or 80%+ within 10 days and at most 60 active "
             "days), daily (active on 30%+ of the days of a 60+ day span: Trending Now flags surges, so even daily "
             "rituals miss most days), weekly (6+ weeks, 50%+ of trends on one weekday), else unclear; too few "
-            "trends = under 5. Holiday topic lists are in rituals_review/holidays.json.",
+            "trends = under 5. Holidays are the clean groups (round 33): full topic lists and removed topics with "
+            "the reason are in rituals_review/holidays.json; chart series are in rituals.json.",
     "rule": RIT_RULE, "n_ritual_topics": len(rit_topics), "proposed_cycles": _cyc,
     "ritual_topic_files": _rit_files, "ritual_topics_top100": rit_topics[:100],
     "weather_clock": weather_clock, "scrape_check": scrape_check, "weather_topics": weather_topics,
-    "holidays": {k_: {kk: vv for kk, vv in v_.items() if kk != "topics"} | {"top10_topics": v_["topics"][:10]}
+    "holiday_rules": {"order": "Wikidata place (has coordinates, not human) > Claude type place > Wikidata human > "
+                               "Claude type person > holiday word used as a name > another day sharing the word; a "
+                               "holiday phrase next to the word (Pere Noel, veglia pasquale, San Valentin) keeps the "
+                               "topic. Valentine's Day: Chinese 情人節 / 七夕 topics kept only if their widest day is "
+                               "within 7 days of 14 February.",
+                      "dates": HOLIDAY_DATES, "window_days": [-HOL_BEFORE, HOL_AFTER]},
+    "holiday_label_score": rituals_score,
+    "holidays": {k_: {kk: vv for kk, vv in v_.items() if kk not in ("topics", "removed")}
+                 | {"top10_topics": v_["topics"][:10], "removed_top20": v_["removed"][:20]}
                  for k_, v_ in holidays.items()},
+    "odd_peaks": odd_peaks,
     "holiday_topics_file": "rituals_review/holidays.json",
-    "cycle_scan": cycle_scan, "is_it_down": is_it_down})
+    "cycle_scan": cycle_scan})
+# rituals.json: chart data (weather clock, holiday windows)
+_pk_c = []
+for c, v in per_c.items():
+    d_ = w[w.country_code == c]
+    tdy, tmw = d_[~d_.tomorrow], d_[d_.tomorrow]
+    _pk_c.append({"country": c, "country_name": v["country_name"], "trends": v["trends"], "peak_hour": v["peak_hour"],
+                  "today_peak_hour": int(pd.Series(hours(tdy)).idxmax()) if len(tdy) >= 20 else None,
+                  "tomorrow_peak_hour": int(pd.Series(hours(tmw)).idxmax()) if len(tmw) >= 20 else None,
+                  "time_zone_source": v["time_zone_source"]})
+_pk_c.sort(key=lambda x: -x["trends"])
+rituals = {
+    "note": "Chart data for Rituals. weather_clock: weather-category trends by local hour of their start (US, CA and RU "
+            "regional feeds in each region's zone; every other country one zone), as shares of all trends; 'tomorrow' "
+            "= phrasings with tomorrow / mañana / amanhã / demain / morgen / ... ; 'today' = every other weather "
+            "phrasing. Per-country today / tomorrow peaks need 20+ trends. holidays: clean groups (round 33), "
+            "countries per UTC day from 10 days before to 5 days after each holiday date, [offset, day, countries]; "
+            "countries is null on days outside the archive (2024-11-27 to 2026-05-17).",
+    "weather_clock": {"share_by_local_hour": _share(w), "today_share_by_local_hour": _share(_wt),
+                      "tomorrow_share_by_local_hour": _share(w[w.tomorrow]),
+                      "trends": int(len(w)), "today_trends": int(len(_wt)), "tomorrow_trends": int(w.tomorrow.sum()),
+                      "peak_local_hour_per_country": _pk_c,
+                      "countries_per_peak_hour": weather_clock["countries_per_peak_hour"]},
+    "weather_days": weather_days,
+    "holidays": hol_chart, "holiday_dates": HOLIDAY_DATES}
+write("rituals.json", rituals)
 num("Rituals", "Ritual topics (not hidden) / proposed cycle daily / weekly / yearly / unclear / too few trends",
     f"{len(rit_topics):,} / {_cyc.get('daily', 0):,} / {_cyc.get('weekly', 0):,} / {_cyc.get('yearly', 0):,} / "
     f"{_cyc.get('unclear (sporadic)', 0):,} / {_cyc.get('too few trends', 0):,}", "rituals_review.json", "ritual_topics")
@@ -1923,10 +2087,27 @@ num("Rituals", "Weather: countries by peak local hour, most common hours",
     ", ".join(f"{h_}:00 {v_}" for h_, v_ in _pkh.sort_values(ascending=False).head(4).items()),
     "rituals_review.json", "weather_clock.countries_per_peak_hour")
 for hname, v_ in holidays.items():
-    oc = "; ".join(f"{o_['occurrence']}: {o_['peak_day']} ({o_['peak_countries']})" for o_ in v_.get("occurrences", []))
-    num("Rituals", f"Holiday {hname}: topics / peak day (countries) per year / countries in both years",
-        f"{v_.get('n_topics', 0)} / {oc or '-'} / {v_.get('countries_in_both_years') if v_.get('countries_in_both_years') is not None else '-'}",
-        "rituals_review.json", f"holidays.{hname}")
+    rm_ = v_["removed_by_reason"]
+    nm_ = sum(n_ for r_, n_ in rm_.items() if r_ in ("Wikidata place", "Claude type place", "Wikidata human",
+                                                    "Claude type person", "holiday word used as a name"))
+    num("Rituals", f"Holiday {hname}: topics matched / removed as names (people, places) / removed otherwise / clean",
+        f"{v_['n_matched']} / {nm_} / {sum(rm_.values()) - nm_} / {v_['n_topics']}", "rituals_review.json",
+        f"holidays.{hname}.removed_by_reason")
+    oc = "; ".join(f"{o_['series']} {o_['year']}: {o_['peak_day']} ({o_['peak_countries']})"
+                   for o_ in v_["occurrences"] if o_["days_in_archive"])
+    bb = "; ".join(f"{k__} {b_['countries']}" for k__, b_ in v_["countries_in_both_years"].items()) or "-"
+    num("Rituals", f"Holiday {hname} (clean): peak day (countries) per year, in the window -10 to +5 days / "
+                   "countries in both years", f"{oc} / {bb}", "rituals.json", f"holidays.{hname}")
+for o_ in odd_peaks:
+    num("Rituals", f"Odd peak {o_['holiday']} {o_['day']}: countries with the round 32 group / clean group",
+        f"{o_['countries_round32']} / {o_['countries_clean']}", "rituals_review.json", "odd_peaks")
+if rituals_score:
+    num("Rituals", "Holiday sample (hand labels): about the holiday, of all",
+        f"{rituals_score['about']} of {rituals_score['n']} ({rituals_score['precision']:.0%})",
+        "rituals_review.json", "holiday_label_score")
+    num("Rituals", "Holiday sample: unrelated topics removed by the clean rule / holiday topics wrongly removed",
+        f"{rituals_score['unrelated_removed']} of {rituals_score['unrelated']} / {rituals_score['about_removed']} of "
+        f"{rituals_score['about']}", "rituals_review.json", "holiday_label_score")
 _cc_ = cycle_scan["counts"]
 num("Rituals", "Cycle scan: topics with a daily / weekly / yearly cycle in at least one country",
     f"{_cc_['daily_topics']:,} / {_cc_['weekly_topics']:,} / {_cc_['yearly_topics']:,}", "rituals_review.json",
@@ -1934,11 +2115,6 @@ num("Rituals", "Cycle scan: topics with a daily / weekly / yearly cycle in at le
 for k_ in ("daily", "weekly", "yearly"):
     num("Rituals", f"Cycle scan, top 5 {k_}", "; ".join(f"{x['name']} ({x['countries']})" for x in cycle_scan[k_][:5]),
         "rituals_review.json", f"cycle_scan.{k_}")
-num("Rituals", "'Is it down': trends inside outage shocks (share)",
-    f"{is_it_down['trends_inside_outage_shocks']:,} of {is_it_down['trends']:,} ({is_it_down['share_inside_outage_shocks']:.0%})",
-    "rituals_review.json", "is_it_down")
-num("Rituals", "'Is it down': top 10 days with a matching outage shock",
-    f"{sum(1 for x in _top10 if x['outage_shocks'])} of 10", "rituals_review.json", "is_it_down.top10_days")
 
 # ------------------------------------------------------------------ 7 time machine
 print("time machine ...", flush=True)

@@ -1449,6 +1449,47 @@ Sample 1 (`docs/shock_validation_sample.csv`, 100 moments) is now the **tuning**
   - 652 topics, 3,941 trends; 47% of them fall inside an outage shock (2 h before to 24 h after its start; 74 outage shocks).
   - All of its top 10 days match an outage. The top three: Cloudflare (18 Nov 2025, 99 countries), Cloudflare with Canva and Bet365 (5 Dec 2025, 63), X (10 Mar 2025, 60).
 
+### Step 9 round 33: rituals labels scored, clean holiday groups, rituals.json (2026-11-24)
+- **Holiday labels** (`docs/rituals_review.csv`, 60 topics from the round 32 groups; `09_validate_shocks.py rituals-score` → `work/rituals_validation.json`):
+  - 54 of 60 about the holiday (90%, 95% Wilson 80–95%). Unweighted: at least 3 per holiday, the rest proportional.
+  - Precision per holiday: Easter 3 of 5, Christmas 13 of 16, Eid 6 of 7; every other holiday (Ramadan 4, New Year 10, and 3 each for Halloween, Valentine's Day, Diwali, Lunar New Year, Mother's Day, Black Friday) is all about the holiday.
+  - All 6 unrelated topics are people (serkan bayram, pasquale allevi, piolo pascual, natale dalla vecchia, Kerstin G, matthieu noel). The clean rule removes all 6 and none of the 54 holiday topics; 2 New Year topics move to Lunar New Year.
+- **Clean holiday groups** (`08_story_export.py`, section 6b). A broad name rule per holiday, then removed in this order:
+  - Wikidata place (P625 coordinates, not human), Claude type place, Wikidata human (P31 = Q5), Claude type person. P31/P625 come from a new cached lookup, `wikidata.get_p31` (`cache/wikidata/claims_p31/`; same User-Agent rule).
+  - Holiday words used as names (`HOL_NAME_RE`): Bayram/Akbayram/Bayramoğlu, Ramazan (people), Pascual/Pasquale/Pascoal, Noel/Noelia/Manoel, Natale (people), Natal (the city and its clubs), KwaZulu-Natal, Kerstin/Bickerstaff, Valentina/Valentino/Valentin …
+  - A holiday phrase next to the word keeps the topic (`HOL_CTX`: Père Noël, papai noel, marché de Noël, veglia pasquale, colomba pasquale, San Valentín, Valentin nap, valentinovo).
+  - Other days that share the word (`HOL_OTHER_RE`): Turkish national bayrams, Nevruz, hari raya natal / nyepi / waisak, Tết Đoan Ngọ / Thanh Minh / Tết dương lịch, national women's days on other dates, and searches that only share the date "8 March" (football, horoscopes, lotteries).
+  - Topics with names (people, places) removed: Ramadan 27 of 412, Eid 25 of 632, Easter 42 of 415, Christmas 136 of 1,220, Valentine's Day 176 of 294. Halloween, Diwali, Mother's Day, Black Friday, New Year and Lunar New Year lose none.
+  - Removed as other days: Eid 21, Lunar New Year 14, Women's Day 30. Clean topics: Ramadan 385, Eid 586, Easter 373, Christmas 1,084, New Year 650, Valentine's Day 111, Lunar New Year 175, Women's Day 134.
+- **Lunar New Year greetings.** Chinese / Lunar New Year topics, gong xi fa cai, kung hei fat choi, xin nian kuai le, capodanno cinese, año nuevo chino … move from New Year to Lunar New Year (84 topics).
+- **情人節.** Chinese 情人節 / 七夕 topics stay in Valentine's Day only if their widest day is within 7 days of 14 February. 7 are removed: Qixi in August, White Day on 14 March, the 14th of other months. The topic Claude named "Qixi Festival" peaks on 14 Feb 2025 and stays.
+- **Odd peaks:**
+  - Eid on 2024-12-31 (16 → 6 countries): Arabic "عيد رأس السنة" (feast of the new year), named "Eid al-Nahda (New Year's Eve)" by Claude. It is now in New Year only. The 6 countries left come from an Eid greetings topic that also holds New Year greetings (the same phrase is said for both); left as is.
+  - Lunar New Year on 2024-12-31 (22 → 23): real searches. At the Gregorian New Year people look up the coming Chinese New Year ("chinese new year 2025", "chinese zodiac 2025", 除夕); the same echo appears on 2025-12-31. Kept.
+  - Christmas on 2026-03-26 (40 → 0): Noelia Castillo, a Spanish euthanasia case, matched "noel". Removed by the name rule.
+- **International Women's Day** is added with the same outputs. 8 March: 106 countries (2025) and 109 (2026); 114 in both years.
+- **Holiday windows.** Countries per UTC day from 10 days before to 5 days after each holiday date (`HOLIDAY_DATES`; Ramadan = first day of fasting; Mother's Day = second Sunday of May; Eid al-Fitr in both years plus Eid al-Adha 2025). Days outside the archive are null. Peak and countries in both years are taken within the windows:
+
+  | Holiday | First year | Second year | Both years |
+  |---|---|---|---|
+  | Ramadan | 28 Feb 2025 (74) | 17 Feb 2026 (75) | 77 |
+  | Eid al-Fitr | 30 Mar 2025 (81) | 20 Mar 2026 (67) | 86 |
+  | Easter | 20 Apr 2025 (83) | 5 Apr 2026 (77) | 85 |
+  | Christmas | 24 Dec 2024 (100) | 24 Dec 2025 (98) | 106 |
+  | New Year | 31 Dec 2024 (125) | 31 Dec 2025 (123) | 125 |
+  | Valentine's Day | 13 Feb 2025 (86) | 14 Feb 2026 (73) | 102 |
+  | Lunar New Year | 28 Jan 2025 (40) | 17 Feb 2026 (51) | 54 |
+  | Mother's Day | 11 May 2025 (68) | 10 May 2026 (72) | 75 |
+  | Black Friday | 28 Nov 2024 (42) | 27 Nov 2025 (38) | 54 |
+  | Women's Day | 8 Mar 2025 (106) | 8 Mar 2026 (109) | 114 |
+
+  Once in the archive: Eid al-Adha 2025 (6 Jun, 68), Halloween (31 Oct 2025, 53), Diwali (20 Oct 2025, 48). The Black Friday 2024 window starts before the archive (27 Nov 2024).
+- **"Is it down" moves to Shocks** (`shocks.json` key `is_it_down`: by day, strict phrasing by day, share inside outage shocks, top 10 days). Its topics leave the rituals review lists (13,573 → 13,565 ritual topics). Step 4 moment kinds are unchanged: its moments outside shocks are still kind ritual in moments.parquet.
+- **`rituals.json` is now the chart file:**
+  - Weather clock: share of trends by local hour (all, today, tomorrow) and each country's peak hour (all, today, tomorrow; today and tomorrow need 20+ trends).
+  - Weather days, and the clean holiday windows.
+  - The round 13 whole-topic / strict counts for Ramadan, Eid and Easter, and the "when is" series, are gone; the clean groups replace them.
+
 ## Open issues (need a decision)
 
 _Updated 2026-11-09, after the short-string, sport, 19:00 UTC and Wrapped fixes (rerun from combine: combine, link, validation, moments, export, profile, checks)._

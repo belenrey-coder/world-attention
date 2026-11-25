@@ -35,6 +35,8 @@ Conventions: national feeds; UTC unless a local hour is named; a moment is one t
 
 | number | value | file | key |
 |---|---|---|---|
+| 'Is it down' (652 topics): trends inside outage shocks (share) | 1,839 of 3,941 (47%) | `shocks.json` | `is_it_down` |
+| 'Is it down': widest day (countries) / top 10 days with a matching outage shock | 2025-11-18 (99) / 10 of 10 | `shocks.json` | `is_it_down.top10_days` |
 | Chart set: 60 shocks (by event reach once event groups are reviewed), of which hand-verified | 60 of 60 | `shocks.json` | `chart_top60` |
 | Shocks verified by hand label (all) | 133 | `shocks.json` | `moments[].verified` |
 | Estimated true number of shocks (flagged x precision / recall, 95% bootstrap interval) | 475 [400, 548] | `shocks.json` | `estimate_true_shocks` |
@@ -312,52 +314,52 @@ Conventions: national feeds; UTC unless a local hour is named; a moment is one t
 
 | number | value | file | key |
 |---|---|---|---|
-| Weather: busiest local hour, all countries (with / without 19 UTC bump) | 6 / 6 | `rituals.json` | `weather_all_countries` |
+| Weather: busiest local hour, all countries (with / without 19 UTC bump) | 6 / 6 | `rituals.json` | `weather_clock.share_by_local_hour` |
 | Archive days (first to last data day) / of which full collection coverage | 537 / 486 | `rituals.json` | `weather_days.full_coverage_days` |
 | (a) Full-coverage days on which the topic 'Weather' (22 topics named so) trended in 10+ countries | 409 | `rituals.json` | `weather_days.topic_weather_days_10plus` |
 | (a') ... the single topic with id 'Weather' only | 294 | `rituals.json` | `weather_days.topic_weather_plain_id_days_10plus` |
 | (b) Full-coverage days on which any weather topic (6,212 topics) trended in 10+ countries | 486 | `rituals.json` | `weather_days.any_weather_topic_days_10plus` |
-| Ramadan, whole topic (385 topics): peak day and countries (ARTICLE) | 2026-02-17: 75 | `rituals.json` | `by_topic.Ramadan.whole_topic` |
-| Ramadan, whole topic: countries ever / trends | 93 / 2,463 | `rituals.json` | `by_topic.Ramadan.whole_topic` |
-| Ramadan, strict phrasing: peak day and countries | 2025-02-28: 10 | `rituals.json` | `by_topic.Ramadan.strict` |
-| Ramadan, strict phrasing: countries ever / trends | 23 / 62 | `rituals.json` | `by_topic.Ramadan.strict` |
-| Eid, whole topic (730 topics): peak day and countries (ARTICLE) | 2025-03-30: 81 | `rituals.json` | `by_topic.Eid.whole_topic` |
-| Eid, whole topic: countries ever / trends | 95 / 3,727 | `rituals.json` | `by_topic.Eid.whole_topic` |
-| Eid, strict phrasing: peak day and countries | 2026-03-18: 9 | `rituals.json` | `by_topic.Eid.strict` |
-| Eid, strict phrasing: countries ever / trends | 21 / 65 | `rituals.json` | `by_topic.Eid.strict` |
-| Easter, whole topic (236 topics): peak day and countries (ARTICLE) | 2025-04-20: 83 | `rituals.json` | `by_topic.Easter.whole_topic` |
-| Easter, whole topic: countries ever / trends | 103 / 1,562 | `rituals.json` | `by_topic.Easter.whole_topic` |
-| Easter, strict phrasing: peak day and countries | 2025-04-20: 5 | `rituals.json` | `by_topic.Easter.strict` |
-| Easter, strict phrasing: countries ever / trends | 12 / 41 | `rituals.json` | `by_topic.Easter.strict` |
-| Is it down, whole topic (652 topics): peak day and countries (ARTICLE) | 2025-11-18: 99 | `rituals.json` | `by_topic.Is it down.whole_topic` |
-| Is it down, whole topic: countries ever / trends | 111 / 3,941 | `rituals.json` | `by_topic.Is it down.whole_topic` |
-| Is it down, strict phrasing: peak day and countries | 2026-05-12: 25 | `rituals.json` | `by_topic.Is it down.strict` |
-| Is it down, strict phrasing: countries ever / trends | 61 / 1,237 | `rituals.json` | `by_topic.Is it down.strict` |
-| Ritual topics (not hidden) / proposed cycle daily / weekly / yearly / unclear / too few trends | 13,573 / 49 / 140 / 1,269 / 1,897 / 10,218 | `rituals_review.json` | `ritual_topics` |
-| Ritual topics that look like sport (topic sport, athlete, or mostly sport moments) | 55 of 13,573 (of those with 5+ trends: 27 of 3,355) | `rituals_review.json` | `ritual_topics[].sport_like` |
+| Ritual topics (not hidden) / proposed cycle daily / weekly / yearly / unclear / too few trends | 13,565 / 49 / 140 / 1,268 / 1,897 / 10,211 | `rituals_review.json` | `ritual_topics` |
+| Ritual topics that look like sport (topic sport, athlete, or mostly sport moments) | 55 of 13,565 (of those with 5+ trends: 27 of 3,354) | `rituals_review.json` | `ritual_topics[].sport_like` |
 | Weather clock: busiest local hour, 'today' / 'tomorrow' phrasings | 6:00 (31.0%) / 20:00 (77.8%) | `rituals_review.json` | `weather_clock` |
 | Weather clock without multi-zone countries (14 left out): busiest hour today / tomorrow | 6:00 / 20:00 | `rituals_review.json` | `weather_clock.robustness_without_multizone` |
 | Weather clock: 'today' share 05:00-09:59 local / 'tomorrow' share 18:00-23:59 local | 60.6% / 98.3% | `rituals_review.json` | `weather_clock` |
 | Scrape proxy: UTC hour of the latest trend start per collection day (most common, share of days) | 10:00 (48% of 486 days) | `rituals_review.json` | `scrape_check` |
 | Trends starting 19:00-19:59 UTC: share lasting 20 h+ vs other hours (median) | 14.7% vs 13.4% | `rituals_review.json` | `scrape_check` |
 | Weather: countries by peak local hour, most common hours | 6:00 90, 20:00 18, 7:00 11, 5:00 5 | `rituals_review.json` | `weather_clock.countries_per_peak_hour` |
-| Holiday Ramadan: topics / peak day (countries) per year / countries in both years | 332 / 2025: 2025-02-28 (74); 2026: 2026-02-17 (75) / 82 | `rituals_review.json` | `holidays.Ramadan` |
-| Holiday Eid: topics / peak day (countries) per year / countries in both years | 575 / 2024: 2024-12-31 (16); 2025: 2025-03-30 (81); 2026: 2026-03-20 (67) / 86 | `rituals_review.json` | `holidays.Eid` |
-| Holiday Easter: topics / peak day (countries) per year / countries in both years | 418 / 2025: 2025-04-20 (83); 2026: 2026-04-05 (77) / 95 | `rituals_review.json` | `holidays.Easter` |
-| Holiday Christmas: topics / peak day (countries) per year / countries in both years | 1220 / 2024: 2024-12-24 (100); 2025: 2025-12-24 (98); 2026: 2026-03-26 (40) / 107 | `rituals_review.json` | `holidays.Christmas` |
-| Holiday New Year: topics / peak day (countries) per year / countries in both years | 726 / 2025: 2024-12-31 (125); 2026: 2025-12-31 (123) / 125 | `rituals_review.json` | `holidays.New Year` |
-| Holiday Halloween: topics / peak day (countries) per year / countries in both years | 75 / 2025: 2025-10-31 (53) / - | `rituals_review.json` | `holidays.Halloween` |
-| Holiday Valentine's Day: topics / peak day (countries) per year / countries in both years | 289 / 2025: 2025-02-13 (86); 2026: 2026-02-14 (73) / 106 | `rituals_review.json` | `holidays.Valentine's Day` |
-| Holiday Diwali: topics / peak day (countries) per year / countries in both years | 49 / 2025: 2025-10-20 (48) / - | `rituals_review.json` | `holidays.Diwali` |
-| Holiday Lunar New Year: topics / peak day (countries) per year / countries in both years | 178 / 2024: 2024-12-31 (22); 2025: 2025-01-28 (39); 2026: 2026-02-17 (51) / 54 | `rituals_review.json` | `holidays.Lunar New Year` |
-| Holiday Mother's Day: topics / peak day (countries) per year / countries in both years | 124 / 2025: 2025-05-11 (68); 2026: 2026-05-10 (72) / 88 | `rituals_review.json` | `holidays.Mother's Day` |
-| Holiday Black Friday: topics / peak day (countries) per year / countries in both years | 260 / 2024: 2024-11-28 (42); 2025: 2025-11-27 (38) / 54 | `rituals_review.json` | `holidays.Black Friday` |
+| Holiday Ramadan: topics matched / removed as names (people, places) / removed otherwise / clean | 412 / 27 / 0 / 385 | `rituals_review.json` | `holidays.Ramadan.removed_by_reason` |
+| Holiday Ramadan (clean): peak day (countries) per year, in the window -10 to +5 days / countries in both years | Ramadan 2025: 2025-02-28 (74); Ramadan 2026: 2026-02-17 (75) / Ramadan 77 | `rituals.json` | `holidays.Ramadan` |
+| Holiday Eid: topics matched / removed as names (people, places) / removed otherwise / clean | 632 / 25 / 21 / 586 | `rituals_review.json` | `holidays.Eid.removed_by_reason` |
+| Holiday Eid (clean): peak day (countries) per year, in the window -10 to +5 days / countries in both years | Eid al-Fitr 2025: 2025-03-30 (81); Eid al-Fitr 2026: 2026-03-20 (67); Eid al-Adha 2025: 2025-06-06 (68) / Eid al-Fitr 86 | `rituals.json` | `holidays.Eid` |
+| Holiday Easter: topics matched / removed as names (people, places) / removed otherwise / clean | 415 / 42 / 0 / 373 | `rituals_review.json` | `holidays.Easter.removed_by_reason` |
+| Holiday Easter (clean): peak day (countries) per year, in the window -10 to +5 days / countries in both years | Easter 2025: 2025-04-20 (83); Easter 2026: 2026-04-05 (77) / Easter 85 | `rituals.json` | `holidays.Easter` |
+| Holiday Christmas: topics matched / removed as names (people, places) / removed otherwise / clean | 1220 / 136 / 0 / 1084 | `rituals_review.json` | `holidays.Christmas.removed_by_reason` |
+| Holiday Christmas (clean): peak day (countries) per year, in the window -10 to +5 days / countries in both years | Christmas 2024: 2024-12-24 (100); Christmas 2025: 2025-12-24 (98) / Christmas 106 | `rituals.json` | `holidays.Christmas` |
+| Holiday New Year: topics matched / removed as names (people, places) / removed otherwise / clean | 734 / 0 / 84 / 650 | `rituals_review.json` | `holidays.New Year.removed_by_reason` |
+| Holiday New Year (clean): peak day (countries) per year, in the window -10 to +5 days / countries in both years | New Year 2025: 2024-12-31 (125); New Year 2026: 2025-12-31 (123) / New Year 125 | `rituals.json` | `holidays.New Year` |
+| Holiday Halloween: topics matched / removed as names (people, places) / removed otherwise / clean | 75 / 0 / 0 / 75 | `rituals_review.json` | `holidays.Halloween.removed_by_reason` |
+| Holiday Halloween (clean): peak day (countries) per year, in the window -10 to +5 days / countries in both years | Halloween 2025: 2025-10-31 (53) / - | `rituals.json` | `holidays.Halloween` |
+| Holiday Valentine's Day: topics matched / removed as names (people, places) / removed otherwise / clean | 294 / 176 / 7 / 111 | `rituals_review.json` | `holidays.Valentine's Day.removed_by_reason` |
+| Holiday Valentine's Day (clean): peak day (countries) per year, in the window -10 to +5 days / countries in both years | Valentine's Day 2025: 2025-02-13 (86); Valentine's Day 2026: 2026-02-14 (73) / Valentine's Day 102 | `rituals.json` | `holidays.Valentine's Day` |
+| Holiday Diwali: topics matched / removed as names (people, places) / removed otherwise / clean | 49 / 0 / 0 / 49 | `rituals_review.json` | `holidays.Diwali.removed_by_reason` |
+| Holiday Diwali (clean): peak day (countries) per year, in the window -10 to +5 days / countries in both years | Diwali 2025: 2025-10-20 (48) / - | `rituals.json` | `holidays.Diwali` |
+| Holiday Lunar New Year: topics matched / removed as names (people, places) / removed otherwise / clean | 189 / 0 / 14 / 175 | `rituals_review.json` | `holidays.Lunar New Year.removed_by_reason` |
+| Holiday Lunar New Year (clean): peak day (countries) per year, in the window -10 to +5 days / countries in both years | Lunar New Year 2025: 2025-01-28 (40); Lunar New Year 2026: 2026-02-17 (51) / Lunar New Year 54 | `rituals.json` | `holidays.Lunar New Year` |
+| Holiday Mother's Day: topics matched / removed as names (people, places) / removed otherwise / clean | 124 / 0 / 0 / 124 | `rituals_review.json` | `holidays.Mother's Day.removed_by_reason` |
+| Holiday Mother's Day (clean): peak day (countries) per year, in the window -10 to +5 days / countries in both years | Mother's Day 2025: 2025-05-11 (68); Mother's Day 2026: 2026-05-10 (72) / Mother's Day 75 | `rituals.json` | `holidays.Mother's Day` |
+| Holiday Black Friday: topics matched / removed as names (people, places) / removed otherwise / clean | 260 / 0 / 0 / 260 | `rituals_review.json` | `holidays.Black Friday.removed_by_reason` |
+| Holiday Black Friday (clean): peak day (countries) per year, in the window -10 to +5 days / countries in both years | Black Friday 2024: 2024-11-28 (42); Black Friday 2025: 2025-11-27 (38) / Black Friday 54 | `rituals.json` | `holidays.Black Friday` |
+| Holiday Women's Day: topics matched / removed as names (people, places) / removed otherwise / clean | 164 / 0 / 30 / 134 | `rituals_review.json` | `holidays.Women's Day.removed_by_reason` |
+| Holiday Women's Day (clean): peak day (countries) per year, in the window -10 to +5 days / countries in both years | Women's Day 2025: 2025-03-08 (106); Women's Day 2026: 2026-03-08 (109) / Women's Day 114 | `rituals.json` | `holidays.Women's Day` |
+| Odd peak Eid 2024-12-31: countries with the round 32 group / clean group | 16 / 6 | `rituals_review.json` | `odd_peaks` |
+| Odd peak Lunar New Year 2024-12-31: countries with the round 32 group / clean group | 22 / 23 | `rituals_review.json` | `odd_peaks` |
+| Odd peak Christmas 2026-03-26: countries with the round 32 group / clean group | 40 / 0 | `rituals_review.json` | `odd_peaks` |
+| Holiday sample (hand labels): about the holiday, of all | 54 of 60 (90%) | `rituals_review.json` | `holiday_label_score` |
+| Holiday sample: unrelated topics removed by the clean rule / holiday topics wrongly removed | 6 of 6 / 0 of 54 | `rituals_review.json` | `holiday_label_score` |
 | Cycle scan: topics with a daily / weekly / yearly cycle in at least one country | 335 / 140 / 9,897 | `rituals_review.json` | `cycle_scan.counts` |
 | Cycle scan, top 5 daily | Weather (58); Weather tomorrow (22); Weather (9); Weather today (8); Today's weather (6) | `rituals_review.json` | `cycle_scan.daily` |
 | Cycle scan, top 5 weekly | Investments (5); Funeral director (3); Childcare (3); Americano (3); Child care (3) | `rituals_review.json` | `cycle_scan.weekly` |
 | Cycle scan, top 5 yearly | New Year's Eve (117); New Year's Day (106); International Women's Day (99); Valentine's Day (92); Christmas (63) | `rituals_review.json` | `cycle_scan.yearly` |
-| 'Is it down': trends inside outage shocks (share) | 1,839 of 3,941 (47%) | `rituals_review.json` | `is_it_down` |
-| 'Is it down': top 10 days with a matching outage shock | 10 of 10 | `rituals_review.json` | `is_it_down.top10_days` |
 
 ## Time machine
 
