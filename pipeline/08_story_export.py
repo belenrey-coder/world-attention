@@ -187,6 +187,7 @@ opening = {"event": "Death of Pope Francis (announced 2025-04-21 07:47 UTC)", "b
            "by_country": ctry,
            "cumulative_by_10_min": [[k, int((mins <= k).sum())] for k in range(0, 24 * 60 + 1, 10)]}
 write("opening.json", opening)
+POPE_IDS, POPE_LO, POPE_HI = set(pope), lo, hi        # reused by two_clocks.json
 num("Opening", "First Pope Francis trend (UTC)", opening["first_trend_utc"], "opening.json", "first_trend_utc")
 num("Opening", "Countries in 24 h", len(ctry), "opening.json", "countries")
 num("Opening", "Minutes until half of them", half, "opening.json", "minutes_to_half")
@@ -2116,6 +2117,195 @@ num("Rituals", "Cycle scan: topics with a daily / weekly / yearly cycle in at le
 for k_ in ("daily", "weekly", "yearly"):
     num("Rituals", f"Cycle scan, top 5 {k_}", "; ".join(f"{x['name']} ({x['countries']})" for x in cycle_scan[k_][:5]),
         "rituals_review.json", f"cycle_scan.{k_}")
+
+# ------------------------------------------------------------------ 6c two clocks (Step 9 round 35)
+print("two clocks ...", flush=True)
+# Rituals keep the local clock, shocks keep the UTC clock. Per country: the 10-minute step with the most trends of
+# the case's topics (ties: earliest) in its national feed; local time = that UTC time in the country's zone
+# (data/interim/country_timezones.json, DST-aware on that day). US, CA and RU have one national feed but several
+# zones: the national peak uses the zone in country_timezones.json (US America/Chicago, CA America/Toronto,
+# RU Europe/Moscow), and `zones` adds each zone's peak from the regional feeds (REGION_TZ), in that zone's own clock.
+TC_MULTI = ("US", "CA", "RU")
+_tc_reg = allrows[(allrows.level == "region") & allrows.country_code.isin(TC_MULTI)].copy()
+_tc_reg["zone"] = [REGION_TZ.get(c, {}).get(z, cz[c]) for c, z in
+                   zip(_tc_reg.country_code, _tc_reg.location.str.split("-").str[1])]
+
+
+def _offset_h(ts, zone):
+    return ts.tz_convert(zone).utcoffset().total_seconds() / 3600
+
+
+def _loc(ts, zone):
+    return ts.tz_convert(zone).strftime("%Y-%m-%dT%H:%M")
+
+
+def _peak_step(rows):
+    """(UTC timestamp of the 10-minute step with most trends, ties earliest; trends in it)."""
+    s = rows.start_time_utc.dt.floor("10min").value_counts()
+    s = s[s == s.max()].sort_index()
+    _peak_step.tied = len(s) > 1
+    return s.index[0], int(s.iloc[0])
+
+
+def _top_phr(rows):
+    return rows.query_raw.astype(str).str.strip().str.lower().value_counts().index[0]
+
+
+def _row(code, label, zone, ts, rows, step_trends, ref_utc, ref_local_fn):
+    off = _offset_h(ts, zone)
+    loc = ts.tz_convert(zone)
+    return {"country": code, "country_name": label, "zone": zone, "utc": iso(ts), "utc_offset_h": off,
+            "local": _loc(ts, zone), "trends": int(len(rows)), "trends_in_peak_step": step_trends,
+            "top_phrasing": _top_phr(rows),
+            "utc_h_from_ref": round((ts - ref_utc).total_seconds() / 3600, 3),
+            "local_h_from_ref": round((loc.tz_localize(None) - ref_local_fn(loc)).total_seconds() / 3600, 3)}
+
+
+def _iqr(v):
+    v = np.asarray([x for x in v if x is not None], float)
+    if not len(v):
+        return None
+    q1, md, q3 = np.percentile(v, [25, 50, 75])
+    return {"n": int(len(v)), "q1": round(q1, 2), "median": round(md, 2), "q3": round(q3, 2), "iqr_h": round(q3 - q1, 2),
+            "p10_p90_h": round(float(np.percentile(v, 90) - np.percentile(v, 10)), 2),
+            "within_1h_of_median": int((np.abs(v - md) <= 1).sum())}
+
+
+def _circ(h):
+    """Hours of day -> unwrapped around their circular mean, so a spread across midnight is not 24 h wide."""
+    h = np.asarray(h, float)
+    ang = h / 24 * 2 * np.pi
+    c = (np.arctan2(np.sin(ang).mean(), np.cos(ang).mean()) / (2 * np.pi) * 24) % 24
+    return ((h - c + 12) % 24) - 12 + c
+
+
+def tc_event(ids, lo, hi, ref_utc, ref_local_fn, mode="peak"):
+    """mode peak: busiest 10-minute step; mode first: first trend (as opening.json)."""
+    r = t[t.topic_id.isin(ids) & (t.start_time_utc >= lo) & (t.start_time_utc < hi)]
+    out = []
+    for c, g in r.groupby("country_code"):
+        ts, k = _peak_step(g) if mode == "peak" else (g.start_time_utc.min(), int((g.start_time_utc == g.start_time_utc.min()).sum()))
+        it = _row(c, cname.get(c), cz[c], ts, g, k, ref_utc, ref_local_fn)
+        if mode == "peak":
+            it["peak_tied"] = bool(_peak_step.tied)
+        if c in TC_MULTI:
+            rr = _tc_reg[(_tc_reg.country_code == c) & _tc_reg.topic_id.isin(ids) & (_tc_reg.start_time_utc >= lo)
+                         & (_tc_reg.start_time_utc < hi)]
+            zs = []
+            for z, gz in rr.groupby("zone"):
+                tz_, kz = _peak_step(gz) if mode == "peak" else (gz.start_time_utc.min(), 1)
+                zs.append(_row(c, f"{cname.get(c)} ({z})", z, tz_, gz, kz, ref_utc, ref_local_fn) |
+                          {"regional_trends": int(len(gz)), "regions": int(gz.location.nunique())})
+            it["zones"] = sorted(zs, key=lambda x: x["utc_offset_h"], reverse=True)
+            it["multi_zone_note"] = "national feed; local time in " + cz[c] + "; see zones for each zone's own clock"
+        out.append(it)
+    out.sort(key=lambda x: x["utc"])
+    return out
+
+
+def tc_spread(rows, circular=False, near_ref=False):
+    u = [x["utc_h_from_ref"] for x in rows]
+    lcl = [x["local_h_from_ref"] for x in rows]
+    if circular:
+        u, lcl = _circ(u), _circ(lcl)
+    out = {"utc": _iqr(u), "local": _iqr(lcl)}
+    if near_ref:      # holidays: countries peaking near the reference (midnight), on each clock
+        out["near_reference"] = {f"within_{h}h": {"utc": int(sum(abs(v) <= h for v in u)),
+                                                  "local": int(sum(abs(v) <= h for v in lcl))} for h in (1, 3)}
+        clear = [x for x in rows if x.get("trends_in_peak_step", 0) >= 2 and not x.get("peak_tied")]
+        out["clear_peak"] = {"rule": "countries whose peak step has 2+ trends and no tie",
+                             "utc": _iqr([x["utc_h_from_ref"] for x in clear]),
+                             "local": _iqr([x["local_h_from_ref"] for x in clear])}
+        if clear:
+            out["clear_peak"]["near_reference_within_1h"] = {
+                "utc": int(sum(abs(x["utc_h_from_ref"]) <= 1 for x in clear)),
+                "local": int(sum(abs(x["local_h_from_ref"]) <= 1 for x in clear))}
+    return out
+
+
+two_clocks = {"note": "Two clocks: Rituals (local clock) vs Shocks (UTC clock). Each case lists every country with "
+                      "trends in the window: utc = its peak 10-minute step (most trends of the case's topics; ties: "
+                      "earliest) or, for Pope Francis, its first trend (as opening.json); utc_offset_h that day; local "
+                      "= the same instant in the country's zone. utc_h_from_ref / local_h_from_ref = hours from the "
+                      "case's reference (UTC, and the local wall clock) used for the spreads. Spread = quartiles and "
+                      "IQR in hours over countries (national feeds; US/CA/RU in their country_timezones.json zone; "
+                      "their zones lists are extra and not in the spreads). Hours of day (weather, Pope local "
+                      "clock) are unwrapped around their circular mean.",
+              "multi_zone_rule": "US, CA, RU: national feed, local time in " +
+                                 ", ".join(f"{c} {cz[c]}" for c in TC_MULTI) + "; zones[] = each zone's peak from the "
+                                 "regional feeds (REGION_TZ), in its own clock",
+              "cases": {}}
+for yr in (2024, 2025):
+    lo = pd.Timestamp(f"{yr}-12-30 12:00", tz="UTC")
+    rows = tc_event(hol_clean["New Year"], lo, lo + pd.Timedelta(hours=48), pd.Timestamp(f"{yr + 1}-01-01", tz="UTC"),
+                    lambda loc, y=yr: pd.Timestamp(f"{y + 1}-01-01"))
+    two_clocks["cases"][f"new_years_eve_{yr}_{yr + 1}"] = {
+        "group": "clean New Year group (Rituals round 33)", "window_utc": [iso(lo), iso(lo + pd.Timedelta(hours=48))],
+        "reference": f"{yr + 1}-01-01 00:00 (UTC for utc, local wall clock for local)", "measure": "peak",
+        "countries": rows, "spread": tc_spread(rows, near_ref=True)}
+    lo = pd.Timestamp(f"{yr}-12-23 12:00", tz="UTC")
+    hi = pd.Timestamp(f"{yr}-12-26 00:00", tz="UTC")
+    rows = tc_event(hol_clean["Christmas"], lo, hi, pd.Timestamp(f"{yr}-12-25", tz="UTC"),
+                    lambda loc, y=yr: pd.Timestamp(f"{y}-12-25"))
+    two_clocks["cases"][f"christmas_eve_{yr}"] = {
+        "group": "clean Christmas group (Rituals round 33)", "window_utc": [iso(lo), iso(hi)],
+        "reference": f"{yr}-12-25 00:00 (UTC / local wall clock)", "measure": "peak",
+        "countries": rows, "spread": tc_spread(rows, near_ref=True)}
+# weather "today": typical peak over all days, local hour and UTC hour separately (US/CA/RU regional, own zones,
+# as the weather clock)
+_wn = tv[tv.topic_id.isin(weather_ids) & ~tv.country_code.isin(REG)][["country_code", "start_time_utc", "local_time",
+                                                                        "query_raw"]].copy()
+_wn["lh"] = _wn.local_time.dt.hour
+_wr = rg[["country_code", "start_time_utc", "lh", "query_raw"]].copy()
+_ww = pd.concat([_wn[["country_code", "start_time_utc", "lh", "query_raw"]], _wr])
+_ww = _ww[~_ww.query_raw.str.lower().str.contains(TOMORROW_RE, regex=True, na=False)]
+_ww["uh"] = _ww.start_time_utc.dt.hour
+_ww["off"] = ((_ww.lh - _ww.uh + 12) % 24) - 12
+wx_rows = []
+for c, g in _ww.groupby("country_code"):
+    if len(g) < 20:
+        continue
+    lh_ = g.lh.value_counts().sort_index()
+    uh_ = g.uh.value_counts().sort_index()
+    wx_rows.append({"country": c, "country_name": cname.get(c), "trends": int(len(g)),
+                    "local_peak_hour": int(lh_.idxmax()), "utc_peak_hour": int(uh_.idxmax()),
+                    "typical_utc_offset_h": float(g["off"].median()), "top_phrasing": _top_phr(g),
+                    "time_zone_source": "regional feeds, own zones" if c in REG else "national feed, one zone",
+                    "utc_h_from_ref": int(uh_.idxmax()), "local_h_from_ref": int(lh_.idxmax())})
+wx_rows.sort(key=lambda x: -x["trends"])
+two_clocks["cases"]["weather_today"] = {
+    "group": "weather category, 'today' phrasings (every weather phrasing without a tomorrow word), all days",
+    "measure": "typical peak: the local hour with most trends, and separately the UTC hour with most trends "
+               "(countries with 20+ trends; US/CA/RU from their regional feeds, each in its own zone)",
+    "reference": "hour of day", "countries": wx_rows, "spread": tc_spread(wx_rows, circular=True)}
+# Pope Francis: each country's first trend, same topics and window as opening.json
+_pope_ids, _pope_lo, _pope_hi = POPE_IDS, POPE_LO, POPE_HI
+rows = tc_event(_pope_ids, _pope_lo, _pope_hi, pd.Timestamp("2025-04-21", tz="UTC"),
+                lambda loc: pd.Timestamp("2025-04-21"), mode="first")
+_ploc = [int(x["local"][11:13]) + int(x["local"][14:16]) / 60 for x in rows]
+for x, v in zip(rows, _ploc):
+    x["local_clock_h"] = round(v, 3)
+_sp = tc_spread(rows)
+_sp["local_clock_hour"] = _iqr(_circ(_ploc))
+two_clocks["cases"]["pope_francis_2025_04_21"] = {
+    "group": "opening.json topics and window", "window_utc": [iso(_pope_lo), iso(_pope_hi)], "measure": "first trend",
+    "reference": "2025-04-21 00:00 (UTC / local wall clock); local_clock_hour = local hour of day, unwrapped",
+    "countries": rows, "spread": _sp}
+write("two_clocks.json", two_clocks)
+for k_, v_ in two_clocks["cases"].items():
+    su, sl = v_["spread"]["utc"], v_["spread"].get("local_clock_hour") or v_["spread"]["local"]
+    num("Rituals", f"Two clocks, {k_}: countries / IQR of peak times UTC vs local (hours) / within 1 h of the median "
+                   f"UTC vs local", f"{su['n']} / {su['iqr_h']} vs {sl['iqr_h']} / {su['within_1h_of_median']} vs "
+                   f"{sl['within_1h_of_median']}", "two_clocks.json", f"cases.{k_}.spread")
+    if "near_reference" in v_["spread"]:
+        nr, cp = v_["spread"]["near_reference"], v_["spread"]["clear_peak"]
+        num("Rituals", f"Two clocks, {k_}: countries peaking within 1 h / 3 h of midnight, UTC vs local; clear peaks "
+                       f"({cp['utc']['n'] if cp['utc'] else 0}): IQR UTC vs local, within 1 h of midnight UTC vs local",
+            f"{nr['within_1h']['utc']} vs {nr['within_1h']['local']} / {nr['within_3h']['utc']} vs "
+            f"{nr['within_3h']['local']}; {cp['utc']['iqr_h'] if cp['utc'] else '-'} vs "
+            f"{cp['local']['iqr_h'] if cp['local'] else '-'}, {cp.get('near_reference_within_1h', {}).get('utc', '-')} vs "
+            f"{cp.get('near_reference_within_1h', {}).get('local', '-')}", "two_clocks.json",
+            f"cases.{k_}.spread.near_reference")
 
 # ------------------------------------------------------------------ 7 time machine
 print("time machine ...", flush=True)

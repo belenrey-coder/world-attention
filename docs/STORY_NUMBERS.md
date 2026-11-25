@@ -360,6 +360,16 @@ Conventions: national feeds; UTC unless a local hour is named; a moment is one t
 | Cycle scan, top 5 daily | Weather (58); Weather tomorrow (22); Weather (9); Weather today (8); Today's weather (6) | `rituals_review.json` | `cycle_scan.daily` |
 | Cycle scan, top 5 weekly | Investments (5); Funeral director (3); Childcare (3); Americano (3); Child care (3) | `rituals_review.json` | `cycle_scan.weekly` |
 | Cycle scan, top 5 yearly | New Year's Eve (117); New Year's Day (106); International Women's Day (99); Valentine's Day (92); Christmas (63) | `rituals_review.json` | `cycle_scan.yearly` |
+| Two clocks, new_years_eve_2024_2025: countries / IQR of peak times UTC vs local (hours) / within 1 h of the median UTC vs local | 125 / 23.5 vs 23.33 / 5 vs 3 | `two_clocks.json` | `cases.new_years_eve_2024_2025.spread` |
+| Two clocks, new_years_eve_2024_2025: countries peaking within 1 h / 3 h of midnight, UTC vs local; clear peaks (49): IQR UTC vs local, within 1 h of midnight UTC vs local | 13 vs 50 / 32 vs 55; 6.17 vs 0.33, 11 vs 43 | `two_clocks.json` | `cases.new_years_eve_2024_2025.spread.near_reference` |
+| Two clocks, christmas_eve_2024: countries / IQR of peak times UTC vs local (hours) / within 1 h of the median UTC vs local | 106 / 16.75 vs 14.83 / 9 vs 20 | `two_clocks.json` | `cases.christmas_eve_2024.spread` |
+| Two clocks, christmas_eve_2024: countries peaking within 1 h / 3 h of midnight, UTC vs local; clear peaks (11): IQR UTC vs local, within 1 h of midnight UTC vs local | 3 vs 5 / 11 vs 6; 11.75 vs 12.33, 2 vs 2 | `two_clocks.json` | `cases.christmas_eve_2024.spread.near_reference` |
+| Two clocks, new_years_eve_2025_2026: countries / IQR of peak times UTC vs local (hours) / within 1 h of the median UTC vs local | 125 / 23.0 vs 23.5 / 3 vs 2 | `two_clocks.json` | `cases.new_years_eve_2025_2026.spread` |
+| Two clocks, new_years_eve_2025_2026: countries peaking within 1 h / 3 h of midnight, UTC vs local; clear peaks (48): IQR UTC vs local, within 1 h of midnight UTC vs local | 12 vs 48 / 30 vs 51; 5.5 vs 0.17, 9 vs 43 | `two_clocks.json` | `cases.new_years_eve_2025_2026.spread.near_reference` |
+| Two clocks, christmas_eve_2025: countries / IQR of peak times UTC vs local (hours) / within 1 h of the median UTC vs local | 111 / 21.67 vs 18.08 / 7 vs 11 | `two_clocks.json` | `cases.christmas_eve_2025.spread` |
+| Two clocks, christmas_eve_2025: countries peaking within 1 h / 3 h of midnight, UTC vs local; clear peaks (10): IQR UTC vs local, within 1 h of midnight UTC vs local | 6 vs 10 / 9 vs 12; 15.62 vs 17.75, 0 vs 1 | `two_clocks.json` | `cases.christmas_eve_2025.spread.near_reference` |
+| Two clocks, weather_today: countries / IQR of peak times UTC vs local (hours) / within 1 h of the median UTC vs local | 120 / 3.0 vs 0.0 / 58 vs 116 | `two_clocks.json` | `cases.weather_today.spread` |
+| Two clocks, pope_francis_2025_04_21: countries / IQR of peak times UTC vs local (hours) / within 1 h of the median UTC vs local | 120 / 0.33 vs 2.71 / 110 vs 43 | `two_clocks.json` | `cases.pope_francis_2025_04_21.spread` |
 
 ## Time machine
 

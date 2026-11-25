@@ -1507,6 +1507,34 @@ Sample 1 (`docs/shock_validation_sample.csv`, 100 moments) is now the **tuning**
   - Rituals: ritual topics 13,565 → 13,568. World Down Syndrome Day and other non-outage "down" topics are back in the ritual lists; yearly cycle 1,268 → 1,269, too few trends 10,211 → 10,213.
   - Every holiday, weather and other Rituals number, every shock count, CHECKS.md and PROFILE.md are unchanged.
 
+### Step 9 round 35: two clocks, Rituals vs Shocks (2026-11-25)
+- **Export:** `two_clocks.json` (`08_story_export.py` section 6c). For every country with trends in each case's window, national feeds:
+  - the peak: the 10-minute step with the most trends of the case's topics (ties: earliest). For Pope Francis it is the first trend instead, as in `opening.json` (same topics and window).
+  - its UTC offset that day (DST-aware, `country_timezones.json`), the same instant on the local clock, the trends, the top phrasing, and whether the peak step was tied.
+- **US, CA, RU:** one national feed spans several zones. The national row uses the zone in `country_timezones.json` (US America/Chicago, CA America/Toronto, RU Europe/Moscow). `zones[]` adds each zone's peak from the regional feeds (`REGION_TZ`), in that zone's own clock. The zones are extra and are not in the spreads.
+- **Cases:**
+  - New Year's Eve 2024/25 and 2025/26: clean New Year group, 30 Dec 12:00 to 1 Jan 12:00 UTC.
+  - Christmas Eve 2024 and 2025: clean Christmas group, 23 Dec 12:00 to 26 Dec 00:00 UTC.
+  - Weather "today": every weather phrasing without a tomorrow word, all days. The typical peak is the local hour and, separately, the UTC hour with the most trends (20+ trends; US/CA/RU regional, as the weather clock).
+  - Pope Francis on 21 Apr 2025: first trends.
+- **Spread:** quartiles and IQR in hours over countries, from the reference: midnight (UTC, or the local wall clock) for the holidays, 00:00 on 21 Apr for the Pope. Hours of day (weather, the Pope's local hour) are unwrapped around their circular mean. For the holidays I added two things you didn't ask for: countries within 1 h / 3 h of midnight on each clock, and the spread over countries with a clear peak (2+ trends in the step, no tie).
+- **Results:**
+
+  | Case | Countries | IQR UTC / local (h) | Within 1 h of the median, UTC / local |
+  |---|---|---|---|
+  | Weather today | 120 | 3.0 / 0.0 | 58 / 116 |
+  | Pope Francis | 120 | 0.33 / 2.7 | 110 / 43 |
+  | New Year's Eve 2024/25 | 125 | 23.5 / 23.3 | 5 / 3 |
+  | New Year's Eve 2025/26 | 125 | 23.0 / 23.5 | 3 / 2 |
+  | Christmas Eve 2024 | 106 | 16.8 / 14.8 | 9 / 20 |
+  | Christmas Eve 2025 | 111 | 21.7 / 18.1 | 7 / 11 |
+
+  - Weather: 116 of 120 countries peak at 06:00 local (local IQR 0 h), while the UTC peaks spread over 3 h (13 h between the 10th and 90th percentiles).
+  - Pope Francis: the reverse. 110 countries start within 1 h of the median UTC time; the local clocks spread over 2.7 h (IQR).
+- **New Year's Eve, all countries:** the busiest-step rule is noisy. Most countries have few trends in the window (median 10) and 1–2 in the peak step, so ties take the earliest step. The peaks split between the morning of 31 Dec local (wishes, greetings) and local midnight. Within 1 h of midnight: 13 countries on the UTC clock vs 50 on the local clock (2024/25), and 12 vs 48 (2025/26).
+- **New Year's Eve, clear peaks only** (49 and 48 countries): local IQR 0.33 h vs 6.2 h UTC (2024/25), and 0.17 h vs 5.5 h (2025/26). 43 of them peak within 1 h of local midnight, against 11 and 9 within 1 h of UTC midnight. The US zones peak near their own midnight (New York 23:50, Chicago 23:10, Denver 23:50 local), and so does Moscow (00:00).
+- **Christmas Eve** does not show the effect. Its searches spread over 24 December (films, lights, opening hours), most countries have 1–3 trends, and only 10–11 countries have a clear peak.
+
 ## Open issues (need a decision)
 
 _Updated 2026-11-09, after the short-string, sport, 19:00 UTC and Wrapped fixes (rerun from combine: combine, link, validation, moments, export, profile, checks)._
