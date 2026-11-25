@@ -26,7 +26,7 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).parent))
 from common import CACHE, DOCS, INTERIM, WORK, save_json  # noqa: E402
 from kinds import (CONSTANT_MIN_MONTHS, SHOCK_MIN_CONF, SHOCK_PROMPT, WAVE_MIN_MONTHS, load_hand_labels,  # noqa: E402
-                   load_shock_labels, moment_key, moment_kinds, shock_moments, topic_ritual, topic_summary_kind, wave_flags, wave_months)
+                   load_shock_labels, moment_key, moment_kinds, outage_topics, shock_moments, topic_ritual, topic_summary_kind, wave_flags, wave_months)
 
 SESSION_GAP_HOURS = 24
 BURST_GAP_HOURS = 6
@@ -329,7 +329,8 @@ def main():
     m = add_shock(m)
     mi = meta.set_index("topic_id")
     rit = topic_ritual(mi, m)
-    m["kind"] = moment_kinds(m, set(rit.index[rit]))
+    outg = outage_topics(mi)
+    m["kind"] = moment_kinds(m, set(rit.index[rit]), set(outg.index[outg]))
     meta["kind"] = meta.topic_id.map(topic_summary_kind(m)).fillna("other")
     months = wave_months(t)
     meta["wave_months"] = meta.topic_id.map(months).fillna(0).astype(int)
@@ -338,7 +339,8 @@ def main():
     junk = junk_topics(mi, rit)
     meta["junk_reason"] = meta.topic_id.map(junk)
     meta["is_junk"] = meta.junk_reason.notna()
-    is_wave, is_const = wave_flags(mi, months, rit, ath)
+    # wave exclusion keeps the rule before round 34 (round 34 changes moment kinds only)
+    is_wave, is_const = wave_flags(mi, months, topic_ritual(mi, m, exclude_outage=False), ath)
     is_wave &= junk.reindex(is_wave.index).isna()
     is_const &= junk.reindex(is_const.index).isna()
     meta["is_wave"] = meta.topic_id.map(is_wave).fillna(False).astype(bool)

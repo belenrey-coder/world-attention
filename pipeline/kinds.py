@@ -87,23 +87,48 @@ def shock_moments(m, labels, min_conf=SHOCK_MIN_CONF):
     return is_shock.astype(bool), lab.notna(), lab.map(lambda x: x[0] if x else None)
 
 
-def topic_ritual(meta, m):
+# "is it down" topics (Step 9 round 34): outage-driven, no cycle -> never ritual; their moments outside shocks are other
+OUTAGE_TOPIC_RE = r"outage|\bdown\b|not working"
+# "down" that is not an outage: power cuts; shot / step / shut / close / burn / put / turn down; Down Syndrome Day;
+# County Down (GAA), bands, festivals, races and titles (Down Under, System of a Down, Black Hawk Down ...)
+OUTAGE_TOPIC_EXCLUDE_RE = (r"power|electric|blackout|apag|"
+                           r"sho(t|ots|ot) down|step(s|ped|ping)? down|stood down|shut(s|ting)? down|shutdown|"
+                           r"clos(e|es|ing) down|burn down|cut down|put down|puts foot down|turned down|backs down|"
+                           r"fall(s)? down|tumbling down|upside down|strips down|count ?down|down under|"
+                           r"down syndrom|down sendrom|s[ií]ndrome de down|down szindr|rabbit hole|doors down|"
+                           r"system of a down|black hawk down|\bv\.? down\b|\bvs\.? down\b|down v\b|down gaa|donegal|"
+                           r"down royal|down jones|down with webster|down cemetery|double down|throw down|hunkering down|"
+                           r"bucket down|way down|three man down|take it down|slow down|^down$|go down|after .* joins|bring them down|"
+                           r"white house down|down jacket|trade down|horns down|lock ?down|wind down|stocks down")
+
+
+def outage_topics(meta):
+    """Topics whose name is about an outage (outage / down / not working; power cuts and blackouts left out)."""
+    nm = meta.topic_name.astype(str).str.lower()
+    return nm.str.contains(OUTAGE_TOPIC_RE) & ~nm.str.contains(OUTAGE_TOPIC_EXCLUDE_RE)
+
+
+def topic_ritual(meta, m, exclude_outage=True):
     """Ritual topics (recurring by nature): weather, holidays, lotteries / prayer times / horoscopes / rates
     (RITUAL_RE), and non-sport other/product/company/unlabeled topics with 15+ moments of 10+ countries.
-    meta: indexed by topic_id with topic_name, type, category; m: moments with topic_id, reach. -> bool Series."""
+    meta: indexed by topic_id with topic_name, type, category; m: moments with topic_id, reach. -> bool Series.
+    exclude_outage=False gives the rule before round 34 (outage topics could be ritual), used only for the wave
+    exclusion so the wave set does not change."""
     n10 = m[m.reach >= 10].groupby("topic_id").size().reindex(meta.index).fillna(0)
     nm = meta.topic_name.astype(str).str.lower()
     sport_t = meta.is_sport.fillna(False).astype(bool) if "is_sport" in meta else False
     return ((meta.category == "weather") | (meta["type"] == "holiday") | nm.str.contains(RITUAL_RE) |
-            ((n10 >= 15) & ~sport_t & meta["type"].isin(["other", "product", "company", "unlabeled"])))
+            ((n10 >= 15) & ~sport_t & meta["type"].isin(["other", "product", "company", "unlabeled"]))) & \
+        (~outage_topics(meta) if exclude_outage else True)
 
 
-def moment_kinds(m, ritual_topics):
+def moment_kinds(m, ritual_topics, outage_topic_ids=()):
     """Kind of every moment (MOMENT_KINDS). m needs topic_id, topic_name, is_sport, is_shock, claude_scheduled.
     Later rules win:
       other        none of the below (most moments: small local spikes, or spread with no clear trigger)
       appointment  sport moment, a scheduled-event name (APPOINT_RE), or Claude says scheduled
       ritual       the topic is a ritual (topic_ritual)
+      other        outage topics ("is it down", outage_topics): outage-driven with no cycle, other unless a shock
       shock        is_shock (validated in step 9; wins even over ritual: a storm on a weather topic)
     Reach is not a kind: "local" (< 15 countries) is a property of the moment's reach, not of what happened."""
     rit = m.topic_id.isin(ritual_topics)
@@ -114,6 +139,7 @@ def moment_kinds(m, ritual_topics):
     kind = pd.Series("other", index=m.index)
     kind[appoint] = "appointment"
     kind[rit] = "ritual"
+    kind[m.topic_id.isin(set(outage_topic_ids))] = "other"      # "is it down": other unless a shock
     kind[m.is_shock.astype(bool)] = "shock"
     return kind
 

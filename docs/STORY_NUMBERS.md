@@ -35,7 +35,7 @@ Conventions: national feeds; UTC unless a local hour is named; a moment is one t
 
 | number | value | file | key |
 |---|---|---|---|
-| 'Is it down' (652 topics): trends inside outage shocks (share) | 1,839 of 3,941 (47%) | `shocks.json` | `is_it_down` |
+| 'Is it down' (463 topics): trends inside outage shocks (share) | 1,808 of 3,623 (50%) | `shocks.json` | `is_it_down` |
 | 'Is it down': widest day (countries) / top 10 days with a matching outage shock | 2025-11-18 (99) / 10 of 10 | `shocks.json` | `is_it_down.top10_days` |
 | Chart set: 60 shocks (by event reach once event groups are reviewed), of which hand-verified | 60 of 60 | `shocks.json` | `chart_top60` |
 | Shocks verified by hand label (all) | 133 | `shocks.json` | `moments[].verified` |
@@ -319,8 +319,8 @@ Conventions: national feeds; UTC unless a local hour is named; a moment is one t
 | (a) Full-coverage days on which the topic 'Weather' (22 topics named so) trended in 10+ countries | 409 | `rituals.json` | `weather_days.topic_weather_days_10plus` |
 | (a') ... the single topic with id 'Weather' only | 294 | `rituals.json` | `weather_days.topic_weather_plain_id_days_10plus` |
 | (b) Full-coverage days on which any weather topic (6,212 topics) trended in 10+ countries | 486 | `rituals.json` | `weather_days.any_weather_topic_days_10plus` |
-| Ritual topics (not hidden) / proposed cycle daily / weekly / yearly / unclear / too few trends | 13,565 / 49 / 140 / 1,268 / 1,897 / 10,211 | `rituals_review.json` | `ritual_topics` |
-| Ritual topics that look like sport (topic sport, athlete, or mostly sport moments) | 55 of 13,565 (of those with 5+ trends: 27 of 3,354) | `rituals_review.json` | `ritual_topics[].sport_like` |
+| Ritual topics (not hidden) / proposed cycle daily / weekly / yearly / unclear / too few trends | 13,568 / 49 / 140 / 1,269 / 1,897 / 10,213 | `rituals_review.json` | `ritual_topics` |
+| Ritual topics that look like sport (topic sport, athlete, or mostly sport moments) | 55 of 13,568 (of those with 5+ trends: 27 of 3,355) | `rituals_review.json` | `ritual_topics[].sport_like` |
 | Weather clock: busiest local hour, 'today' / 'tomorrow' phrasings | 6:00 (31.0%) / 20:00 (77.8%) | `rituals_review.json` | `weather_clock` |
 | Weather clock without multi-zone countries (14 left out): busiest hour today / tomorrow | 6:00 / 20:00 | `rituals_review.json` | `weather_clock.robustness_without_multizone` |
 | Weather clock: 'today' share 05:00-09:59 local / 'tomorrow' share 18:00-23:59 local | 60.6% / 98.3% | `rituals_review.json` | `weather_clock` |

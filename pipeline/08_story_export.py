@@ -415,7 +415,8 @@ chart_by_event = sorted(chart, key=lambda d: (-d.get("event_reach", d["reach"]),
 _est = load_json(WORK / "shock_estimate.json") if (WORK / "shock_estimate.json").exists() else None
 # "Is it down": outage-driven searches (moved here from Rituals in Step 9 round 33)
 DOWN_RE = r"^is \S+( \S+)? down|\bdown right now|not working|\bca[ií]do\b|\bcaiu\b|fora do ar|\bpanne\b|st[oö]rung|downdetector"
-_down_ids = topics_where(r"outage|\bdown\b|not working", exclude=r"power|electric|blackout|apag")
+from kinds import OUTAGE_TOPIC_EXCLUDE_RE, OUTAGE_TOPIC_RE  # noqa: E402
+_down_ids = topics_where(OUTAGE_TOPIC_RE, exclude=OUTAGE_TOPIC_EXCLUDE_RE)     # same rule as kinds.outage_topics
 _dr = tv[tv.topic_id.isin(_down_ids)]
 _dstrict = tv[tv.query_raw.str.lower().str.contains(DOWN_RE, regex=True, na=False)]
 _out = [x for x in shocks if x["kind"] == "outage"]

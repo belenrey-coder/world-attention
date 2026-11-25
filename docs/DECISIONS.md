@@ -1484,11 +1484,28 @@ Sample 1 (`docs/shock_validation_sample.csv`, 100 moments) is now the **tuning**
   | Women's Day | 8 Mar 2025 (106) | 8 Mar 2026 (109) | 114 |
 
   Once in the archive: Eid al-Adha 2025 (6 Jun, 68), Halloween (31 Oct 2025, 53), Diwali (20 Oct 2025, 48). The Black Friday 2024 window starts before the archive (27 Nov 2024).
-- **"Is it down" moves to Shocks** (`shocks.json` key `is_it_down`: by day, strict phrasing by day, share inside outage shocks, top 10 days). Its topics leave the rituals review lists (13,573 → 13,565 ritual topics). Step 4 moment kinds are unchanged: its moments outside shocks are still kind ritual in moments.parquet.
+- **"Is it down" moves to Shocks** (`shocks.json` key `is_it_down`: by day, strict phrasing by day, share inside outage shocks, top 10 days). Its topics leave the rituals review lists (13,573 → 13,565 ritual topics). Step 4 moment kinds were unchanged in this round; round 34 changes them.
 - **`rituals.json` is now the chart file:**
   - Weather clock: share of trends by local hour (all, today, tomorrow) and each country's peak hour (all, today, tomorrow; today and tomorrow need 20+ trends).
   - Weather days, and the clean holiday windows.
   - The round 13 whole-topic / strict counts for Ramadan, Eid and Easter, and the "when is" series, are gone; the clean groups replace them.
+
+### Step 9 round 34: "is it down" moments are other, not ritual (2026-11-24)
+- **Rule** (`pipeline/kinds.py`):
+  - `outage_topics` marks topics whose Claude name says outage / down / not working.
+  - `topic_ritual` no longer counts them as ritual (no cycle).
+  - `moment_kinds` makes their moments "other" unless they are a shock. Shocks still win, and appointment no longer applies to them either.
+  - Step 8's "is it down" group (`shocks.json`) uses the same rule.
+- **Tighter outage rule.** The old rule's "\bdown\b" also caught shot down, stepping down, shutting down, closing down, Down Syndrome Day, County Down GAA, System of a Down, 3 Doors Down, Tour Down Under, Black Hawk Down and others. These are now excluded (`OUTAGE_TOPIC_EXCLUDE_RE`): 662 → 463 topics, all on topic_meta.
+- **Waves unchanged.** The wave exclusion keeps the rule from before this round (`topic_ritual(..., exclude_outage=False)`), so `is_wave` changes for no topic.
+- **What moved** (rerun: moments, export, profile, checks, story):
+  - 7 of 2,031,818 moments change kind: 5 ritual → other ("Apple Weather app outage" ×2, "Apple Weather app not working", "is wordle down", "this is not working strands") and 2 appointment → other ("marathon servers down", "sportsnet down world series"). All reach 1–2 countries.
+  - Those 7 topics' summary kinds change the same way. No global moment changes kind.
+  - The 463 outage topics now have 1,443 moments: 27 shocks, 1,416 other. Of their 34 global moments, 27 are shocks and 7 other.
+- **Numbers:**
+  - Shocks: "is it down" is now 463 topics, with 1,808 of 3,623 trends inside outage shocks (50%; was 652 topics, 1,839 of 3,941, 47%). Its widest day and the top 10 matches are unchanged (18 Nov 2025, 99 countries; 10 of 10).
+  - Rituals: ritual topics 13,565 → 13,568. World Down Syndrome Day and other non-outage "down" topics are back in the ritual lists; yearly cycle 1,268 → 1,269, too few trends 10,211 → 10,213.
+  - Every holiday, weather and other Rituals number, every shock count, CHECKS.md and PROFILE.md are unchanged.
 
 ## Open issues (need a decision)
 
