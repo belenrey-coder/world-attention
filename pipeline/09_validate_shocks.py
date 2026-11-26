@@ -18,6 +18,7 @@
     python pipeline/09_validate_shocks.py waves-verify-sheet # top 30 clean waves -> docs/wave_chart_verification.csv
     python pipeline/09_validate_shocks.py rituals-sample # after make story: 60 holiday topics -> docs/rituals_review.csv
     python pipeline/09_validate_shocks.py rituals-score  # hand labels -> precision per holiday (work/rituals_validation.json)
+    python pipeline/09_validate_shocks.py wrapped-review # after make story: twins report + 40 local topics (local files)
 
 Candidates: every non-sport global moment (is_global, is_sport false, topic not hidden). "Current shocks" are the
 moments in data/export/story/shocks.json as last exported (built with the old 20-country rule).
@@ -1530,11 +1531,88 @@ def rituals_score():
         print("  ", r)
 
 
+WRAPPED_REVIEW_CSV = DOCS / "wrapped_review.csv"     # git-ignored (hand labels)
+WRAPPED_REPORT = DOCS / "WRAPPED_VALIDATION.md"      # git-ignored (local report)
+WRAPPED_SAMPLE_N = 40
+WRAPPED_SEED = 47
+WRAPPED_LABEL_CHOICES = ["truly local", "merge failure (same topic elsewhere)", "should be hidden"]
+
+
+def wrapped_review():
+    """After make story: local Wrapped validation. docs/WRAPPED_VALIDATION.md = every country's attention twin on all
+    topics and without sport, flagged when the two countries share an official language (Wikidata P37, cached) or
+    the main search language (wikidata.COUNTRY_LANG); docs/wrapped_review.csv = WRAPPED_SAMPLE_N uniquely local
+    topics, one per country for WRAPPED_SAMPLE_N random countries, from each card's top 5 (label column blank).
+    Never overwrites a sheet that already has labels."""
+    import wikidata as WD
+    cards = load_json(EXPORT / "story" / "wrapped_review.json")["cards"]
+    ccs = sorted(cards)
+    off = WD.official_languages(ccs)
+    main = WD.COUNTRY_LANG
+    rows = []
+    for c in ccs:
+        k = cards[c]
+        r = {"country": c, "name": k["country_name"], "low_data": k["low_data"]}
+        for tag, tw in (("all", k["attention_twin"]), ("nosport", k["attention_twin_without_sport"])):
+            o = tw["country_code"]
+            shared = sorted(set(off.get(c, [])) & set(off.get(o, [])))
+            r.update({f"twin_{tag}": o, f"twin_{tag}_name": cards[o]["country_name"], f"j_{tag}": tw["jaccard"],
+                      f"official_{tag}": ", ".join(shared),
+                      f"main_lang_{tag}": bool(main.get(c) and main.get(c) == main.get(o)),
+                      f"mutual_{tag}": cards[o][("attention_twin" if tag == "all" else "attention_twin_without_sport")]
+                      ["country_code"] == c})
+        rows.append(r)
+    d = pd.DataFrame(rows)
+    no_lang = [c for c in ccs if not off.get(c)]
+    lines = ["# Wrapped validation (local, Step 9 round 39)", "",
+             "Attention twin = the country with the highest Jaccard similarity of topic sets (national feeds). "
+             "'Without sport' drops sports matches, clubs (category sports_match / team) and athletes. "
+             "Shared official language = Wikidata P37 of both countries (cached in cache/wikidata/"
+             "official_languages.json); main search language = pipeline/wikidata.py COUNTRY_LANG. "
+             "Mutual = the twin has this country as its twin too.", ""]
+    for tag, lab in (("all", "all topics"), ("nosport", "without sport")):
+        sh = d[f"official_{tag}"].ne("")
+        lines.append(f"- **{lab}:** shared official language {int(sh.sum())} of {len(d)}; same main search "
+                     f"language {int(d[f'main_lang_{tag}'].sum())}; either {int((sh | d[f'main_lang_{tag}']).sum())}; "
+                     f"mutual {int(d[f'mutual_{tag}'].sum())}; median Jaccard {d[f'j_{tag}'].median():.3f}")
+    lines.append(f"- **same twin in both versions:** {int((d.twin_all == d.twin_nosport).sum())} of {len(d)}")
+    if no_lang:
+        lines.append(f"- no official language on Wikidata: {', '.join(no_lang)}")
+    lines += ["", "| Country | Twin (all) | J | Shared official language | Twin (without sport) | J | "
+              "Shared official language | Same twin |", "|---|---|---|---|---|---|---|---|"]
+    for r in d.itertuples():
+        f = lambda tag: (getattr(r, f"official_{tag}") or ("(same main language)" if getattr(r, f"main_lang_{tag}")
+                                                            else "—"))  # noqa: E731
+        lines.append(f"| {r.name} ({r.country}){' · low_data' if r.low_data else ''} | {r.twin_all_name}"
+                     f"{' ↔' if r.mutual_all else ''} | {r.j_all:.3f} | {f('all')} | {r.twin_nosport_name}"
+                     f"{' ↔' if r.mutual_nosport else ''} | {r.j_nosport:.3f} | {f('nosport')} | "
+                     f"{'yes' if r.twin_all == r.twin_nosport else 'no'} |")
+    lines += ["", "↔ = mutual twins."]
+    WRAPPED_REPORT.write_text("\n".join(lines) + "\n")
+    print(f"wrote {WRAPPED_REPORT}")
+    print("\n".join(lines[6:11]))
+    if WRAPPED_REVIEW_CSV.exists() and (pd.read_csv(WRAPPED_REVIEW_CSV, dtype=str, keep_default_na=False)
+                                        .label.str.strip() != "").any():
+        print(f"{WRAPPED_REVIEW_CSV} already has hand labels: not overwritten")
+        return
+    rng = random.Random(WRAPPED_SEED)
+    pick = sorted(rng.sample([c for c in ccs if cards[c]["uniquely_local_top5"]], WRAPPED_SAMPLE_N))
+    sample = []
+    for c in pick:
+        x = rng.choice(cards[c]["uniquely_local_top5"])
+        sample.append({"country": c, "country_name": cards[c]["country_name"], "topic_id": x["topic_id"],
+                       "topic": x["name"], "type": x["type"], "trends": x["trends"],
+                       "phrasings": " | ".join(x["top_phrasings"]), "label": "", "notes": ""})
+    pd.DataFrame(sample).to_csv(WRAPPED_REVIEW_CSV, index=False)
+    print(f"wrote {WRAPPED_REVIEW_CSV} ({len(sample)} topics). label = {' / '.join(WRAPPED_LABEL_CHOICES)}")
+
+
 if __name__ == "__main__":
     stage = sys.argv[1] if len(sys.argv) > 1 else ""
-    if stage in ("waves-sample", "waves-score", "waves-verify-sheet", "rituals-sample", "rituals-score"):
+    if stage in ("waves-sample", "waves-score", "waves-verify-sheet", "rituals-sample", "rituals-score",
+                 "wrapped-review"):
         {"waves-sample": waves_sample, "waves-score": waves_score, "waves-verify-sheet": waves_verify_sheet,
-         "rituals-sample": rituals_sample, "rituals-score": rituals_score}[stage]()
+         "rituals-sample": rituals_sample, "rituals-score": rituals_score, "wrapped-review": wrapped_review}[stage]()
         sys.exit()
     if stage == "waves-label":
         import importlib.util

@@ -465,3 +465,31 @@ def get_p31(qids):
             p.parent.mkdir(parents=True, exist_ok=True)
             p.write_text(json.dumps({"p31": [x for x in p31 if x], "coords": "P625" in cl}))
     return {q: json.loads(path(q).read_text()) for q in qids if path(q).exists()}
+
+
+# official languages per country (Wikidata P37 on the item with ISO 3166-1 alpha-2 code P297), for the Wrapped twin
+# check (Step 9 round 39); one SPARQL request, cached
+SPARQL = "https://query.wikidata.org/sparql"
+OFFICIAL_LANG_CACHE = CACHE / "wikidata" / "official_languages.json"
+
+
+def official_languages(iso2):
+    """{country code: sorted English names of its official languages (P37)}; cached in OFFICIAL_LANG_CACHE."""
+    iso2 = sorted(set(iso2))
+    have = json.loads(OFFICIAL_LANG_CACHE.read_text()) if OFFICIAL_LANG_CACHE.exists() else {}
+    todo = [c for c in iso2 if c not in have]
+    if todo:
+        import requests
+        q = ("SELECT ?iso ?langLabel WHERE { VALUES ?iso { " + " ".join(f'"{c}"' for c in todo) + " } "
+             "?c wdt:P297 ?iso . ?c wdt:P37 ?lang . "
+             'SERVICE wikibase:label { bd:serviceParam wikibase:language "en". } }')
+        r = requests.get(SPARQL, params={"query": q, "format": "json"},
+                         headers={"User-Agent": user_agent(), "Accept": "application/sparql-results+json"}, timeout=60)
+        r.raise_for_status()
+        got = {c: set() for c in todo}
+        for b in r.json()["results"]["bindings"]:
+            got[b["iso"]["value"]].add(b["langLabel"]["value"])
+        have.update({c: sorted(v) for c, v in got.items()})
+        OFFICIAL_LANG_CACHE.parent.mkdir(parents=True, exist_ok=True)
+        OFFICIAL_LANG_CACHE.write_text(json.dumps(have, ensure_ascii=False, indent=1))
+    return {c: have.get(c, []) for c in iso2}

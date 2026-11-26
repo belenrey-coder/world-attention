@@ -1588,6 +1588,40 @@ Sample 1 (`docs/shock_validation_sample.csv`, 100 moments) is now the **tuning**
   - Removing them takes the peak from 8.5 to 7.25 countries, about 15%. The peak stays at 20:00 in both versions and stays far above every other hour.
   - So the collection bump does not make the 8 p.m. peak. It may add about 1 country a day to it, through the UTC+1 countries, but this check cannot separate that from those countries' real 8 p.m. habit.
 
+### Step 9 round 39: Country Wrapped refresh, "your turn" (2026-11-25)
+- **Cards** (`08_story_export.py` section 8): `wrapped/<CC>.json` and `wrapped/index.json` are rebuilt on the current pipeline: shock rule, outage and weather fixes, athlete filter, clean holiday groups. 125 countries, 5 low_data (CU, EE, LV, MD, MK).
+- **What each card adds:**
+  - `local_share`: share of its topics found in no other national feed, as in `local.json`. Rank 1 is the most local, ranked among all 125 and among those that aren't low_data. The old `local_share` (share of trends whose moment reached < 15 countries) is renamed `small_moment_share`.
+  - `uniquely_local_top5`: one-country topics without hidden or Wrapped-skip topics, sorted by trends and then volume. I changed this from step 5's volume-first order, which picked one-off 1M-volume draws such as "Euromillions draw 28 March 2025". Each topic has its top 3 phrasings.
+  - `shocks`: which of the 60 chart shocks it joined, using event reach (main topic plus accepted topics, start −2 h to +24 h, as `shocks.json`). Also the global moments it joined (not hidden) and how often it was among the first 3 countries. Ties with the third country count, because times are in 10-minute steps.
+  - `appointments.widest_3`: its 3 widest appointment events (the `appointments.json` units by event reach; a country joins if it trended any of the event's topics in the event window).
+  - `waves`: which of the 18 verified wave stories (`waves_chart.json`) it joined, with the story's months at 15+ countries in which it took part.
+  - `rituals`:
+    - the weather 'today' and 'tomorrow' peak local hours, as `rituals.json` (20+ trends; US/CA/RU regional);
+    - the top weather phrasing;
+    - the holidays it searched in both years (clean groups, −10..+5 days).
+  - `attention_twin` (Jaccard on topic sets, all topics) and `attention_twin_without_sport` (without sports matches, clubs and athletes: category sports_match / team, `is_athlete`), each with 2 runners-up.
+  - `low_data`, `biggest_day` (from step 5), `kind_shares`.
+- **Removed** from the cards: `most_local_topic` (now `uniquely_local_top5`), `weather_hour` and `time_of_day_source` (now under `rituals`).
+- **Bug fixed:** the name `low` was reused in the holiday block, so the first run flagged 0 cards as low_data. The set is now `LOW_DATA`.
+- **Numbers:**
+  - Twins: the same in both versions for 71 of 125. Mutual twins: 44 on all topics, 62 without sport.
+  - Chart shocks joined per country: median 49 of 60 (min 4, max 60).
+  - Among the first 3 countries most often: Brazil 3,351, the US 2,662, the UK 2,658.
+  - Verified waves joined: median 12 of 18; 25 countries joined all 18.
+  - Weather 'today' hour: 120 cards have one, 98 of them at 06:00.
+  - Most local (not low_data): Japan 92.4%, South Korea 86.2%, Iran 83.9%.
+- **Data, not a bug:** Japan's top weather phrasing is "cuaca besok" (Indonesian). Japan's feed has many foreign-resident weather searches (Indonesian, Vietnamese, Korean).
+- **Widest 3 appointments** are the same three football matches for most countries (Barcelona vs Inter, the Club World Cup final, the Europa League final). There is no version without football yet; this is your call.
+- **Validation** (`09_validate_shocks.py wrapped-review`, local files, git-ignored):
+  - `docs/WRAPPED_VALIDATION.md` has every country's twin in both versions, flagged when the two share an official language (Wikidata P37, one SPARQL request, cached in `cache/wikidata/official_languages.json`) or the main search language (`COUNTRY_LANG`).
+    - All topics: 70 of 125 share an official language, 77 share it or the main language.
+    - Without sport: 70 and 78.
+    - P37 has no English for the US and no language for UY, so "same main language" is the fallback.
+    - Twins without a shared language are mostly thin or mirror-like feeds. Turkmenistan is the all-topics twin of Armenia, Azerbaijan and Kyrgyzstan (Jaccard up to 0.54); without sport these become Georgia and Uzbekistan.
+  - `docs/wrapped_review.csv`: 40 uniquely local topics, one per country for 40 random countries (seed 47), drawn from each card's top 5. The label column is for you: truly local / merge failure (same topic elsewhere) / should be hidden. The sample is never overwritten once labelled.
+- **Time machine, simplified:** `days.json` has every UTC day of the archive (537 days; 487 with a global moment; 51 gap days), with its 5 widest global moments (not hidden, by moment reach then within 60 min): name, kind, countries, countries within 60 min, start, is_sport. The top-5 entries are 2,139 appointments, 189 shocks, 15 ritual and 7 other. The countries are moment reach: Pope Francis has 101 here against 120 event reach in the shock chart. The hourly frames (`data/export/hours/`, `timemachine/`) are unchanged.
+
 ## Open issues (need a decision)
 
 _Updated 2026-11-09, after the short-string, sport, 19:00 UTC and Wrapped fixes (rerun from combine: combine, link, validation, moments, export, profile, checks)._

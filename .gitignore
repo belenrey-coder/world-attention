@@ -32,6 +32,8 @@ docs/waves_review*.csv
 docs/rituals_review*.csv
 docs/wave_chart_verification*.csv
 docs/WAVES_VALIDATION.md
+docs/wrapped_review*.csv
+docs/WRAPPED_VALIDATION.md
 
 # R session history
 docs/.Rhistory

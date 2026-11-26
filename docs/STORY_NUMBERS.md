@@ -379,6 +379,7 @@ Conventions: national feeds; UTC unless a local hour is named; a moment is one t
 | number | value | file | key |
 |---|---|---|---|
 | Global moments on the timeline | 7,999 | `timemachine/peaks.json` | `peaks` |
+| Days in days.json / days with at least one global moment / gap days | 537 / 487 / 51 | `days.json` | `days` |
 
 ## Wrapped
 
@@ -390,7 +391,14 @@ Conventions: national feeds; UTC unless a local hour is named; a moment is one t
 | Mean share of trends that are appointment | 47.6% | `wrapped/<CC>.json` | `kind_shares.appointment` |
 | Mean share of trends that are ritual | 5.1% | `wrapped/<CC>.json` | `kind_shares.ritual` |
 | Mean share of trends that are other | 46.2% | `wrapped/<CC>.json` | `kind_shares.other` |
-| Mean share of trends whose moment reached < 15 countries | 58.6% | `wrapped/<CC>.json` | `local_share` |
+| Mean share of trends whose moment reached < 15 countries | 58.6% | `wrapped/<CC>.json` | `small_moment_share` |
+| Attention twin: same twin on all topics and without sport (countries) | 71 of 125 | `wrapped/<CC>.json` | `attention_twin, attention_twin_without_sport` |
+| Attention twin: countries whose twin has them as twin too, all topics / without sport | 44 / 62 | `wrapped/<CC>.json` | `attention_twin` |
+| Chart shocks joined per country: median / min / max (of 60) | 49 / 4 / 60 | `wrapped/<CC>.json` | `shocks.chart_shocks_joined` |
+| Most often among the first 3 countries of a global moment (top 3) | Brazil 3351, United States 2662, United Kingdom 2658 | `wrapped/<CC>.json` | `shocks.global_moments_among_first_3` |
+| Verified waves joined per country: median / countries in all 18 | 12 / 25 | `wrapped/<CC>.json` | `waves.joined` |
+| Cards with a weather 'today' hour / of which 6:00 | 120 / 98 | `wrapped/<CC>.json` | `rituals.weather_today_hour` |
+| Most local countries (not low_data), share of topics found nowhere else | Japan 92.4%, South Korea 86.2%, Iran 83.9% | `wrapped/<CC>.json` | `local_share` |
 
 ## Shocks tagged 'other': the 40 biggest by reach
 
