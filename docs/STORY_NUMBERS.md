@@ -379,6 +379,7 @@ Conventions: national feeds; UTC unless a local hour is named; a moment is one t
 | number | value | file | key |
 |---|---|---|---|
 | Global moments on the timeline | 7,999 | `timemachine/peaks.json` | `peaks` |
+| days.json top-5 entries by reach basis (moment / appointment event / verified shock event) | 154 / 2130 / 66 | `days.json` | `days[].top5[].reach_basis` |
 | Days in days.json / days with at least one global moment / gap days | 537 / 487 / 51 | `days.json` | `days` |
 
 ## Wrapped
@@ -396,6 +397,8 @@ Conventions: national feeds; UTC unless a local hour is named; a moment is one t
 | Attention twin: countries whose twin has them as twin too, all topics / without sport | 44 / 62 | `wrapped/<CC>.json` | `attention_twin` |
 | Chart shocks joined per country: median / min / max (of 60) | 49 / 4 / 60 | `wrapped/<CC>.json` | `shocks.chart_shocks_joined` |
 | Most often among the first 3 countries of a global moment (top 3) | Brazil 3351, United States 2662, United Kingdom 2658 | `wrapped/<CC>.json` | `shocks.global_moments_among_first_3` |
+| Surprising twin differs from the twin without sport / from the twin on all topics (countries) | 78 / 103 of 125 | `wrapped/<CC>.json` | `surprising_twin` |
+| Highest first3_share (among first 3 / global moments joined; not low_data), top 3 | Brazil 70% (3351 of 4816), United Kingdom 46% (2658 of 5750), United States 46% (2662 of 5768) | `wrapped/<CC>.json` | `shocks.first3_share` |
 | Verified waves joined per country: median / countries in all 18 | 12 / 25 | `wrapped/<CC>.json` | `waves.joined` |
 | Cards with a weather 'today' hour / of which 6:00 | 120 / 98 | `wrapped/<CC>.json` | `rituals.weather_today_hour` |
 | Most local countries (not low_data), share of topics found nowhere else | Japan 92.4%, South Korea 86.2%, Iran 83.9% | `wrapped/<CC>.json` | `local_share` |

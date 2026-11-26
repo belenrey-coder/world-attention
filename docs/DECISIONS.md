@@ -1622,6 +1622,20 @@ Sample 1 (`docs/shock_validation_sample.csv`, 100 moments) is now the **tuning**
   - `docs/wrapped_review.csv`: 40 uniquely local topics, one per country for 40 random countries (seed 47), drawn from each card's top 5. The label column is for you: truly local / merge failure (same topic elsewhere) / should be hidden. The sample is never overwritten once labelled.
 - **Time machine, simplified:** `days.json` has every UTC day of the archive (537 days; 487 with a global moment; 51 gap days), with its 5 widest global moments (not hidden, by moment reach then within 60 min): name, kind, countries, countries within 60 min, start, is_sport. The top-5 entries are 2,139 appointments, 189 shocks, 15 ritual and 7 other. The countries are moment reach: Pope Francis has 101 here against 120 event reach in the shock chart. The hourly frames (`data/export/hours/`, `timemachine/`) are unchanged.
 
+### Step 9 round 40: Wrapped card fixes, event reach in days.json (2026-11-25)
+- **Appointments:** each card adds `widest_3_without_football` (the same units, category not football) and keeps `widest_3`. The list is nearly the same everywhere: the Conclave 2025, the Winter Olympics 2026, and the Super Bowl LIX (Wimbledon for some).
+- **Surprising twin** (`surprising_twin`): the most similar country on the no-sport Jaccard matrix that shares neither an official language (Wikidata P37, the cache written by `wrapped-review`) nor the main search language (`COUNTRY_LANG`). It also records its Jaccard and its rank among all countries. It differs from the no-sport twin for 78 of 125 countries, and from the all-topics twin for 103. Examples: France → Germany (rank 2), the US → Germany (rank 4), India → Bangladesh (rank 2), Japan → Taiwan (rank 1).
+- **First 3:** `first3_share` = global moments where the country was among the first 3, divided by the global moments it joined, with its rank among the 120 countries that aren't low_data. The raw count is kept.
+  - Highest: Brazil 70% (3,351 of 4,816), then the UK 46% and the US 46%.
+  - Brazil's lead may partly reflect how fast its feed updates. Not checked.
+- **Rituals:** `top_weather_phrasings` gives the top 3 (it was 1).
+- **days.json:** when a moment belongs to a verified shock event or an appointment event, `countries` is the event reach, as in the charts, and `event` gives the event's name.
+  - Verified shock events use the event groups: main topic plus accepted topics, start −2 h to +24 h, verified shocks among the 100 widest.
+  - Appointment events use the `appointments.json` units and their members.
+  - Otherwise it is the moment reach. `reach_basis` says which, and `moment_countries` keeps the moment reach.
+  - Entries are ranked by `countries`, with one entry per event per day.
+  - Top-5 entries: 2,130 from appointment events, 66 from verified shock events, 154 moments. Pope Francis on 2025-04-21 now shows 120, the same as the shock chart.
+
 ## Open issues (need a decision)
 
 _Updated 2026-11-09, after the short-string, sport, 19:00 UTC and Wrapped fixes (rerun from combine: combine, link, validation, moments, export, profile, checks)._

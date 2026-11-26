@@ -2489,6 +2489,7 @@ def _twins(rows):
     sz = np.asarray(X_.sum(1)).ravel()
     jac_ = inter / np.maximum(sz[:, None] + sz[None, :] - inter, 1)
     np.fill_diagonal(jac_, -1)
+    _twins.jac = jac_
     out_ = {}
     for c in W_CC:
         o_ = np.argsort(-jac_[ci_[c]])[:3]
@@ -2500,6 +2501,30 @@ def _twins(rows):
 
 TWIN_ALL = _twins(t)
 TWIN_NOSPORT = _twins(t[~t.topic_id.isin(_sport_t)])
+JAC_NOSPORT = _twins.jac
+# surprising twin (round 40): the most similar country on the no-sport matrix that shares neither an official language
+# (Wikidata P37, cache written by `09_validate_shocks.py wrapped-review`) nor the main search language (COUNTRY_LANG)
+import wikidata as WD  # noqa: E402
+_offl = load_json(WD.OFFICIAL_LANG_CACHE) if WD.OFFICIAL_LANG_CACHE.exists() else {}
+if not _offl:
+    print("  wrapped: no official-language cache (run 09_validate_shocks.py wrapped-review); surprising twin uses the "
+          "main search language only", flush=True)
+
+
+def _share_lang(a, b):
+    return bool(set(_offl.get(a, [])) & set(_offl.get(b, []))) or (
+        WD.COUNTRY_LANG.get(a) is not None and WD.COUNTRY_LANG.get(a) == WD.COUNTRY_LANG.get(b))
+
+
+TWIN_SURPRISE = {}
+for i_, c in enumerate(W_CC):
+    for j_ in np.argsort(-JAC_NOSPORT[i_]):
+        o_ = W_CC[j_]
+        if o_ != c and not _share_lang(c, o_):
+            TWIN_SURPRISE[c] = {"country_code": o_, "country_name": cname.get(o_),
+                                "jaccard_without_sport": round(float(JAC_NOSPORT[i_, j_]), 4),
+                                "rank_among_all_countries": int(list(np.argsort(-JAC_NOSPORT[i_])).index(j_)) + 1}
+            break
 # shocks: the 60 chart shocks (event reach: main topic + accepted topics, start - 2 h to + 24 h, as shocks.json)
 _chart_cc = {}
 for x in chart_by_event:
@@ -2517,6 +2542,8 @@ for cs in _gmw.countries:
         if third_ is not None and c_["min_from_start"] <= third_:
             _g_first3[c_["country_code"]] = _g_first3.get(c_["country_code"], 0) + 1
 # appointments: event units (appointments.json), countries trending any of the event's topics in its window
+_f3_share = pd.Series({c: _g_first3.get(c, 0) / _g_join[c] for c in W_CC if _g_join.get(c)})
+_f3_rank = _f3_share[[c for c in _f3_share.index if c not in LOW_DATA]].rank(ascending=False, method="min").astype(int)
 _ap_cc = {}
 for u in units.itertuples():
     lo_, hi_ = (pd.Timestamp(v_) for v_ in u.window_utc)
@@ -2545,6 +2572,12 @@ _bd = {}
 for p in sorted((EXPORT / "wrapped").glob("[A-Z][A-Z].json")):
     c5 = json.load(open(p))
     _bd[c5["country_code"]] = c5["busiest_day"]
+def _ap_item(eid):
+    u = _ap_cc[eid][0]
+    return {"event_id": eid, "event": u.event, "category": u.category, "first_utc": u.first_utc,
+            "event_reach": int(u.event_reach)}
+
+
 index = []
 WRAPPED_CARDS = {}
 for c in W_CC:
@@ -2554,7 +2587,10 @@ for c in W_CC:
                   "top_phrasings": top_phrasings(_rows_by_tid[r.topic_id], 3)} for r in lt_.itertuples()]
     shocks_j = [{"moment_id": mid, "name": x["name"], "date_utc": x["date_utc"], "event_reach": x.get("event_reach")}
                 for mid, (x, ccs) in _chart_cc.items() if c in ccs]
-    ap_j = [eid for eid in _ap_order if eid in _ap_cc and c in _ap_cc[eid][1]][:3]
+    ap_all = [eid for eid in _ap_order if eid in _ap_cc and c in _ap_cc[eid][1]]
+    ap_j = ap_all[:3]
+    ap_nf = [eid for eid in ap_all if _ap_cc[eid][0].category != "football"][:3]
+    _wxr = w[w.country_code == c]
     waves_j = [{"story": st_["story"], "group": st_["group"], "months_15plus_joined": per_[c],
                 "months_15plus": len(m15)} for st_, m15, per_ in _wave_cc if c in per_]
     wx_ = _wx_pk.get(c, {})
@@ -2569,18 +2605,21 @@ for c in W_CC:
             "shocks": {"chart_shocks_joined": shocks_j, "chart_shocks_joined_n": len(shocks_j),
                        "chart_shocks": len(_chart_cc),
                        "global_moments_joined": _g_join.get(c, 0), "global_moments": int(len(_gmw)),
-                       "global_moments_among_first_3": _g_first3.get(c, 0)},
-            "appointments": {"widest_3": [{"event_id": eid, "event": _ap_cc[eid][0].event,
-                                           "category": _ap_cc[eid][0].category, "first_utc": _ap_cc[eid][0].first_utc,
-                                           "event_reach": int(_ap_cc[eid][0].event_reach)} for eid in ap_j]},
+                       "global_moments_among_first_3": _g_first3.get(c, 0),
+                       "first3_share": round(float(_f3_share[c]), 4) if c in _f3_share.index else None,
+                       "first3_share_rank_without_low_data": int(_f3_rank[c]) if c in _f3_rank.index else None,
+                       "first3_share_rank_of": int(len(_f3_rank))},
+            "appointments": {"widest_3": [_ap_item(eid) for eid in ap_j],
+                             "widest_3_without_football": [_ap_item(eid) for eid in ap_nf]},
             "waves": {"joined": waves_j, "joined_n": len(waves_j), "stories": len(_wave_cc)},
             "rituals": {"weather_today_hour": wx_.get("today_peak_hour"),
                         "weather_tomorrow_hour": wx_.get("tomorrow_peak_hour"),
                         "weather_trends": wx_.get("trends", 0),
-                        "top_weather_phrasing": per_c.get(c, {}).get("top_phrasing"),
+                        "top_weather_phrasings": top_phrasings(_wxr, 3),
                         "time_zone_source": wx_.get("time_zone_source"),
                         "holidays_both_years": sorted(_hol_both.get(c, []))},
             "attention_twin": TWIN_ALL[c], "attention_twin_without_sport": TWIN_NOSPORT[c],
+            "surprising_twin": TWIN_SURPRISE.get(c),
             "biggest_day": bd and {"date": bd["date"], "trends": bd["trends"],
                                    "top_topic": (bd["top_topics"] or [{}])[0].get("name")},
             "kind_shares": {k: round(float(share.loc[c, k]), 4) if c in share.index else 0.0 for k in KINDS},
@@ -2590,6 +2629,7 @@ for c in W_CC:
     index.append({"country_code": c, "country_name": card["country_name"], "low_data": card["low_data"],
                   "local_share": card["local_share"], "local_share_rank": card["local_share_rank"],
                   "twin": TWIN_ALL[c]["country_code"], "twin_without_sport": TWIN_NOSPORT[c]["country_code"],
+                  "surprising_twin": (TWIN_SURPRISE.get(c) or {}).get("country_code"),
                   "weather_today_hour": card["rituals"]["weather_today_hour"],
                   "chart_shocks_joined": len(shocks_j), "waves_joined": len(waves_j)})
 write("wrapped/index.json", {
@@ -2598,6 +2638,11 @@ write("wrapped/index.json", {
             "uniquely_local_top5 = its one-country topics by trends, then search volume, without hidden and Wrapped-skip topics. "
             "shocks = which of the 60 chart shocks (shocks.json chart_top60, event reach) it joined, and how many "
             "global moments (not hidden) it joined / was among the first 3 countries in (ties with the third "
+            "included; first3_share = among first 3 / joined, ranked without low_data countries; round 40). "
+            "appointments.widest_3_without_football = the same without category football (round 40). "
+            "surprising_twin = the most similar country without sport that shares neither an official language "
+            "(Wikidata P37) nor the main search language (round 40). rituals.top_weather_phrasings = top 3. "
+            "("
             "included). appointments.widest_3 = its 3 widest appointment events (appointments.json units, by event "
             "reach). waves = which of the 18 verified wave stories (waves_chart.json) it joined, with the story's "
             "months at 15+ countries in which it took part. rituals: weather today / tomorrow peak local hour (20+ "
@@ -2628,6 +2673,14 @@ _wf3 = pd.Series({c: WRAPPED_CARDS[c]["shocks"]["global_moments_among_first_3"] 
 num("Wrapped", "Most often among the first 3 countries of a global moment (top 3)",
     ", ".join(f"{cname.get(c)} {v}" for c, v in _wf3.head(3).items()), "wrapped/<CC>.json",
     "shocks.global_moments_among_first_3")
+_sdiff = sum(TWIN_SURPRISE.get(c, {}).get("country_code") != TWIN_NOSPORT[c]["country_code"] for c in W_CC)
+_sdiff_all = sum(TWIN_SURPRISE.get(c, {}).get("country_code") != TWIN_ALL[c]["country_code"] for c in W_CC)
+num("Wrapped", "Surprising twin differs from the twin without sport / from the twin on all topics (countries)",
+    f"{_sdiff} / {_sdiff_all} of {len(W_CC)}", "wrapped/<CC>.json", "surprising_twin")
+_f3top = _f3_share[_f3_rank.index].sort_values(ascending=False).head(3)
+num("Wrapped", "Highest first3_share (among first 3 / global moments joined; not low_data), top 3",
+    ", ".join(f"{cname.get(c)} {v:.0%} ({_g_first3.get(c, 0)} of {_g_join[c]})" for c, v in _f3top.items()),
+    "wrapped/<CC>.json", "shocks.first3_share")
 _wwv = pd.Series([WRAPPED_CARDS[c]["waves"]["joined_n"] for c in W_CC], index=W_CC)
 num("Wrapped", "Verified waves joined per country: median / countries in all 18",
     f"{_wwv.median():g} / {int((_wwv == len(_wave_cc)).sum())}", "wrapped/<CC>.json", "waves.joined")
@@ -2649,7 +2702,28 @@ _gd = m[m.is_global & ~m.topic_id.isin(hidden)].copy()
 _gd["day"] = _gd.start_utc.dt.strftime("%Y-%m-%d")
 _gd = _gd.sort_values(["day", "reach", "reach_60"], ascending=[True, False, False])
 _days_all = pd.date_range(t.day.min(), t.day.max(), freq="D").strftime("%Y-%m-%d")
-_gby = {d_: g_.head(5) for d_, g_ in _gd.groupby("day")}
+# moment -> event: verified shocks (event groups, start - 2 h to + 24 h, as the shock chart) and appointment units
+_ev_of = {}
+for u in units.itertuples():
+    for mid in u.members:
+        _ev_of.setdefault(int(mid), ("appointment event", u.event_id, u.event, int(u.event_reach)))
+_mby_t = {k_: g_ for k_, g_ in m[["moment_id", "topic_id", "start_utc"]].groupby("topic_id")}
+for x in (pool_ if EVENT_GROUPS is not None else chart):
+    if not x.get("verified") or x.get("event_reach") is None:
+        continue
+    lo_, hi_ = EV.window(pd.Timestamp(x["date_utc"].replace("Z", ""), tz="UTC"))
+    for tid in {x["topic_id"]} | (EVENT_GROUPS or {}).get(x["moment_id"], set()):
+        g_ = _mby_t.get(tid)
+        if g_ is None:
+            continue
+        for mid in g_[(g_.start_utc >= lo_) & (g_.start_utc < hi_)].moment_id:
+            _ev_of[int(mid)] = ("verified shock event", f"s{x['moment_id']}", x["name"], int(x["event_reach"]))
+_gd["reach_basis"] = [(_ev_of.get(int(x_)) or ("moment",))[0] for x_ in _gd.moment_id]
+_gd["event_key"] = [(_ev_of.get(int(x_)) or (None, f"m{x_}"))[1] for x_ in _gd.moment_id]
+_gd["event_name"] = [(_ev_of.get(int(x_)) or (None, None, None))[2] for x_ in _gd.moment_id]
+_gd["shown_reach"] = [(_ev_of.get(int(x_)) or (None, None, None, r_))[3] for x_, r_ in zip(_gd.moment_id, _gd.reach)]
+_gd = _gd.sort_values(["day", "shown_reach", "reach", "reach_60"], ascending=[True, False, False, False])
+_gby = {d_: g_.drop_duplicates("event_key").head(5) for d_, g_ in _gd.groupby("day")}
 days_out = []
 for d_ in _days_all:
     g_ = _gby.get(d_)
@@ -2658,14 +2732,23 @@ for d_ in _days_all:
                      "top5": [] if g_ is None else
                      [{"moment_id": int(r.moment_id), "topic_id": r.topic_id,
                        "name": r.topic_name if isinstance(r.topic_name, str) else r.topic_id, "kind": r.kind,
-                       "is_sport": bool(r.is_sport), "start_utc": iso(r.start_utc), "countries": int(r.reach),
-                       "countries_within_60_min": int(r.reach_60)} for r in g_.itertuples()]})
+                       "is_sport": bool(r.is_sport), "start_utc": iso(r.start_utc), "countries": int(r.shown_reach),
+                       "reach_basis": r.reach_basis, "event": r.event_name, "moment_countries": int(r.reach),
+                       "moment_countries_within_60_min": int(r.reach_60)} for r in g_.itertuples()]})
 write("days.json", {"note": "Simplified time machine (Step 9 round 39): for every UTC day of the archive, its 5 widest "
-                            "global moments (>= 15 countries within 60 min of the third; not hidden), by countries then "
-                            "countries within 60 min. A moment sits on the UTC day it starts. gap = collection gap day. "
+                            "global moments (>= 15 countries within 60 min of the third; not hidden). countries = the event reach "
+                            "(as in the charts) when the moment belongs to a verified shock event (main topic + "
+                            "accepted topics, start - 2 h to + 24 h) or an appointment event (appointments.json "
+                            "units), with its name in event; otherwise the moment reach; reach_basis says which "
+                            "(round 40). Ranked by countries; one entry per event per day. A moment sits on the UTC "
+                            "day it starts. gap = collection gap day. "
                             "The hourly map frames stay in data/export/hours/ (step 5) and timemachine/.",
                     "days": days_out})
 _dn = pd.Series([len(x["top5"]) for x in days_out])
+_rb = pd.Series([z["reach_basis"] for x in days_out for z in x["top5"]]).value_counts()
+num("Time machine", "days.json top-5 entries by reach basis (moment / appointment event / verified shock event)",
+    f"{_rb.get('moment', 0)} / {_rb.get('appointment event', 0)} / {_rb.get('verified shock event', 0)}",
+    "days.json", "days[].top5[].reach_basis")
 num("Time machine", "Days in days.json / days with at least one global moment / gap days",
     f"{len(days_out)} / {int((_dn > 0).sum())} / {sum(x['gap'] for x in days_out)}", "days.json", "days")
 
