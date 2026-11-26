@@ -148,6 +148,7 @@ export async function mountWeatherMap(root, data) {
   });
   onEscape(() => { if (timer) stop(); });
   showTheData(root, {
+    methodology: "weathermap",
     caption: "Each country's usual hour of the morning weather search", filename: "weather-hour-by-country",
     columns: [{ key: "name", label: "Country" }, { key: "local_peak_hour", label: "Local peak hour", num: true },
       { key: "utc_peak_hour", label: "World time (UTC) hour", num: true }, { key: "utc_offset_h", label: "UTC offset (h)", num: true },
@@ -266,6 +267,7 @@ export function mountUsualDay(root, data) {
   });
   canvas.addEventListener("blur", () => { focusD = -1; render(); tip.hide(); });
   showTheData(root, {
+    methodology: "usualday",
     caption: `A usual day: average countries where a weather trend started, by local hour (${data.full_coverage_days} full days)`, filename: "weather-usual-day",
     columns: [{ key: "h", label: "Local hour" }, { key: "v", label: "Average countries", num: true, format: (v) => v.toFixed(2) }],
     rows: mean.map((v, h) => ({ h: clock(h), v })),
@@ -497,6 +499,7 @@ export async function mountHolidays(root, data) {
   onEscape(() => tip.hide(true));
 
   showTheData(after, {
+    methodology: "holidays",
     caption: "Holidays that came twice: widest day and countries both years", filename: "holidays-both-years",
     columns: [{ key: "name", label: "Holiday" }, { key: "type", label: "Date" },
       { key: "d1", label: "First date" }, { key: "p1", label: "Widest day, first (countries)", num: true },

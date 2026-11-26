@@ -106,7 +106,7 @@ def _first_minutes(rows, start):
 
 
 # review files per chapter: the shocks' (main + extra) and the appointments' are decided and switched on separately
-SHOCK_REVIEW_FILES = ["event_groups_review.csv", "event_groups_review_extra.csv"]
+SHOCK_REVIEW_FILES = ["event_groups_review.csv", "event_groups_review_extra.csv", "event_groups_review_pope_titles.csv"]
 APPOINTMENT_REVIEW_FILES = ["event_groups_review_appointments.csv"] + \
     [f"event_groups_review_appointments_{i}.csv" for i in range(2, 20)]   # main + numbered follow-ups (if present)
 # the appointments chapter switches to event groups once the MAIN file is fully decided; later files (follow-ups such

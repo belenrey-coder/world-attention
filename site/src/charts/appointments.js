@@ -277,6 +277,7 @@ export function mountAppointments(root, data) {
     how.textContent = `${body.hidden ? "▸" : "▾"} How we measured this`;
   });
   showTheData(after, {
+    methodology: "appointments",
     caption: `Scheduled events in 15 or more countries, per UTC day (${days.length} days; gap days flagged)`,
     filename: "scheduled-events-per-day",
     columns: [
@@ -414,6 +415,7 @@ export function mountCompare(root, data) {
   root.querySelector(".cmp-reveal").addEventListener("click", () => reveal(false));
   root.querySelector(".cmp-skip").addEventListener("click", () => reveal(true));
   showTheData(root.querySelector(".cmp-data"), {
+    methodology: "compare",
     caption: "Event reach of the widest league matches, other sport and non-sport scheduled events",
     filename: "league-match-vs-oscars",
     columns: [{ key: "group", label: "Group" }, { key: "event", label: "Event" }, { key: "date", label: "Date" },

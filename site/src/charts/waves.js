@@ -90,6 +90,7 @@ export function mountIran(root, data) {
     onBlur: () => { if (!tip.pinned) { tip.hide(); cursor.attr("opacity", 0); } },
   });
   showTheData(root, {
+    methodology: "iran",
     caption: "Countries where Iran trended, per UTC day", filename: "iran-per-day",
     columns: [{ key: "date", label: "Date" }, { key: "countries", label: "Countries", num: true },
       { key: "gap", label: "Gap day", format: (v) => (v ? "yes" : "") }, { key: "searches", label: "Top searches", format: (v) => v.join("; ") }],
@@ -173,6 +174,7 @@ export function mountSpeed(root, data) {
     onBlur: () => { if (!tip.pinned) { tip.hide(); cursor.attr("opacity", 0); } },
   });
   showTheData(root, {
+    methodology: "speed",
     caption: "New countries searching after the start: Syria (fall of Assad) and Iran (US strikes)", filename: "two-returns",
     columns: [{ key: "m", label: "Minutes after the start", num: true }, { key: "Syria", label: "Syria", num: true }, { key: "Iran", label: "Iran", num: true }],
     rows: mins.map((m) => ({ m, Syria: val(R.find((r) => r.key === "Syria"), m), Iran: val(R.find((r) => r.key === "Iran"), m) })),
@@ -406,6 +408,7 @@ export function mountRidge(root, data) {
   // ------------------------------------------------------------------ after
   after.innerHTML = `<p class="source">Hover over a story to see what brought it back; tap a story to see it day by day. The 18 stories were hand-checked as recurring (Venezuela and Nicolás Maduro merged); they come from the top of a list ranked by months with 15 or more countries, so they favor long-running stories. Hatched months were partly collected (days shown at the top); their values are lower bounds. As of ${data.as_of}.</p>`;
   showTheData(after, {
+    methodology: "ridge",
     caption: "Countries per month for the 18 wave stories", filename: "wave-stories-per-month",
     columns: [{ key: "story", label: "Story" }, { key: "group", label: "Group", format: (v) => data.groups[v] }]
       .concat(data.months.map((m, i) => ({ key: `m${i}`, label: m, num: true })))

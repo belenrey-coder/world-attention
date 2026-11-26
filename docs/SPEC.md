@@ -32,33 +32,71 @@ Topic colors are always labeled directly; color is never the only cue. Missing o
 - Nothing moves position between scroll steps unless the spec says so; steps change emphasis, color or axis only.
 - `prefers-reduced-motion`: no tweening. Steps cut straight to their end state; autoplay is off and replaced by a Play button.
 
-**Interaction.** Every hover has a tap equivalent; tap targets are at least 44 px. Tooltips follow the pointer on desktop and dock to the bottom of the chart on phones. Escape closes any tooltip, card or open row. Every chart has a "Show the data" toggle that reveals a plain HTML table, and an `aria-label` sentence stating its takeaway.
+**Interaction.** Every hover has a tap equivalent; tap targets are at least 44 px. Tooltips follow the pointer on desktop and dock to the bottom of the chart on phones. Escape closes any tooltip, card or open row. Every chart has two toggles side by side: "Show the data" (a plain HTML table) and "Methodology" (how the chart was made: source, what counts, how countries and searches are counted, time rules), and an `aria-label` sentence stating its takeaway.
 
 **Keyboard.** Tab moves through controls in reading order; arrow keys move through marks inside a focused chart (countries, lines, rows, days); Enter opens; Escape closes. A visible focus ring (2 px #121A26).
 
 **Data.** Charts read small, aggregated JSON files built from the pipeline. Nothing private is ever published: no API keys, samples, verification or review files, shocks.json, data/export, SHOCK\_VALIDATION reports, CSV or parquet. Every chart file carries its source note and as-of date.
 
-## Chapter 0 · Opening: the day the world searched for one man
+## Chapter 0 · Title screen and Opening (v2, Belen, Nov. 26)
 
-The cold open replays April 21, 2025: Pope Francis reached 20 countries at the first refresh, 60 ten minutes later, 109 within the hour (120 in 24 hours, merged topic). Takeaway for the alt text: "Within 10 minutes, more than half of the countries were searching for Pope Francis."
+The article opens on a quiet title screen, then tells the Pope Francis morning in three scroll steps on a map and a square chart that share one screen.
 
-**Data:** `opening.json`, one row per country: ISO code, name, first-trending refresh (UTC, 10-minute bins 07:50–08:50, then "Later"), minutes after the first refresh, local time, phrasing searched. **Visuals:** Equal Earth map (countries filled by refresh bin, PuBu, darkest = 07:50) and a square chart below (one square per country, columns by refresh, same shades). Not trending = #E9ECEF. Microstates are dots.
+**Title screen (first view).** Only the title and subtitle, centered vertically and horizontally on a white page:
 
-| Element | Trigger | Behavior | Timing |
+- Title: **All at Once**
+- Subtitle: *The world rarely searches for the same thing, and when it does, it happens in four ways.*
+- Below, in small Libre Franklin (12 px, #5B6675): "Data: Google Trends · Trending Now, via GoogleTrendArchive \[link to the dataset on Hugging Face\] · 18 months, Nov. 27, 2024 – May 17, 2026 · 125 countries". The link opens in a new tab.
+- A small "Scroll ↓" cue at the bottom (fades out after the first scroll).
+
+**Header (on first scroll).** The title and subtitle move up and shrink into the article header (600 ms); the byline appears under them: "By Belen Reyes · Dec. 10, 2026". The data line stays under the byline. Reduced motion: the header is shown in place, no movement.
+
+**Data:** `opening.json`, one row per country: ISO code, name, first-trending refresh (UTC; 07:50, 08:00 … 08:50, Later), minutes after the first refresh, local time in the reference city, reference city name, and the search as typed in that country (see the checks below).
+
+**Layout.** One sticky graphic that fits a single screen: the Equal Earth map (about 760 px wide, the size of the Your turn map) with the square chart directly under it (about 180 px tall). The step paragraphs stack in a text column above the graphic: each new paragraph appears below the previous ones, which stay visible in muted grey (#5B6675). Phones: map full width, squares under it, paragraphs in a card above.
+
+| Step | Text (accumulates) | Map and squares | Timing |
 | --- | --- | --- | --- |
-| Headline block | Page load | Kicker, title, dek, byline, two paragraphs; no motion | Static |
-| Map + squares playback | Chart reaches 50% of viewport | One refresh at a time: its column of squares drops in and the same countries fill on the map. Counter reads "08:00 UTC · 65 countries" | 700 ms per refresh, 8 refreshes, about 6 s; plays once |
-| End state | Playback ends | Full map and squares stay; scrubber appears | Static |
-| Scrubber + ▶ Replay | Drag, click or arrow keys | Stops at any refresh; map and squares show only countries up to that refresh | Instant on drag; Replay reruns the 6 s sequence |
-| Hover / tap a country or square | Pointer or tap | Country and its square outline together (2 px #121A26). Tooltip: country · refresh (UTC) · local time with a short phrase ("5:00 a.m. in Buenos Aires") · how it was searched | Tooltip 150 ms fade |
-| Find your country | Type in a search box (autocomplete, 125 countries) | Country outlined on map and squares; a generated sentence: "In Japan, Pope Francis started trending at 5 p.m., ten minutes after the first countries." | 300 ms |
-| Show the data | Click | Sortable table of 117 trending countries + CSV download | Instant |
+| 1 | "Just before 7:50 a.m. Greenwich time on April 21, 2025, the Vatican announced that Pope Francis had died. When Google next refreshed its lists of what was trending, he was already on them in 22 countries." | The 22 countries of the 07:50 refresh fill (darkest PuBu); their column of 22 squares drops in | 700 ms |
+| 2 | "Ten minutes later it was 67." | The 08:00 countries fill; their squares drop in; counter 67 | 700 ms |
+| 3 | "Within the hour, 114." | The 08:10 to 08:50 refreshes fill in order; squares drop in column by column; counter 114 | 5 × 500 ms |
+| After the steps | All three paragraphs stay | The "Later" countries fill (up to 123 in 24 hours) with the note "123 by the end of the day"; then ▶ Replay the moment, Show the data and Methodology appear | 600 ms |
 
-**States.** Default before scroll: empty map (all land #E9ECEF). During playback: partially filled. After: full map, scrubber at "Later". Search with no match: "We don't have data for that country".
+**Replay the moment.** Reruns steps 1–3 on the graphic without scrolling (about 6 s); a scrubber lets readers stop at any refresh.
 
-**Phones.** Map full width, squares below it; tooltip docks to the bottom; scrubber 44 px tall. **Keyboard.** Tab to the map, then arrow keys move country by country in order of refresh; Enter pins the tooltip. **Reduced motion.** No playback; the final map shows with the scrubber and a ▶ Play button.
+**Show the data · Methodology** (two toggles side by side, under every chart in the article). Methodology for this chart covers: the source and collection (national Trending Now feeds, refreshed every 10 minutes, so countries in the same refresh tie); what counts as trending (the topic appears on a country's list); the merged topic (all spellings and languages of Pope Francis count as one); how countries are counted (125 in the archive, 123 where he trended within 24 hours; not Libya or Yemen); UTC; and the local-time rule below.
 
-Not built on purpose: zoom and pan, replaying other events here. The chapter ends with the sentence introducing the four ways (shocks, appointments, waves, rituals).
+**Find your country.** Search box (125 countries). Result sentence, generated from the data, always with UTC first: "In Mexico, Pope Francis started trending at 08:20 UTC (2:20 a.m. Mexico City time), thirty minutes after the first countries. By then, 101 of the 123 countries were already searching." First-refresh countries read "…at 07:50 UTC (…), among the first 22 countries." The country gets the selection outline.
+
+**Tooltip (hover or tap).** Three lines only, no commentary:
+
+- **Mexico · 08:20 UTC**
+- 2:20 a.m. local time (Mexico City)
+- Searched as "pope francis" (Mexico's only Pope title at 08:20)
+
+**Selection outline.** White, 2.5 px, on the selected country and its square (Belen's choice). On the palest fills (08:40 and later) add a 1 px #5B6675 outer ring so the white edge stays visible.
+
+**Vatican City label.** Placed in the sea (south of Sardinia, in the Tyrrhenian Sea), with a thin leader line to the Vatican dot, so no country is covered.
+
+**Checks for Claude Code before building.**
+
+1. *Searched as.* The current site shows the English topic name or the wrong language (Mexico "pope francis", Japan "papa francesco"). Use the trend title exactly as it appeared in that country's own feed at its first-trending refresh (for Japan, e.g., "フランシスコ教皇" or "ローマ教皇"). If a country had several titles, show the first. If the raw title is missing, drop the line rather than guess. Report every country where the title is not in a local language.
+2. *Local time.* Google's feeds are national, so the data has no city. Rule: each country's local time uses its capital's time zone on that date (Washington, D.C. for the US, not Chicago; Brasília for Brazil, not São Paulo; Mexico City; Moscow; Canberra; Ottawa). The tooltip always says "local time (capital)". Note in Methodology: "In countries with several time zones the clock differed elsewhere; at 07:50 UTC it was 3:50 a.m. in Washington and 12:50 a.m. in Los Angeles."
+
+**Decided after the checks (Nov. 26).** "Searched as" lists every Pope title that trended in that country at its first refresh (up to 3), local-language titles first, then by searches, joined with " · ". No single title is picked, because the archive does not record feed order and ties produced odd winners (Italy showed a German title). Titles stay lower case, as the archive stores them. Methodology says: "Titles appear as they trended in each country's feed; many countries search world news in English." The 21 local-language titles added to the Pope Francis topic are listed in Methodology.
+
+**Closing text of the chapter** (after the graphic):
+
+> Moments like this are rare. Reading 18 months of trending searches, from November 27, 2024, to May 17, 2026, we found that the world looks up together in four ways:
+>
+> - **Shocks:** news nobody saw coming
+> - **Appointments:** events everybody had in the calendar
+> - **Waves:** stories that keep coming back
+> - **Rituals:** small habits and ceremonies repeated every day or every year
+>
+> This article is about them.
+
+**Keyboard.** Arrow keys move country by country in order of refresh; Enter pins the tooltip. **Reduced motion.** Steps cut to their filled state; Replay steps one refresh per press.
 
 ## Chapter 1 · Most searches never leave home
 
@@ -90,7 +128,7 @@ Most shocks reach half their countries within an hour: the 60 widest shocks, eac
 
 | Element | Trigger | Behavior | Timing |
 | --- | --- | --- | --- |
-| Scroll step 1 · four stories | Step card at 50% | 56 lines in context grey; four in their type color with labels: ChatGPT down (widest), Pope Francis (half in 10 min), Diogo Jota (slow start, then 122), Venezuela (kept spreading) | Lines draw left to right on first entry, 1.2 s |
+| Scroll step 1 · four stories | Step card at 50% | 56 lines in context grey; four in their type color with labels: ChatGPT down and Pope Francis (tied as the widest, 123 countries; Pope Francis with half in 10 min), Diogo Jota (slow start, then 122), Venezuela (kept spreading) | Lines draw left to right on first entry, 1.2 s |
 | Scroll step 2 · what they were | Step card at 50% | Every line takes its type color; the legend turns into counts (30 deaths, 15 outages, 8 politics or conflict, 7 other). Nothing moves | Color 300 ms |
 | Hover / tap · nearest line | Pointer near any line (Voronoi), or tap | That line goes 3 px and dark; tooltip: name · type · date · countries in 24 h | 150 ms |
 | Find a shock | Search box ("e.g. Ozzy") | Matching line highlighted, others fade to 15% | 300 ms |
@@ -180,7 +218,7 @@ Some shared moments are habits: on a usual day weather starts trending in about 
 
 ## Closing · Two ways to be together
 
-Shocks line up on the world's clock; rituals line up on each country's own: on local clocks 116 of 120 countries search the weather at 6 a.m., while 110 of 120 searched for Pope Francis within the same world hour.
+Shocks line up on the world's clock; rituals line up on each country's own: on local clocks 116 of 120 countries search the weather at 6 a.m., while 114 of 123 searched for Pope Francis within the same world hour.
 
 **Data:** `two_clocks.json`: per country (120), its row order east to west, the UTC hour and local hour of its usual weather peak, the UTC and local time it first searched for Pope Francis; New Year's Eve peaks for the 48 countries with a clear one. **Visual:** dot plot, one row per country (east at top, west at bottom, country labels every few rows), x = 24 hours. Weather dots GnBu teal #2E9A8C, Pope Francis dots GnBu blue #0868AC. Toggle World time / Local time.
 
@@ -209,7 +247,7 @@ The reader explores alone: every hour of the 18 months on a map where countries 
 | Element | Trigger | Behavior | Timing |
 | --- | --- | --- | --- |
 | Default on arrival | Section enters view | Monday, April 21, 2025, 08:00 world time (Pope Francis), so the reader starts on a moment they know | Map fades in 600 ms |
-| Map colors | Every frame | Top 5 shared topics colored, in GnBu order: shocks take deep blue #0868AC, then teal, green, sky, aqua. Strong color when over half of a topic's countries started it in the last 3 hours; pale when it lingers. Country with its own search: #E6E8EC; no data: #F1F2F5 | Color 300 ms |
+| Map colors | Every frame | Top 5 shared topics colored, in GnBu order: shocks take deep blue #084081 (same as deaths in Shocks), then teal, green, sky, aqua. Strong color when over half of a topic's countries started it in the last 3 hours; pale when it lingers. Country with its own search: #E6E8EC; no data: #F1F2F5 | Color 300 ms |
 | Legend list | Every frame | Up to 5 topics: name · "104 countries, 102 in the last 3 hours" or "lingering from earlier"; last row "its own search (hover to see it)" | With the map |
 | Hour slider + ▶ | Drag, arrows, or Play | Moves through 24 hours of the chosen day | Play 1 s per hour |
 | Day strip | Click a bar or drag the handle | Each bar is the day's widest moment (height = countries; shocks deep blue, appointments grey #AEB8C6, others #C9CFD8); hatched gap days. Choosing a day keeps the hour | Instant; frames file loads in the background with a skeleton map |

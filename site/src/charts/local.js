@@ -295,6 +295,7 @@ export function mountLocal(root, data) {
     onNoMatch: () => { found = null; recolor(); result.textContent = "Not in our sample; try another word."; },
   });
   showTheData(after, {
+    methodology: "local",
     caption: `Trending topics by how many countries they reached, Nov. 2024 to May 2026 (${data.total_topics.toLocaleString("en-US")} topics)`,
     filename: "topics-by-countries-reached",
     columns: [

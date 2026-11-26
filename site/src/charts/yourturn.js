@@ -301,6 +301,7 @@ export async function mountYourTurn(rootEl, daysData) {
     `<li><b>${c.name}:</b> kept ${pct(c.local_share)} to itself · joined ${c.shocks_joined} of ${c.shocks_total} biggest shocks · weather at ${c.weather_hour == null ? "—" : clock(c.weather_hour)} · most like ${c.twin.name}</li>`).join("")}</ul>`;
 
   table = showTheData(main, {
+    methodology: "yourturn",
     caption: "This hour: each country's top active search and the shared topic it is part of (world time)",
     filename: "hour-by-country",
     columns: [{ key: "name", label: "Country" }, { key: "own", label: "Its top search" }, { key: "shared", label: "Shared topic" },

@@ -12,8 +12,8 @@ import { miniMap } from "./minimap.js";
 
 // the four stories of step 1, by name and date
 const FOUR = [
-  { name: "ChatGPT", date: "2025-01-23", note: "the widest shock of all" },
-  { name: "Pope Francis", date: "2025-04-21", note: "half his countries in 10 min" },
+  { name: "ChatGPT", date: "2025-01-23", note: "tied for the widest: 123 countries" },
+  { name: "Pope Francis", date: "2025-04-21", note: "123 countries, half in 10 min" },
   { name: "Diogo Jota", date: "2025-07-03", note: "122 countries in a day" },
   { name: "Venezuela", date: "2026-01-03", note: "kept spreading for hours" },
 ];
@@ -304,6 +304,7 @@ export function mountShocks(root, data) {
 
   // ------------------------------------------------------------------ show the data
   showTheData(after, {
+    methodology: "shocks",
     caption: "The 60 widest shocks, Nov. 2024 to May 2026 (event level, timed from the third country)",
     filename: "sixty-shocks",
     columns: [

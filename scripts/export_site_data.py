@@ -80,63 +80,171 @@ def _clock(dt):
     return f"{h12}:{mnt:02d} {ap}"
 
 
-def _pope_phrasings(o):
-    """Per country: the phrasings trending at its first refresh, then its other phrasings in the window (first seen
-    first). A feed lists searches in several languages (diaspora), so a single 'most common' phrasing misleads."""
+# Local time in the Opening = the capital's time zone on that date (docs/SPEC.md, Chapter 0, check 2). Google's feeds
+# are national, so the data has no city; every country gets its capital. Same zone as the feed's for every country
+# except the United States (feed: America/Chicago; capital: Washington, America/New_York) and Ukraine (feed zone
+# Europe/Simferopol, same offset on Apr. 21, 2025; capital: Kyiv).
+CAPITALS = {
+    "AE": ("Abu Dhabi", "Asia/Dubai"), "AL": ("Tirana", "Europe/Tirane"), "AM": ("Yerevan", "Asia/Yerevan"),
+    "AO": ("Luanda", "Africa/Luanda"), "AR": ("Buenos Aires", "America/Argentina/Buenos_Aires"),
+    "AT": ("Vienna", "Europe/Vienna"), "AU": ("Canberra", "Australia/Sydney"), "AZ": ("Baku", "Asia/Baku"),
+    "BA": ("Sarajevo", "Europe/Sarajevo"), "BD": ("Dhaka", "Asia/Dhaka"), "BE": ("Brussels", "Europe/Brussels"),
+    "BF": ("Ouagadougou", "Africa/Ouagadougou"), "BG": ("Sofia", "Europe/Sofia"), "BH": ("Manama", "Asia/Bahrain"),
+    "BJ": ("Porto-Novo", "Africa/Porto-Novo"), "BO": ("La Paz", "America/La_Paz"), "BR": ("Brasília", "America/Sao_Paulo"),
+    "BY": ("Minsk", "Europe/Minsk"), "CA": ("Ottawa", "America/Toronto"), "CD": ("Kinshasa", "Africa/Kinshasa"),
+    "CH": ("Bern", "Europe/Zurich"), "CI": ("Yamoussoukro", "Africa/Abidjan"), "CL": ("Santiago", "America/Santiago"),
+    "CM": ("Yaoundé", "Africa/Douala"), "CO": ("Bogotá", "America/Bogota"), "CR": ("San José", "America/Costa_Rica"),
+    "CU": ("Havana", "America/Havana"), "CY": ("Nicosia", "Asia/Nicosia"), "CZ": ("Prague", "Europe/Prague"),
+    "DE": ("Berlin", "Europe/Berlin"), "DK": ("Copenhagen", "Europe/Copenhagen"),
+    "DO": ("Santo Domingo", "America/Santo_Domingo"), "DZ": ("Algiers", "Africa/Algiers"),
+    "EC": ("Quito", "America/Guayaquil"), "EE": ("Tallinn", "Europe/Tallinn"), "EG": ("Cairo", "Africa/Cairo"),
+    "ES": ("Madrid", "Europe/Madrid"), "ET": ("Addis Ababa", "Africa/Addis_Ababa"), "FI": ("Helsinki", "Europe/Helsinki"),
+    "FR": ("Paris", "Europe/Paris"), "GB": ("London", "Europe/London"), "GE": ("Tbilisi", "Asia/Tbilisi"),
+    "GH": ("Accra", "Africa/Accra"), "GR": ("Athens", "Europe/Athens"), "GT": ("Guatemala City", "America/Guatemala"),
+    "HK": ("Hong Kong", "Asia/Hong_Kong"), "HN": ("Tegucigalpa", "America/Tegucigalpa"), "HR": ("Zagreb", "Europe/Zagreb"),
+    "HT": ("Port-au-Prince", "America/Port-au-Prince"), "HU": ("Budapest", "Europe/Budapest"),
+    "ID": ("Jakarta", "Asia/Jakarta"), "IE": ("Dublin", "Europe/Dublin"), "IL": ("Jerusalem", "Asia/Jerusalem"),
+    "IN": ("New Delhi", "Asia/Kolkata"), "IQ": ("Baghdad", "Asia/Baghdad"), "IR": ("Tehran", "Asia/Tehran"),
+    "IT": ("Rome", "Europe/Rome"), "JM": ("Kingston", "America/Jamaica"), "JO": ("Amman", "Asia/Amman"),
+    "JP": ("Tokyo", "Asia/Tokyo"), "KE": ("Nairobi", "Africa/Nairobi"), "KG": ("Bishkek", "Asia/Bishkek"),
+    "KH": ("Phnom Penh", "Asia/Phnom_Penh"), "KR": ("Seoul", "Asia/Seoul"), "KW": ("Kuwait City", "Asia/Kuwait"),
+    "KZ": ("Astana", "Asia/Almaty"), "LB": ("Beirut", "Asia/Beirut"), "LK": ("Colombo", "Asia/Colombo"),
+    "LT": ("Vilnius", "Europe/Vilnius"), "LV": ("Riga", "Europe/Riga"), "LY": ("Tripoli", "Africa/Tripoli"),
+    "MA": ("Rabat", "Africa/Casablanca"), "MD": ("Chișinău", "Europe/Chisinau"), "MK": ("Skopje", "Europe/Skopje"),
+    "ML": ("Bamako", "Africa/Bamako"), "MM": ("Naypyidaw", "Asia/Yangon"), "MX": ("Mexico City", "America/Mexico_City"),
+    "MY": ("Kuala Lumpur", "Asia/Kuala_Lumpur"), "MZ": ("Maputo", "Africa/Maputo"), "NG": ("Abuja", "Africa/Lagos"),
+    "NI": ("Managua", "America/Managua"), "NL": ("Amsterdam", "Europe/Amsterdam"), "NO": ("Oslo", "Europe/Oslo"),
+    "NP": ("Kathmandu", "Asia/Kathmandu"), "NZ": ("Wellington", "Pacific/Auckland"), "OM": ("Muscat", "Asia/Muscat"),
+    "PA": ("Panama City", "America/Panama"), "PE": ("Lima", "America/Lima"), "PH": ("Manila", "Asia/Manila"),
+    "PK": ("Islamabad", "Asia/Karachi"), "PL": ("Warsaw", "Europe/Warsaw"), "PR": ("San Juan", "America/Puerto_Rico"),
+    "PS": ("Ramallah", "Asia/Hebron"), "PT": ("Lisbon", "Europe/Lisbon"), "PY": ("Asunción", "America/Asuncion"),
+    "QA": ("Doha", "Asia/Qatar"), "RO": ("Bucharest", "Europe/Bucharest"), "RS": ("Belgrade", "Europe/Belgrade"),
+    "RU": ("Moscow", "Europe/Moscow"), "SA": ("Riyadh", "Asia/Riyadh"), "SE": ("Stockholm", "Europe/Stockholm"),
+    "SG": ("Singapore", "Asia/Singapore"), "SI": ("Ljubljana", "Europe/Ljubljana"), "SK": ("Bratislava", "Europe/Bratislava"),
+    "SN": ("Dakar", "Africa/Dakar"), "SV": ("San Salvador", "America/El_Salvador"), "SY": ("Damascus", "Asia/Damascus"),
+    "TH": ("Bangkok", "Asia/Bangkok"), "TM": ("Ashgabat", "Asia/Ashgabat"), "TN": ("Tunis", "Africa/Tunis"),
+    "TR": ("Ankara", "Europe/Istanbul"), "TT": ("Port of Spain", "America/Port_of_Spain"), "TW": ("Taipei", "Asia/Taipei"),
+    "TZ": ("Dodoma", "Africa/Dar_es_Salaam"), "UA": ("Kyiv", "Europe/Kyiv"), "UG": ("Kampala", "Africa/Kampala"),
+    "US": ("Washington", "America/New_York"), "UY": ("Montevideo", "America/Montevideo"), "UZ": ("Tashkent", "Asia/Tashkent"),
+    "VE": ("Caracas", "America/Caracas"), "VN": ("Hanoi", "Asia/Ho_Chi_Minh"), "YE": ("Sanaa", "Asia/Aden"),
+    "ZA": ("Pretoria", "Africa/Johannesburg"), "ZM": ("Lusaka", "Africa/Lusaka"), "ZW": ("Harare", "Africa/Harare"),
+}
+
+# "Searched as" = a trend title exactly as it appeared in the country's own feed at its first-trending refresh
+# (docs/SPEC.md, Chapter 0, check 1). Candidates: the merged topic's titles at that refresh, plus these titles from
+# the same refresh that name him or "the pope" but were not merged into the topic (checked by hand, Nov. 26, 2026).
+# Left out on purpose: "vaticano", "vatican news", "pap" (a Polish news agency), other popes (ratzinger, wojtyla),
+# "jd vance pope" and "pope easter sunday" (the day before). The archive stores titles in lower case.
+OPEN_EXTRA_TITLES = {
+    "SE": ["påve franciskus"], "RU": ["папа римский"], "PT": ["papa"], "NL": ["paus", "paus overleden"],
+    "KR": ["교황"], "BE": ["pape", "paus"], "HR": ["papa"], "VN": ["giáo hoàng francis"],
+    "IT": ["papa francesco pasqua"], "AT": ["papst"], "JP": ["ローマ教皇"], "PL": ["papiez", "папа римский"],
+    "CH": ["papst"], "CZ": ["papež"], "LV": ["папа римский"], "BA": ["papa"], "IL": ["папа римский"],
+    "MD": ["papa de la roma"],
+}
+
+
+# Languages, for ordering "Searched as": local-language titles first (docs/SPEC.md, Chapter 0, decided Nov. 26).
+# TITLE_LANGS = the languages a title can be written in (ISO 639-1); COUNTRY_LANGS = official languages (plus French
+# in Algeria and Tunisia and English in Sri Lanka, where they are the working languages of the press).
+TITLE_LANGS = {
+    "ferenc pápa": "hu", "frases del papa francisco": "es", "giáo hoàng francis": "vi", "mort du pape": "fr",
+    "murio el papa": "es", "papa morreu": "pt", "papa": "es pt it hr bs sr ro sq tr", "papa de la roma": "ro", "papa francesco": "it",
+    "papa francesco pasqua": "it", "papa francis": "tr", "papa francisc": "ro", "papa francisco": "es pt",
+    "pape": "fr", "pape françois": "fr", "papež": "cs sl", "papež františek": "cs", "papež frančišek": "sl",
+    "papiez": "pl", "papież franciszek": "pl", "papst": "de", "papst franziskus": "de", "papst tot": "de",
+    "papá francisco": "es", "paus": "nl id", "paus fransiskus": "id", "paus overleden": "nl", "pave frans": "da no",
+    "pope died": "en", "pope francis": "en", "pope francis death": "en", "påve franciskus": "sv",
+    "vaticano papa francisco": "es", "παπασ φραγκισκοσ": "el", "папа римский": "ru", "папа римский умер": "ru",
+    "папа римский франциск": "ru", "папа франциск": "ru bg", "البابا فرنسيس": "ar", "پاپ فرانسیس": "fa",
+    "ローマ教皇": "ja", "교황": "ko", "папа римський": "uk", "pope": "en", "教宗": "zh",
+}
+COUNTRY_LANGS = {
+    "AE": "ar", "AL": "sq", "AM": "hy", "AO": "pt", "AR": "es", "AT": "de", "AU": "en", "AZ": "az", "BA": "bs hr sr",
+    "BD": "bn", "BE": "nl fr de", "BF": "fr", "BG": "bg", "BH": "ar", "BJ": "fr", "BO": "es", "BR": "pt", "BY": "be ru",
+    "CA": "en fr", "CD": "fr", "CH": "de fr it", "CI": "fr", "CL": "es", "CM": "fr en", "CO": "es", "CR": "es",
+    "CU": "es", "CY": "el tr", "CZ": "cs", "DE": "de", "DK": "da", "DO": "es", "DZ": "ar fr", "EC": "es", "EE": "et",
+    "EG": "ar", "ES": "es", "ET": "am", "FI": "fi sv", "FR": "fr", "GB": "en", "GE": "ka", "GH": "en", "GR": "el",
+    "GT": "es", "HK": "zh en", "HN": "es", "HR": "hr", "HT": "fr", "HU": "hu", "ID": "id", "IE": "en", "IL": "he ar",
+    "IN": "hi en", "IQ": "ar", "IR": "fa", "IT": "it", "JM": "en", "JO": "ar", "JP": "ja", "KE": "en sw", "KG": "ky ru",
+    "KH": "km", "KR": "ko", "KW": "ar", "KZ": "kk ru", "LB": "ar", "LK": "si ta en", "LT": "lt", "LV": "lv", "LY": "ar",
+    "MA": "ar", "MD": "ro", "MK": "mk sq", "ML": "fr", "MM": "my", "MX": "es", "MY": "ms", "MZ": "pt", "NG": "en",
+    "NI": "es", "NL": "nl", "NO": "no", "NP": "ne", "NZ": "en", "OM": "ar", "PA": "es", "PE": "es", "PH": "fil en",
+    "PK": "ur en", "PL": "pl", "PR": "es en", "PS": "ar", "PT": "pt", "PY": "es", "QA": "ar", "RO": "ro", "RS": "sr",
+    "RU": "ru", "SA": "ar", "SE": "sv", "SG": "en ms zh ta", "SI": "sl", "SK": "sk", "SN": "fr", "SV": "es", "SY": "ar",
+    "TH": "th", "TM": "tk", "TN": "ar fr", "TR": "tr", "TT": "en", "TW": "zh", "TZ": "sw en", "UA": "uk", "UG": "en sw",
+    "US": "en", "UY": "es", "UZ": "uz", "VE": "es", "VN": "vi", "YE": "ar", "ZA": "en", "ZM": "en", "ZW": "en",
+}
+
+
+def _is_local(title, country):
+    return bool(set(TITLE_LANGS.get(title, "").split()) & set(COUNTRY_LANGS.get(country, "").split()))
+
+
+def _pope_titles(o, first_utc):
+    """Per country: every candidate title at its first-trending refresh, ranked: local-language titles first, then by
+    search volume (ties: longer on the list, then alphabetical). The archive keeps no feed order."""
     import pandas as pd
     lo, hi = (pd.Timestamp(x.replace("Z", ""), tz="UTC") for x in o["window_utc"])
     t = pd.read_parquet(INTERIM / "topics.parquet", columns=["topic_id", "country_code", "level", "start_time_utc",
-                                                             "query_raw"], filters=[("topic_id", "in", o["topics"])])
-    t = t[(t.level == "country") & (t.start_time_utc >= lo) & (t.start_time_utc < hi)]
-    t["q"] = t.query_raw.astype(str).str.strip().str.lower()
+                                                             "query_raw", "search_volume_lower", "duration_minutes"],
+                        filters=[("level", "==", "country"), ("start_time_utc", ">=", lo), ("start_time_utc", "<", hi)])
+    t["q"] = t.query_raw.astype(str).str.strip()
     out = {}
-    for c, g in t.sort_values("start_time_utc").groupby("country_code"):
-        t1 = g.start_time_utc.min()
-        cnt = g.q.value_counts()
-        first_ = sorted(set(g[g.start_time_utc == t1].q), key=lambda q: (-cnt[q], q))
-        rest = [q for q in dict.fromkeys(g.q) if q not in first_]
-        out[c] = {"first": first_, "others": rest[:4], "n_phrasings": int(g.q.nunique())}
+    for c, ts in first_utc.items():
+        g = t[(t.country_code == c) & (t.start_time_utc == pd.Timestamp(ts.replace("Z", ""), tz="UTC"))]
+        g = g[g.topic_id.isin(o["topics"]) | g.q.isin(OPEN_EXTRA_TITLES.get(c, []))]
+        g = g.assign(merged=g.topic_id.isin(o["topics"]), vol=g.search_volume_lower.fillna(0),
+                     dur=g.duration_minutes.fillna(0))
+        g = g.assign(local=[_is_local(q, c) for q in g.q])
+        g = g.sort_values(["local", "vol", "dur", "q"], ascending=[False, False, False, True]).drop_duplicates("q")
+        out[c] = [{"title": q, "volume": int(v), "minutes_listed": int(d), "merged": bool(m), "local": bool(lc)}
+                  for q, v, d, m, lc in zip(g.q, g.vol, g.dur, g.merged, g.local)]
     return out
 
 
 def build_opening():
     o = load(STORY / "opening.json")
     first = {r["country_code"]: r for r in o["by_country"]}
-    phr = _pope_phrasings(o)
+    titles = _pope_titles(o, {c: r["first_trend_utc"] for c, r in first.items()})
     t0 = datetime.fromisoformat(o["first_trend_utc"].replace("Z", "+00:00"))
     rows = []
     for c in countries():
         r = first.get(c["iso2"])
-        row = {"iso2": c["iso2"], "name": c["name"], "trending": r is not None}
+        city, tz = CAPITALS[c["iso2"]]
+        row = {"iso2": c["iso2"], "name": c["name"], "trending": r is not None, "city": city}
         if r:
             ts = datetime.fromisoformat(r["first_trend_utc"].replace("Z", "+00:00"))
             hm = ts.strftime("%H:%M")
-            loc = ts.astimezone(ZoneInfo(c["tz"]))
+            loc = ts.astimezone(ZoneInfo(tz))
             label = hm if ts.date() == t0.date() else f"{ts:%b} {ts.day}, {hm}"
+            tl = titles.get(c["iso2"], [])
             row.update({"first_utc": r["first_trend_utc"], "refresh": label,
                         "bin": OPEN_BINS.index(hm) if hm in OPEN_BINS else len(OPEN_BINS),
                         "minutes_after_first": int((ts - t0).total_seconds() // 60),
                         "local_time": loc.strftime("%Y-%m-%dT%H:%M%z"), "local_clock": _clock(loc),
                         "local_day_offset": (loc.date() - ts.date()).days,
-                        "city": c["city"], "phrasings_first": phr.get(c["iso2"], {}).get("first", []),
-                        "phrasings_other": phr.get(c["iso2"], {}).get("others", [])})
+                        "searched_as": [x["title"] for x in tl[:3]]})
         rows.append(row)
     rows.sort(key=lambda x: (not x["trending"], x.get("minutes_after_first", 0), x["name"]))
     bins = OPEN_BINS + ["Later"]
     per_bin = [sum(1 for x in rows if x.get("bin") == i) for i in range(len(bins))]
     cum = [sum(per_bin[:i + 1]) for i in range(len(OPEN_BINS))]
     write("opening.json", {
-        "note": "Death of Pope Francis, Apr. 21, 2025 (announced 07:47 UTC). One row per country (125): the 10-minute "
+        "note": "Death of Pope Francis, Apr. 21, 2025 (announced just before the 07:50 UTC refresh). One row per country (125): the 10-minute "
                 "refresh in which the merged topic first appeared on its national trending list, minutes after the "
-                "first refresh (07:50 UTC), local time in the country's feed time zone, the phrasings trending at its "
-                "first refresh and up to 4 others (first seen first; feeds carry searches in several languages). bin = index into bins (07:50 ... 08:50, then 'Later' for 09:00 to 24 h after). "
-                "Countries in the same refresh tie (10-minute collection).",
-        "event": "Death of Pope Francis", "date": "2025-04-21", "announced_utc": "2025-04-21T07:47Z",
+                "first refresh (07:50 UTC), local time in the capital's time zone on that date (city = the capital), "
+                "and searched_as = up to 3 Pope titles as they trended in that country's feed at that refresh (lower "
+                "case in the archive), local-language titles first, then by searches. bin = index into "
+                "bins (07:50 ... 08:50, then 'Later' for 09:00 to 24 h after). Countries in the same refresh tie "
+                "(10-minute collection).",
+        "event": "Death of Pope Francis", "date": "2025-04-21",
         "first_refresh_utc": o["first_trend_utc"], "bins": bins, "per_bin": per_bin,
         "cumulative_by_bin": cum, "countries_24h": o["countries"], "within_60_min": o["within_60_min"],
         "minutes_to_half": o["minutes_to_half"],
         "takeaway": "Within 10 minutes, more than half of the countries were searching for Pope Francis.",
         "rows": rows})
+    return titles
 
 
 # ---------------------------------------------------------------- Chapter 1: most searches never leave home
@@ -568,12 +676,19 @@ def build_clocks():
     tc = load(STORY / "two_clocks.json")["cases"]
     cl = {c["iso2"]: c for c in countries()}
     ref = datetime(2025, 4, 21, 12)
-    off = {c: ZoneInfo(v["tz"]).utcoffset(ref).total_seconds() / 3600 for c, v in cl.items()}
+    # rows by the capital's UTC offset that day (United States = Washington), as in the Opening
+    off = {c: ZoneInfo(CAPITALS[c][1]).utcoffset(ref).total_seconds() / 3600 for c in cl}
     wrap = lambda h: h - 24 if h >= 15 else h      # weather hours on a day from 15:00 (previous) to 15:00 UTC  # noqa: E731
     weather = {r["country"]: {"world": wrap(r["utc_peak_hour"]), "local": r["local_peak_hour"], "phrasing": r["top_phrasing"]}
                for r in tc["weather_today"]["countries"]}
-    pope = {r["country"]: {"world": r["utc_h_from_ref"], "local": r["local_clock_h"], "phrasing": r["top_phrasing"]}
-            for r in tc["pope_francis_2025_04_21"]["countries"]}
+    # Pope Francis dots = the Opening's rows: first refresh (UTC), the capital's clock, the "searched as" titles
+    op = load(OUT / "opening.json")
+
+    def _h(stamp):
+        d = datetime.strptime(stamp[:16], "%Y-%m-%dT%H:%M")
+        return round((d - datetime(2025, 4, 21)).total_seconds() / 3600, 3)
+    pope = {r["iso2"]: {"world": _h(r["first_utc"]), "local": _h(r["local_time"]), "phrasing": " · ".join(r["searched_as"])}
+            for r in op["rows"] if r["trending"]}
     nye_case = tc["new_years_eve_2025_2026"]
     nye = {r["country"]: {"world": r["utc_h_from_ref"], "local": r["local_h_from_ref"], "phrasing": r["top_phrasing"]}
            for r in nye_case["countries"] if r["trends_in_peak_step"] >= 2 and not r["peak_tied"]}
@@ -581,7 +696,7 @@ def build_clocks():
     ws, ps = tc["weather_today"]["spread"], tc["pope_francis_2025_04_21"]["spread"]
     write("two_clocks.json", {
         "note": "One row per country, east (top) to west (UTC offset on Apr. 21, 2025; United States, Canada and Russia "
-                "in one zone each). weather = the hour its 'weather' searches usually peak (world = UTC hour, on a day "
+                "by the capital's zone). weather = the hour its 'weather' searches usually peak (world = UTC hour, on a day "
                 "from 15:00 to 15:00 UTC; local = local hour). pope = its first Pope Francis trend on Apr. 21, 2025, in "
                 "hours after midnight (UTC, and on the local wall clock). nye = New Year's Eve 2025/26: hours from "
                 "midnight (UTC, and local), for the countries with a clear peak (2+ trends in the peak 10 minutes, no tie).",

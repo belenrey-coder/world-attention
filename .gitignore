@@ -48,3 +48,4 @@ site/**/*.parquet
 site/**/shocks.json
 # private validation reports (local only)
 docs/SHOCK_VALIDATION*.md
+docs/OPENING_CHECKS.md

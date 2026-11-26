@@ -1,3 +1,4 @@
+import { methodologyHtml } from "../methodology.js";
 // "Show the data": a toggle that reveals the plain HTML table behind a chart, sortable, with a CSV download built
 // in the browser from the same rows (no CSV file is published).
 
@@ -20,8 +21,11 @@ export function downloadCSV(filename, columns, rows, cell = (c, r) => (c.format 
   setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 0);
 }
 
-/** extra: [{ label, onClick }] buttons shown next to "Download CSV". */
-export function showTheData(container, { columns, rows, caption, filename, label = "Show the data", extra = [] }) {
+/**
+ * extra: [{ label, onClick }] buttons shown next to "Download CSV".
+ * methodology: a key of METHODS (src/methodology.js): adds a "Methodology" toggle beside "Show the data".
+ */
+export function showTheData(container, { columns, rows, caption, filename, label = "Show the data", extra = [], methodology = null }) {
   const wrap = document.createElement("div");
   wrap.className = "show-data";
   wrap.dataset.open = "false";
@@ -131,7 +135,31 @@ export function showTheData(container, { columns, rows, caption, filename, label
     setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 0);
   });
 
-  wrap.append(toggle, tw, actions);
+  const bar = document.createElement("div");
+  bar.className = "sd-toggles";
+  bar.appendChild(toggle);
+  const parts = [bar, tw, actions];
+  if (methodology) {
+    const mid = `${id}-m`;
+    const mt = document.createElement("button");
+    mt.type = "button";
+    mt.setAttribute("aria-expanded", "false");
+    mt.setAttribute("aria-controls", mid);
+    mt.textContent = "▸ Methodology";
+    const mp = document.createElement("div");
+    mp.className = "methodology";
+    mp.id = mid;
+    mp.hidden = true;
+    mp.innerHTML = methodologyHtml(methodology);
+    mt.addEventListener("click", () => {
+      mp.hidden = !mp.hidden;
+      mt.setAttribute("aria-expanded", String(!mp.hidden));
+      mt.textContent = `${mp.hidden ? "▸" : "▾"} Methodology`;
+    });
+    bar.appendChild(mt);
+    parts.push(mp);
+  }
+  wrap.append(...parts);
   container.appendChild(wrap);
   return { update(newRows) { data = newRows.slice(); if (tbody.children.length) render(); } };
 }

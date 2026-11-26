@@ -228,8 +228,9 @@ export function mountClocks(root, data) {
   onEscape(() => tip.hide(true));
 
   // ------------------------------------------------------------------ data
-  after.innerHTML = `<p class="source">One dot per country, east (top) to west by its UTC offset on April 21, 2025; the United States, Canada and Russia sit in one zone each. Weather: each country’s usual peak hour of “weather” searches. Pope Francis: its first trend on April 21, 2025. New Year’s Eve 2025/26: the 48 countries with a clear peak (two or more trends in the same 10 minutes). As of ${data.as_of}.</p>`;
+  after.innerHTML = `<p class="source">One dot per country, east (top) to west by its capital’s UTC offset on April 21, 2025. Weather: each country’s usual peak hour of “weather” searches. Pope Francis: its first trend on April 21, 2025, on the capital’s clock. New Year’s Eve 2025/26: the 48 countries with a clear peak (two or more trends in the same 10 minutes). As of ${data.as_of}.</p>`;
   showTheData(after, {
+    methodology: "clocks",
     caption: "World and local times per country: weather peak, first Pope Francis search, New Year’s Eve peak",
     filename: "two-clocks",
     columns: [{ key: "name", label: "Country" }, { key: "offset", label: "UTC offset (h)", num: true },

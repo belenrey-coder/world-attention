@@ -9,10 +9,10 @@ Conventions: national feeds; UTC unless a local hour is named; a moment is one t
 | number | value | file | key |
 |---|---|---|---|
 | First Pope Francis trend (UTC) | 2025-04-21T07:50Z | `opening.json` | `first_trend_utc` |
-| Countries in 24 h | 120 | `opening.json` | `countries` |
+| Countries in 24 h | 123 | `opening.json` | `countries` |
 | Minutes until half of them | 10 | `opening.json` | `minutes_to_half` |
-| Countries within 60 min | 109 | `opening.json` | `within_60_min` |
-| Countries already trending at the first scrape (07:50 UTC; the scraper's 10-min grid makes them a tie) | 20 | `opening.json` | `cumulative_by_10_min[0]` |
+| Countries within 60 min | 114 | `opening.json` | `within_60_min` |
+| Countries already trending at the first scrape (07:50 UTC; the scraper's 10-min grid makes them a tie) | 22 | `opening.json` | `cumulative_by_10_min[0]` |
 
 ## Local
 
@@ -51,8 +51,8 @@ Conventions: national feeds; UTC unless a local hour is named; a moment is one t
 | ... 'other' shocks of sub-kind disaster or accident (all / in the top 40) | 36 / 3 | `shocks.json` | `moments[].sub_kind, other_top40` |
 | ... 'other' shocks of sub-kind markets (all / in the top 40) | 7 / 1 | `shocks.json` | `moments[].sub_kind, other_top40` |
 | ChatGPT (2025-01-23): event reach / within 60 min / minutes to half | 123 / 120 / 10 | `shocks.json` | `chart_top60.by_event_reach` |
+| Pope Francis (2025-04-21): event reach / within 60 min / minutes to half | 123 / 114 / 10 | `shocks.json` | `chart_top60.by_event_reach` |
 | Diogo Jota (2025-07-03): event reach / within 60 min / minutes to half | 122 / 111 / 20 | `shocks.json` | `chart_top60.by_event_reach` |
-| Pope Francis (2025-04-21): event reach / within 60 min / minutes to half | 120 / 109 / 10 | `shocks.json` | `chart_top60.by_event_reach` |
 | ChatGPT (2024-12-11): event reach / within 60 min / minutes to half | 119 / 117 / 10 | `shocks.json` | `chart_top60.by_event_reach` |
 | Venezuela (2026-01-03): event reach / within 60 min / minutes to half | 119 / 55 / 70 | `shocks.json` | `chart_top60.by_event_reach` |
 
@@ -198,7 +198,7 @@ Conventions: national feeds; UTC unless a local hour is named; a moment is one t
 | 72-h curve, Grok (2025-06): already trending / 1 h / 24 h / 72 h / hours to half | 0 / 20 / 49 / 49 / 1.33 | `waves_speed.json` | `biggest_returns` |
 | 72-h curve, OpenAI (2026-04): already trending / 1 h / 24 h / 72 h / hours to half | 0 / 27 / 29 / 41 / 0.67 | `waves_speed.json` | `biggest_returns` |
 | 72-h curve, Nvidia stock (2025-01): already trending / 1 h / 24 h / 72 h / hours to half | 0 / 3 / 45 / 46 / 3.83 | `waves_speed.json` | `biggest_returns` |
-| 72-h curve, shock Pope Francis (2025-04-21): already trending / 1 h / 24 h / 72 h / hours to half | 16 / 95 / 104 / 105 / 0.33 | `waves_speed.json` | `shocks` |
+| 72-h curve, shock Pope Francis (2025-04-21): already trending / 1 h / 24 h / 72 h / hours to half | 17 / 98 / 106 / 106 / 0.17 | `waves_speed.json` | `shocks` |
 | 72-h curve, shock ChatGPT (2025-01-23): already trending / 1 h / 24 h / 72 h / hours to half | 2 / 118 / 121 / 121 / 0.17 | `waves_speed.json` | `shocks` |
 | 72-h curve, shock Diogo Jota (2025-07-03): already trending / 1 h / 24 h / 72 h / hours to half | 0 / 111 / 122 / 122 / 0.33 | `waves_speed.json` | `shocks` |
 | 72-h curve, shock Venezuela (2026-01-03): already trending / 1 h / 24 h / 72 h / hours to half | 0 / 55 / 119 / 119 / 1.17 | `waves_speed.json` | `shocks` |
@@ -372,7 +372,7 @@ Conventions: national feeds; UTC unless a local hour is named; a moment is one t
 | Two clocks, christmas_eve_2025: countries / IQR of peak times UTC vs local (hours) / within 1 h of the median UTC vs local | 111 / 21.67 vs 18.08 / 7 vs 11 | `two_clocks.json` | `cases.christmas_eve_2025.spread` |
 | Two clocks, christmas_eve_2025: countries peaking within 1 h / 3 h of midnight, UTC vs local; clear peaks (10): IQR UTC vs local, within 1 h of midnight UTC vs local | 6 vs 10 / 9 vs 12; 15.62 vs 17.75, 0 vs 1 | `two_clocks.json` | `cases.christmas_eve_2025.spread.near_reference` |
 | Two clocks, weather_today: countries / IQR of peak times UTC vs local (hours) / within 1 h of the median UTC vs local | 120 / 3.0 vs 0.0 / 58 vs 116 | `two_clocks.json` | `cases.weather_today.spread` |
-| Two clocks, pope_francis_2025_04_21: countries / IQR of peak times UTC vs local (hours) / within 1 h of the median UTC vs local | 120 / 0.33 vs 2.71 / 110 vs 43 | `two_clocks.json` | `cases.pope_francis_2025_04_21.spread` |
+| Two clocks, pope_francis_2025_04_21: countries / IQR of peak times UTC vs local (hours) / within 1 h of the median UTC vs local | 123 / 0.33 vs 2.58 / 114 vs 51 | `two_clocks.json` | `cases.pope_francis_2025_04_21.spread` |
 
 ## Time machine
 

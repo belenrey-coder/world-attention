@@ -4,31 +4,57 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>All at Once</title>
-  <meta name="description" content="Most of the time, every country is searching for something different. Every so often, the whole world types the same thing within minutes. What makes that happen?">
+  <script>
+    // the title screen shows once per visit; a reload (or a link into the page) starts with the header in place
+    try { if (sessionStorage.getItem("aao-header") || location.hash) document.documentElement.dataset.header = "1"; } catch (e) {}
+  </script>
+  <meta name="description" content="The world rarely searches for the same thing, and when it does, it happens in four ways.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&family=Libre+Franklin:wght@400;500;600;700;800&display=swap">
 </head>
 <body>
   <main id="article">
-    <!-- ============================================================ headline block (static, no motion) -->
-    <header class="top col">
-      <p class="kicker">Google Trends · 125 countries · 18 months</p>
-      <h1>All at Once</h1>
-      <p class="dek">Most of the time, every country is searching for something different. Every so often, the whole world types the same thing within minutes. What makes that happen?</p>
-      <div class="byline"><span>By <b>Belen Reyes</b></span><span>Dec. 10, 2026</span><span id="motion-switch"></span></div>
+    <!-- ============================================================ title screen → header (docs/SPEC.md, Chapter 0) -->
+    <header class="top" id="top">
+      <div class="top-inner col">
+        <h1>All at Once</h1>
+        <p class="dek">The world rarely searches for the same thing, and when it does, it happens in four ways.</p>
+        <div class="byline"><span>By <b>Belen Reyes</b></span><span>Dec. 10, 2026</span><span id="motion-switch"></span></div>
+        <p class="dataline">Data: Google Trends · Trending Now, via <a href="https://huggingface.co/datasets/aurman/GoogleTrendArchive" target="_blank" rel="noopener">GoogleTrendArchive</a> · 18 months, Nov. 27, 2024 – May 17, 2026 · 125 countries</p>
+      </div>
+      <p class="scroll-cue" aria-hidden="true">Scroll ↓</p>
     </header>
 
     <!-- ============================================================ Chapter 0 · Opening -->
-    <section class="chapter" id="opening" aria-labelledby="opening-h">
-      <div class="col prose">
-        <h2 id="opening-h" class="sr-only">The day the world searched for one man</h2>
-        <p>At 7:50 a.m. Greenwich time on April 21, 2025, the Vatican announced that Pope Francis had died. When Google next refreshed its lists of what was trending, he was already on them in 20 countries, from Hong Kong to Peru.</p>
-        <p>Ten minutes later it was 63. Within the hour, 109. People who did not share a language, a time zone or, in many cases, a religion were asking the same question in the same few minutes.</p>
+    <section class="chapter op-chapter" id="opening" aria-labelledby="opening-h">
+      <h2 id="opening-h" class="sr-only">The morning Pope Francis died</h2>
+      <div class="op-scrolly" id="opening-scrolly">
+        <div class="op-sticky">
+          <div class="op-text">
+            <p data-p="0">Just before 7:50 a.m. Greenwich time on April 21, 2025, the Vatican announced that Pope Francis had died. When Google next refreshed its lists of what was trending, he was already on them in 22 countries.</p>
+            <p data-p="1">Ten minutes later it was 67.</p>
+            <p data-p="2">Within the hour, 114.</p>
+          </div>
+          <div class="op-graphic chart" id="opening-chart"></div>
+        </div>
+        <div class="op-steps" aria-hidden="true">
+          <div class="step" data-step="0"></div>
+          <div class="step" data-step="1"></div>
+          <div class="step" data-step="2"></div>
+          <div class="step" data-step="3"></div>
+        </div>
       </div>
-      <div class="wide chart" id="opening-chart" data-chart="opening"><p class="placeholder">Milestone 2: the map and the squares (the engine check at the bottom of the page uses this data).</p></div>
-      <div class="col prose">
-        <p>Moments like this are rare, and they are not all alike. Reading 18 months of trending searches, we found that the world looks up together in four ways: shocks nobody saw coming, appointments everybody had in the calendar, waves that keep coming back, and small rituals repeated every day.</p>
+      <div class="wide" id="opening-after"></div>
+      <div class="col prose op-closing">
+        <p>Moments like this are rare. Reading 18 months of trending searches, from November 27, 2024, to May 17, 2026, we found that the world looks up together in four ways:</p>
+        <ul class="four">
+          <li><b>Shocks:</b> news nobody saw coming</li>
+          <li><b>Appointments:</b> events everybody had in the calendar</li>
+          <li><b>Waves:</b> stories that keep coming back</li>
+          <li><b>Rituals:</b> small habits and ceremonies repeated every day or every year</li>
+        </ul>
+        <p>This article is about them.</p>
       </div>
     </section>
 
@@ -62,7 +88,7 @@
       </div>
       <div class="scrolly wide" id="shocks-scrolly">
         <div class="steps">
-          <div class="step" data-step="0"><div class="n">1 · Four stories</div>Four shocks stand out: <b>ChatGPT down</b>, the widest of all; <b>Pope Francis</b>, half his countries in ten minutes; <b>Diogo Jota</b>, 122 countries in a day; and <b>Venezuela</b>, which kept spreading for hours.</div>
+          <div class="step" data-step="0"><div class="n">1 · Four stories</div>Four shocks stand out: <b>ChatGPT down</b> and <b>Pope Francis</b>, tied as the widest at 123 countries (Pope Francis reached half of them in ten minutes); <b>Diogo Jota</b>, a slow start, then 122; and <b>Venezuela</b>, which kept spreading for hours.</div>
           <div class="step" data-step="1"><div class="n">2 · What they were</div>Half of the news that stopped the world was a death. A quarter was the internet breaking: <b>30 deaths, 15 outages</b>, 8 moments of politics or conflict and 7 others. Tap a type to see it alone.</div>
         </div>
         <div class="graphic"><div class="chart" id="shocks-chart"></div></div>
@@ -104,7 +130,7 @@
       <div class="wide chart" id="waves-iran"></div>
       <div class="col chart" id="waves-speed" style="margin-top:40px"></div>
       <div class="col prose" style="margin-top:28px">
-        <p id="waves-sentence">Moments like the strikes are the exception. Of the 851 moments that reached 50 or more countries, only about one in seven was a shock. Counted from the first countries to search, the typical one took 12 hours to reach half of them.</p>
+        <p id="waves-sentence">Moments like the strikes are the exception. Of the 851 moments outside sport that reached 50 or more countries, only about one in seven was a shock. Counted from the first countries to search, the typical one took 12 hours to reach half of them.</p>
       </div>
       <div class="col prose" style="margin-top:28px">
         <h3 class="h3">Eighteen stories the world returned to</h3>
@@ -158,7 +184,7 @@
         <div class="steps">
           <div class="step" data-step="0"><div class="n">1</div>Each dot is a country, at the hour its “weather” searches usually peak, from east (top) to west. On the world’s clock, the dots climb: the morning moves west, one time zone at a time.</div>
           <div class="step" data-step="1"><div class="n">2</div>Switch to each country’s own clock and the staircase collapses: 116 of 120 countries search the weather at 6 a.m. their time.</div>
-          <div class="step" data-step="2"><div class="n">3</div>Pope Francis does the opposite. On the world’s clock, 110 of 120 countries started searching within the same hour; on local clocks they scatter from the middle of the night to the evening.</div>
+          <div class="step" data-step="2"><div class="n">3</div>Pope Francis does the opposite. On the world’s clock, 114 of 123 countries started searching within the same hour; on local clocks they scatter from the middle of the night to the evening.</div>
         </div>
         <div class="graphic"><div class="chart" id="clk-chart"></div></div>
       </div>

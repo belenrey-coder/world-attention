@@ -67,7 +67,7 @@ export function scrolly(container, onStep, { offset = 0.5 } = {}) {
   syncs.add(sync);
   const s = scrollama();
   s.setup({ step: steps, offset }).onStepEnter(() => schedule("scroll")).onStepExit(() => schedule("scroll"));
-  if (loaded) requestAnimationFrame(() => sync("load", true));
+  if (loaded) schedule("load"); // charts that mount late sync at once (rAF, with the timeout fallback)
   return { current: () => cur, sync: () => sync("load", true) };
 }
 
@@ -86,5 +86,5 @@ export function onEnterView(el, fn, { offset = 0.5 } = {}) {
     fn(loaded && source === "scroll" && down && !reducedMotion());
   }
   syncs.add(sync);
-  if (loaded) requestAnimationFrame(() => sync("load", true));
+  if (loaded) schedule("load");
 }
