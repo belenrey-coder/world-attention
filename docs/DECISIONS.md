@@ -1535,6 +1535,20 @@ Sample 1 (`docs/shock_validation_sample.csv`, 100 moments) is now the **tuning**
 - **New Year's Eve, clear peaks only** (49 and 48 countries): local IQR 0.33 h vs 6.2 h UTC (2024/25), and 0.17 h vs 5.5 h (2025/26). 43 of them peak within 1 h of local midnight, against 11 and 9 within 1 h of UTC midnight. The US zones peak near their own midnight (New York 23:50, Chicago 23:10, Denver 23:50 local), and so does Moscow (00:00).
 - **Christmas Eve** does not show the effect. Its searches spread over 24 December (films, lights, opening hours), most countries have 1–3 trends, and only 10–11 countries have a clear peak.
 
+### Step 9 round 36: weather "usual day" (2026-11-25)
+- **Export:** `weather_day.json` (`08_story_export.py`, after `rituals.json`). The rows, the 'today' / 'tomorrow' split and the zones are the same as the weather clock: national feeds in one zone, and US/CA/RU from their regional feeds, each in its own zone. A country counts once per local hour if any of its zones has a trend starting then.
+- **Day:** the local calendar date of the trend's start.
+- **by_day:** each day carries a flag and the number of countries per local hour 0–23, for 'today' and for 'tomorrow'.
+- **Flags:** a local day overlaps the UTC day before and after it, so a day is:
+  - "gap" if the date is a collection gap day (51 days);
+  - "next to a gap or archive edge" if the day before or after is a gap day or outside the archive (14 days);
+  - "outside archive" (2 days: the local days just before and after the archive);
+  - full coverage otherwise: 472 of 539 days.
+- **Usual day:** the mean and median per local hour over the 472 full-coverage days.
+  - 'Today': peak at 06:00 local, mean 19.75 countries (median 19). Next is 07:00 with 13.7.
+  - 'Tomorrow': peak at 20:00 local, mean 8.5 countries (median 6). Next is 21:00 with 2.9. Almost no 'tomorrow' trends start at other hours.
+- **Not checked:** whether the 19:00 UTC collection bump (CHECKS C4) adds to the 20:00 'tomorrow' peak for countries at UTC+1.
+
 ## Open issues (need a decision)
 
 _Updated 2026-11-09, after the short-string, sport, 19:00 UTC and Wrapped fixes (rerun from combine: combine, link, validation, moments, export, profile, checks)._

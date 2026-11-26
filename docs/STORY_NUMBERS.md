@@ -319,6 +319,8 @@ Conventions: national feeds; UTC unless a local hour is named; a moment is one t
 | (a) Full-coverage days on which the topic 'Weather' (22 topics named so) trended in 10+ countries | 409 | `rituals.json` | `weather_days.topic_weather_days_10plus` |
 | (a') ... the single topic with id 'Weather' only | 294 | `rituals.json` | `weather_days.topic_weather_plain_id_days_10plus` |
 | (b) Full-coverage days on which any weather topic (6,212 topics) trended in 10+ countries | 486 | `rituals.json` | `weather_days.any_weather_topic_days_10plus` |
+| Weather usual day ('today'): peak local hour / mean countries starting a trend then (median) / full-coverage days | 6:00 / 19.75 (19) / 472 | `weather_day.json` | `usual_day.today` |
+| Weather usual day ('tomorrow'): peak local hour / mean countries starting a trend then (median) / full-coverage days | 20:00 / 8.53 (6) / 472 | `weather_day.json` | `usual_day.tomorrow` |
 | Ritual topics (not hidden) / proposed cycle daily / weekly / yearly / unclear / too few trends | 13,568 / 49 / 140 / 1,269 / 1,897 / 10,213 | `rituals_review.json` | `ritual_topics` |
 | Ritual topics that look like sport (topic sport, athlete, or mostly sport moments) | 55 of 13,568 (of those with 5+ trends: 27 of 3,355) | `rituals_review.json` | `ritual_topics[].sport_like` |
 | Weather clock: busiest local hour, 'today' / 'tomorrow' phrasings | 6:00 (31.0%) / 20:00 (77.8%) | `rituals_review.json` | `weather_clock` |
