@@ -2564,20 +2564,80 @@ _fixture = pd.Series(_lname).str.contains(FIXTURE_RE, regex=True).values | \
 _sportish = _tcw.topic_id.map(meta["type"]).isin(["sports_match", "team"]).values | \
     _tcw.topic_id.map(meta.category).isin(["sports_match", "team"]).values | \
     _tcw.topic_id.map(meta.is_athlete).fillna(False).astype(bool).values
+# round 42: sport phrases ("game today", "score", "baseball", "standings", "live" next to a team / league word ...)
+# and weather-like topics outside the weather category (forecast words in several languages, meteorological
+# institutes)
+SPORT_PHRASE_RE = (r"game today|games today|match today|matches today|partido de hoy|jogo de hoje|jogo hoje|"
+                   r"\bscores?\b|\bplacar\b|\bmarcador\b|\bskor\b|baseball|basketball|basket\b|beisbol|b[ée]isbol|"
+                   r"baloncesto|basquete|standings|line ?ups?\b|alineaci[oó]n|escala[cç][aã]o|\btabla de posiciones\b|classifica\b|klasemen|puan durumu|"
+                   r"\blive\b.*\b(sport|sports|football|futbol|f[uú]tbol|soccer|liga|league|nba|nfl|nhl|mlb|cricket|ipl|"
+                   r"fc|cf|united|city|vs)\b|\b(sport|sports|football|futbol|f[uú]tbol|soccer|liga|league|nba|nfl|nhl|mlb|"
+                   r"cricket|ipl|fc|cf)\b.*\blive\b|\bnba\b|\bnfl\b|\bnhl\b|\bmlb\b|\bipl\b|"
+                   # clubs and leagues by name (round 42): fc / afc / cf / cd, liga / league / lig, sports channels
+                   r"\b(a?fc|cf|cd)\b|f[uú]tbol|futebol|\bfootball\b|soccer|\bliga\b|league|\blig\b|"
+                   r"lalig|لاليغا|الدوري|ลีก|\bsports?\b|\bnb ?[i12]\b|\bmpbl\b|\bpba\b|\bkbo\b|\bnpb\b")
+WEATHER_LIKE_RE = (r"forecast|pron[oó]stico|previs[aã]o|pr[ée]visions? m[ée]t[ée]o|\bm[ée]t[ée]o\b|\bmeteo|wetter|"
+                   r"weather|\bclima\b|tiempo en\b|el tiempo\b.*(ma[ñn]ana|hoy)|погода|прогноз погоды|hava durumu|"
+                   r"cuaca|th[oờ]i ti[eế]t|天気|天氣|天气|날씨|طقس|الطقس|pogoda|po[cč]as[ií]|id[őo]j[áa]r[áa]s|vremea|"
+                   r"vrijeme|vreme\b|\bilm\b|\bsää\b|v[äa]der|vejret|været|καιρός|מזג האוויר|\borai\b|"
+                   r"meteorolog|met office|met [ée]ireann|aemet|\binmet\b|\bbmkg\b|pagasa|\bdhmz\b|\bknmi\b|\bdwd\b|"
+                   r"\bsmhi\b|\bdmi\b|ilmatieteen|\bimd\b|\bjma\b|\bkma\b|\bsenamhi\b|\bsmn\b|\bimn\b|accuweather")
+_sport_phr = pd.Series(_lname).str.contains(SPORT_PHRASE_RE, regex=True).values | \
+    pd.Series(_lid).str.contains(SPORT_PHRASE_RE, regex=True).values
+_wx_like = pd.Series(_lname).str.contains(WEATHER_LIKE_RE, regex=True).values | \
+    pd.Series(_lid).str.contains(WEATHER_LIKE_RE, regex=True).values
 _wxl = _tcw.topic_id.map(meta.category).eq("weather").values
 _tcw["drop_reason"] = np.select([~_tcw.topic_id.isin(single).values | _tcw.topic_id.isin(hidden | wrapped_skip).values,
-                                 _fixture | _sportish, _wxl, _tcw.n.values < LOCAL_MIN_TRENDS],
-                                ["not shown", "football fixture / team / athlete", "weather", "fewer than 5 trends"],
+                                 _fixture | _sportish, _sport_phr, _wxl, _wx_like, _tcw.n.values < LOCAL_MIN_TRENDS],
+                                ["not shown", "football fixture / team / athlete", "sport phrase", "weather",
+                                 "weather-like", "fewer than 5 trends"],
                                 default="")
 _tcw_r40 = _tcw[_tcw.drop_reason.ne("not shown")].sort_values(["n", "vol"], ascending=False)
 _tcw = _tcw[_tcw.drop_reason.eq("")].sort_values(["n", "vol"], ascending=False)   # by trends, then volume
-_loc_top = {c: g.head(5) for c, g in _tcw.groupby("country_code")}
+# near-duplicates (round 42): a topic whose words mostly repeat a higher-ranked topic of the same card is skipped.
+# Words = lower-case tokens of 3+ characters from its name and top 3 phrasings; near-duplicate = 2+ shared words and
+# shared / smaller set >= 0.6. The one with more trends is kept (the list is in trends order).
+_cand = _tcw.groupby("country_code").head(40)
+_cand_rows = {k_: g_ for k_, g_ in t[t.topic_id.isin(set(_cand.topic_id))].groupby("topic_id")}
+
+
+# generic words that do not make two topics the same (today / live / price / results / channel ...)
+DUP_GENERIC = set("""today tonight live online streaming stream results result resultados resultado price prices rate
+rates precio precos preco prix prezzo preis channel news noticias the and del des por para com hoy hoje heute oggi
+aujourd hui hom nay gia سعر اليوم في من على""".split())
+
+
+def _words(tid):
+    import unicodedata
+    nm_ = re.sub(r"\s*\([^)]*\)", "", str(name.get(tid) or tid))       # "TV programme tonight (France)" -> no country
+    txt = " ".join([nm_, tid] + top_phrasings(_cand_rows[tid], 3)).lower()
+    txt = "".join(ch for ch in unicodedata.normalize("NFKD", txt) if not unicodedata.combining(ch))
+    return {w_ for w_ in re.findall(r"\w+", txt) if len(w_) >= 3 and not w_.isdigit() and w_ not in DUP_GENERIC}
+
+
+LOCAL_DUPES = []
+_loc_top = {}
+for c, g in _cand.groupby("country_code"):
+    kept, kw = [], []
+    for r in g.itertuples():
+        w_ = _words(r.topic_id)
+        dup = next((k_ for k_, kw_ in zip(kept, kw) if len(w_ & kw_) >= 2 and
+                    len(w_ & kw_) / max(min(len(w_), len(kw_)), 1) >= 0.6), None)
+        if dup is not None:
+            LOCAL_DUPES.append({"country": c, "kept": name.get(dup) or dup, "skipped": name.get(r.topic_id) or r.topic_id})
+            continue
+        kept.append(r.topic_id)
+        kw.append(w_)
+        if len(kept) == 5:
+            break
+    _loc_top[c] = g[g.topic_id.isin(kept)].set_index("topic_id").loc[kept].reset_index()
+print(f"  wrapped: near-duplicates skipped in the local top 5s: {len(LOCAL_DUPES)}", flush=True)
 _loc_top_r40 = {c: g.head(5) for c, g in _tcw_r40.groupby("country_code")}     # round 40 rule, for the comparison
 _lt_changed = [c for c in W_CC if list(_loc_top.get(c, pd.DataFrame(columns=["topic_id"])).topic_id) !=
                list(_loc_top_r40.get(c, pd.DataFrame(columns=["topic_id"])).topic_id)]
 print(f"  wrapped: top 5 local topics change in {len(_lt_changed)} of {len(W_CC)} cards; dropped from the round-40 "
       f"top 5s: {pd.concat(list(_loc_top_r40.values())).drop_reason.value_counts().to_dict()}", flush=True)
-_rows_by_tid = {k_: g_ for k_, g_ in t[t.topic_id.isin(set(_tcw.groupby("country_code").head(5).topic_id) |
+_rows_by_tid = {k_: g_ for k_, g_ in t[t.topic_id.isin({x for g in _loc_top.values() for x in g.topic_id} |
                                                        set(_tcw_r40.groupby("country_code").head(5).topic_id))]
                 .groupby("topic_id")}
 # attention twin: Jaccard on the sets of topics each national feed had; second version without sports matches,
@@ -2671,6 +2731,14 @@ _gapm = _st_u.groupby("country_code").start_time_utc.diff().dt.total_seconds() /
 FEED_STEP_MIN = _gapm.groupby(_st_u.country_code).median()
 FEED_STARTS_PER_DAY = _st_u.groupby("country_code").size() / t.day.nunique()
 _f3_share = pd.Series({c: _g_first3.get(c, 0) / _g_join[c] for c in W_CC if _g_join.get(c)})
+# appointment share (round 42): share of the global moments (not hidden) the country joined that are appointments
+_g_appt = {}
+for cs, k_ in zip(_gmw.countries, _gmw.kind):
+    if k_ == "appointment":
+        for c_ in cs:
+            _g_appt[c_["country_code"]] = _g_appt.get(c_["country_code"], 0) + 1
+_apsh = pd.Series({c: _g_appt.get(c, 0) / _g_join[c] for c in W_CC if _g_join.get(c)})
+_aprank = _apsh[[c for c in _apsh.index if c not in LOW_DATA]].rank(ascending=False, method="min").astype(int)
 _f3_rank = _f3_share[[c for c in _f3_share.index if c not in LOW_DATA]].rank(ascending=False, method="min").astype(int)
 _ap_cc = {}
 for u in units.itertuples():
@@ -2700,13 +2768,6 @@ _bd = {}
 for p in sorted((EXPORT / "wrapped").glob("[A-Z][A-Z].json")):
     c5 = json.load(open(p))
     _bd[c5["country_code"]] = c5["busiest_day"]
-def _ap_total(eid):
-    """Total reach of an appointment event: every country in its window (multi-day events: event_reach_total)."""
-    u = _ap_cc[eid][0]
-    tot = getattr(u, "event_reach_total", None)
-    return int(tot) if tot is not None and not (isinstance(tot, float) and math.isnan(tot)) else len(_ap_cc[eid][1])
-
-
 def _ap_item(eid):
     u = _ap_cc[eid][0]
     return {"event_id": eid, "event": u.event, "category": u.category, "first_utc": u.first_utc,
@@ -2725,8 +2786,7 @@ for c in W_CC:
     ap_all = [eid for eid in _ap_order if eid in _ap_cc and c in _ap_cc[eid][1]]
     ap_j = ap_all[:3]
     ap_nf = [eid for eid in ap_all if _ap_cc[eid][0].category != "football"][:3]
-    _ap15 = [eid for eid in ap_all if _ap_total(eid) >= 15]
-    ap_dist = min(_ap15, key=lambda e_: (_ap_total(e_), _ap_cc[e_][0].first_utc)) if _ap15 else None
+
     _wxr = w[w.country_code == c]
     waves_j = [{"story": st_["story"], "group": st_["group"], "months_15plus_joined": per_[c],
                 "months_15plus": len(m15)} for st_, m15, per_ in _wave_cc if c in per_]
@@ -2752,8 +2812,9 @@ for c in W_CC:
                        "feed_median_minutes_between_starts": float(FEED_STEP_MIN.get(c, np.nan))},
             "appointments": {"widest_3": [_ap_item(eid) for eid in ap_j],
                              "widest_3_without_football": [_ap_item(eid) for eid in ap_nf],
-                             "most_distinctive": (_ap_item(ap_dist) | {"total_reach": _ap_total(ap_dist)})
-                             if ap_dist else None},
+                             "appointment_share": round(float(_apsh[c]), 4) if c in _apsh.index else None,
+                             "appointment_share_rank_without_low_data": int(_aprank[c]) if c in _aprank.index else None,
+                             "appointment_share_rank_of": int(len(_aprank))},
             "waves": {"joined": waves_j, "joined_n": len(waves_j), "stories": len(_wave_cc)},
             "rituals": {"weather_today_hour": wx_.get("today_peak_hour"),
                         "weather_tomorrow_hour": wx_.get("tomorrow_peak_hour"),
@@ -2778,11 +2839,15 @@ for c in W_CC:
 write("wrapped/index.json", {
     "note": "Country Wrapped cards (Step 9 round 39). local_share = share of the country's topics found in no other "
             "national feed (local.json), rank 1 = most local, also ranked without low_data countries. "
-            "uniquely_local_top5 = its one-country topics by trends, then search volume, without hidden and Wrapped-skip topics. "
+            "uniquely_local_top5 = its one-country topics by trends, then search volume, without hidden and Wrapped-skip topics, "
+            "football fixtures, teams, athletes, sport phrases, weather and weather-like topics, with 5+ trends and "
+            "no near-duplicates (rounds 41-42). "
             "shocks = which of the 60 chart shocks (shocks.json chart_top60, event reach) it joined, and how many "
             "global moments (not hidden) it joined / was among the first 3 countries in (ties with the third "
             "included; first3_share = among first 3 / joined, ranked without low_data countries; round 40). "
-            "appointments.widest_3_without_football = the same without category football (round 40). "
+            "appointments.widest_3_without_football = the same without category football (round 40); "
+            "appointment_share = appointment global moments / global moments joined, ranked without low_data "
+            "(round 42). "
             "surprising_twin = the most similar country without sport that shares neither an official language "
             "(Wikidata P37) nor the main search language (round 40). rituals.top_weather_phrasings = top 3. "
             "("
@@ -2830,18 +2895,21 @@ num("Wrapped", "Feed update frequency: median minutes between consecutive trend 
                "fastest (not low_data)",
     f"{FEED_STEP_MIN.get('BR', float('nan')):g} / {_fs.median():g} / {_fs.idxmin()} {_fs.min():g}", "wrapped/<CC>.json",
     "shocks.feed_median_minutes_between_starts")
-num("Wrapped", "Top 5 uniquely local topics: cards that change with the round-41 rule (no fixtures, teams, athletes, "
-               "weather; 5+ trends)", f"{len(_lt_changed)} of {len(W_CC)}", "wrapped/<CC>.json", "uniquely_local_top5")
+num("Wrapped", "Top 5 uniquely local topics: cards that differ from the plain list (no fixtures, teams, athletes, "
+               "sport phrases, weather or weather-like topics, near-duplicates; 5+ trends)", f"{len(_lt_changed)} of {len(W_CC)}", "wrapped/<CC>.json", "uniquely_local_top5")
 _wsc = load_json(WORK / "wrapped_validation.json") if (WORK / "wrapped_validation.json").exists() else None
 if _wsc:
     num("Wrapped", "Hand labels (40 uniquely local topics): truly local (95% CI) / merge failures removed by the "
                    "round-41 rule", f"{_wsc['truly_local']} of {_wsc['n']} ({_wsc['precision']:.0%}, "
                                     f"{_wsc['ci95'][0]:.0%}-{_wsc['ci95'][1]:.0%}) / {_wsc['merge_removed']} of "
                                     f"{_wsc['merge_failures']}", "work/wrapped_validation.json", "precision")
-_dist = pd.Series({c: (WRAPPED_CARDS[c]["appointments"]["most_distinctive"] or {}).get("event") for c in W_CC})
-num("Wrapped", "Most distinctive appointment: cards with one / most common events",
-    f"{int(_dist.notna().sum())} / " + ", ".join(f"{k} {v}" for k, v in _dist.value_counts().head(3).items()),
-    "wrapped/<CC>.json", "appointments.most_distinctive")
+_aps = _apsh[_aprank.index].sort_values(ascending=False)
+num("Wrapped", "appointment_share (appointments / global moments joined; not low_data): highest 3 / median / lowest 3",
+    ", ".join(f"{cname.get(c)} {v:.0%}" for c, v in _aps.head(3).items()) + f" / {_aps.median():.0%} / " +
+    ", ".join(f"{cname.get(c)} {v:.0%}" for c, v in _aps.tail(3).items()), "wrapped/<CC>.json",
+    "appointments.appointment_share")
+num("Wrapped", "Local top 5: near-duplicates skipped (a later topic repeating a higher one's words)", len(LOCAL_DUPES),
+    "wrapped_review.json", "local_rule_r41.near_duplicates")
 num("Wrapped", "Highest first3_share (among first 3 / global moments joined; not low_data), top 3",
     ", ".join(f"{cname.get(c)} {v:.0%} ({_g_first3.get(c, 0)} of {_g_join[c]})" for c, v in _f3top.items()),
     "wrapped/<CC>.json", "shocks.first3_share")
@@ -2858,6 +2926,7 @@ num("Wrapped", "Most local countries (not low_data), share of topics found nowhe
 # review data for step 9 `wrapped-review` (local report and label sheet)
 write("wrapped_review.json", {"note": "Input for 09_validate_shocks.py wrapped-review / wrapped-score (local).",
                               "local_rule_r41": {"min_trends": LOCAL_MIN_TRENDS, "fixture_re": FIXTURE_RE,
+                                                 "near_duplicates": LOCAL_DUPES,
                                                  "dropped_from_r40_top5": {
                                                      r.topic_id: r.drop_reason for g in _loc_top_r40.values()
                                                      for r in g.itertuples() if r.drop_reason}},

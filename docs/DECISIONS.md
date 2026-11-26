@@ -1666,6 +1666,31 @@ Sample 1 (`docs/shock_validation_sample.csv`, 100 moments) is now the **tuning**
 - **Ties shared** (`first3_share_ties_shared`: countries tied at the third country's 10-minute step share the remaining places): Brazil 50%, Indonesia 24%, UK 24%, US 22%. Brazil was 70% before.
 - **Brazil's lead holds**, also among the 10-minute feeds, where the next is 24%. Its first-3 count shrinks a lot when ties are shared, but no other fast feed comes close. The data can't separate "Brazil searches first" from "Brazil's feed is collected first within each 10-minute step".
 
+### Step 9 round 42: tighter local top 5, appointment share (2026-11-25)
+- **Local top 5, rules added** (`08_story_export.py`, section 8):
+  - **Sport phrases** (`SPORT_PHRASE_RE`, on the topic name and raw string): "game today", "match today", score / placar / marcador / skor, baseball / basketball (and Spanish and Portuguese forms), standings / tabla de posiciones / klasemen / puan durumu, line-up words, "live" next to a team or league word, NBA / NFL / NHL / MLB / IPL.
+  - **Clubs and leagues by name:** fc / afc / cf / cd, liga / league / lig, الدوري, ลีก, sport(s), NB I / NB II, MPBL / PBA / KBO / NPB.
+  - Claude types and categories sports_match / team and athletes stay excluded (round 41). There is no "league" type.
+  - **Weather-like topics** outside the weather category (`WEATHER_LIKE_RE`): forecast words in several languages (forecast, pronóstico, previsão, météo, wetter, clima, погода, hava durumu, cuaca, thời tiết, 天気, 날씨, طقس, pogoda, počasí, időjárás, vremea, vrijeme, orai ...) and meteorological institutes (DHMZ, BMKG, DMI, SMHI, AEMET, INMET, PAGASA, IMD, JMA, KMA, SMN, Met Office ...).
+  - **Near-duplicates:** going down the card's list in trends order, a topic is skipped when it shares 2+ words with a topic already kept and the shared words make up ≥ 60% of the smaller word set. Words are lower-case, accent-free tokens of 3+ characters from the name (without a parenthesised country), the raw string and the top 3 phrasings, minus generic words (today, live, price, results, channel, news ...).
+- **Tuning:** a first version without accent folding and the generic-word list paired different topics (Channel 3 vs Channel 7 in Thailand, coffee vs petrol prices in Vietnam) and missed France's TV pair. A first club pattern with \bsc\b / \bse\b / \bca\b would have dropped "sc lottery" and Portuguese "se", so it was narrowed.
+- **Result:** 36 of 125 cards change from round 41. 83 of 125 now differ from the plain list. 5 near-duplicates are skipped:
+  - France: "TV programme tonight (France)" behind "programme télé ce soir".
+  - Kenya: "Kenya Power (KPLC)" behind "kenya power".
+  - Nigeria: "bbc hausa live" and "BBC Hausa" behind "bbc hausa.com".
+  - Libya: "منظومة حجز الدولار" (the dollar booking system) behind "مصرف ليبيا المركزي" (the central bank, whose booking system shares the words).
+- **Examples (round 41 → round 42):**
+  - CZ: −ČT Sport, čt sport plus, čt sport živě; +novinky, prostřeno, ondřej sokol
+  - SA: −هدافين الدوري السعودي, مباريات اليوم الدوري السعودي; +حافز, Study suspension
+  - ID: −BMKG (Indonesian Meteorology Agency), bmkg juanda; +Vidio, asmara gen z
+  - US: −lsu baseball, padres game today; +laura ingraham, sc lottery
+  - FR: −TV programme tonight (France); +Eric Antoine
+- **Still through:** clubs without a club word, such as "gcz" (CH), "hearts of oak" (GH), "man cty" / "manc" (UG) and "marathon hoy" (HN).
+- **Short lists:** 19 cards have fewer than 5 topics after the rules, most of them because of the 5-trend minimum (for example AL, AO, BF, GE, ML, NI, SY, TM with 1).
+- **Appointment share** replaces `most_distinctive`, which picked teams and standings rather than events. `appointments.appointment_share` = the global moments (not hidden) the country joined that are appointments, divided by all the global moments it joined, with its rank among the 120 countries that aren't low_data.
+  - Highest: Turkmenistan 100%, Haiti 99%, Mali 99%. Median 93%. Lowest: Norway 77%, Finland 74%, Lithuania 67%.
+  - The range is narrow because global moments are mostly sport.
+
 ## Open issues (need a decision)
 
 _Updated 2026-11-09, after the short-string, sport, 19:00 UTC and Wrapped fixes (rerun from combine: combine, link, validation, moments, export, profile, checks)._
