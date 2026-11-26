@@ -1737,6 +1737,21 @@ Sample 1 (`docs/shock_validation_sample.csv`, 100 moments) is now the **tuning**
   - Six cards have no local topic at all (BJ, CM, HT, MK, MM, ZM), as before this round.
 - `09_validate_shocks.py wrapped-review` draws its sample from group members too (the labelled sheet is not redrawn).
 
+### Step 9 round 45: group labels, one source for map frames (2026-11-25)
+- **Group labels:** a grouped local topic is now named after its main (most-trended) member plus a count, e.g. "大村競艇 + 5 related", "becas benito juarez + 1 related", "horoscope christine haas + 2 related". `group_word` (競艇, juarez, horoscope), `main_topic_id` and `members` (each with `short_name`) are kept.
+- **Map frames:** the site reads map frames only from `data/export/hours/YYYY-MM.json`.
+  - Step 8 no longer writes the old monthly frames `story/timemachine/YYYY-MM.json` (one entry per topic and kind, no shared topics). `story/timemachine/` keeps only `peaks.json`, the timeline of global moments; its `files` list is replaced by a pointer to the map frames.
+  - The story export drops from 188 files (18.3 MB) to 169 (7.7 MB). This count excludes `hours/`, which is written outside `story/`.
+- **Build list:** `story/manifest.json` → `build` says what the site should read (paths relative to `data/export/`):
+  - `map_frames` (the 19 `hours/` files, < 2 MB each)
+  - `days` (`story/days.json`)
+  - `timeline` (`story/timemachine/peaks.json`)
+  - `wrapped` (index and 125 cards)
+  - `chapters` (`opening`, `local`, `shocks`, `waves`, `appointments`, `appointments_daily`, `waves_chart`, `waves_speed`, `rituals`, `weather_day`, `two_clocks`, `days`)
+  - `chapter_parts` (`story/appointments/YYYY-MM.json`)
+  - `not_for_the_site` (the review files: `wrapped_review.json`, `rituals_review.json`, `rituals_review/`, `waves_review.json`)
+  - `deprecated_removed` (the old frames)
+
 ## Open issues (need a decision)
 
 _Updated 2026-11-09, after the short-string, sport, 19:00 UTC and Wrapped fixes (rerun from combine: combine, link, validation, moments, export, profile, checks)._

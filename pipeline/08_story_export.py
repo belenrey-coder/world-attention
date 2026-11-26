@@ -2400,53 +2400,16 @@ end = end.where(end > tv.start_time_utc, tv.start_time_utc + pd.Timedelta(minute
 h0 = tv.start_time_utc.dt.floor("h").astype("int64") // 3_600_000_000_000
 h1 = (end - pd.Timedelta(microseconds=1)).dt.floor("h").astype("int64") // 3_600_000_000_000
 n = np.clip(h1 - h0 + 1, 1, 25).values
-# one entry per (topic, moment kind): the same topic can show in a month with different kinds
-tid_codes, tid_uni = pd.factorize(tv.topic_id + "|" + tv.kind)
+# round 45: the old monthly frames (story/timemachine/YYYY-MM.json, one entry per topic and kind) are no longer
+# written; the map reads data/export/hours/ only (section 7b). The hour expansion below feeds section 7b.
 cc_codes, cc_uni = pd.factorize(tv.country_code, sort=True)
 idx = np.repeat(np.arange(len(tv)), n)
 offs = np.arange(len(idx)) - np.repeat(np.cumsum(n) - n, n)
-e = pd.DataFrame({"hour": h0.values[idx] + offs, "cc": cc_codes[idx], "tid": tid_codes[idx],
-                  "vol": tv.vol.values[idx], "start": tv.start_time_utc.astype("int64").values[idx]})
-e = e.sort_values(["hour", "cc", "vol", "start"], ascending=[True, True, False, False]).drop_duplicates(["hour", "cc"])
-e["month"] = pd.to_datetime(e.hour * 3_600_000_000_000, utc=True).dt.strftime("%Y-%m")
 countries = list(cc_uni)
 KINDS = MOMENT_KINDS
-tm_files = []
-for month, g in e.groupby("month"):
-    start = pd.Timestamp(month + "-01", tz="UTC")
-    hrs = pd.date_range(start, start + pd.offsets.MonthBegin(1), freq="h", inclusive="left")
-    key = g.set_index(["hour", "cc"]).tid
-
-    def build(hh):
-        hi_ = [int(h.value // 3_600_000_000_000) for h in hh]
-        sub = key[key.index.get_level_values(0).isin(hi_)]
-        tids = list(dict.fromkeys(sub.values))
-        pos = {x: i for i, x in enumerate(tids)}
-        d = sub.to_dict()
-        return {"month": month, "countries": countries, "hours": [h.strftime("%Y-%m-%dT%H") for h in hh],
-                "kinds": KINDS,
-                "topics": [[tid_uni[x].rsplit("|", 1)[0], name.get(tid_uni[x].rsplit("|", 1)[0]),
-                            KINDS.index(tid_uni[x].rsplit("|", 1)[1]), int(tid_uni[x].rsplit("|", 1)[0] in WAVE)]
-                           for x in tids],
-                "top": [[pos[d[(h, c)]] if (h, c) in d else -1 for c in range(len(countries))] for h in hi_],
-                "note": "top[i][j] = index into topics of country j's top active trend in hour i (-1 = none); "
-                        "topics = [topic_id, name, kind index into kinds, is_wave 0/1] (kind = the kind of the "
-                        "moment the trend belongs to, so a topic can appear twice with different kinds; is_wave = "
-                        "the topic is a wave topic, a flag, not a kind)"}
-    for k in range(1, 9):
-        parts = [list(p) for p in np.array_split(np.array(hrs, dtype=object), k)]
-        objs = [build(p) for p in parts]
-        if all(len(dumps(o).encode()) <= MAX_BYTES for o in objs):
-            for i, o in enumerate(objs):
-                rel = f"timemachine/{month}.json" if k == 1 else f"timemachine/{month}-{i + 1}.json"
-                write(rel, o)
-                tm_files.append(rel)
-            break
-    else:
-        raise ValueError(f"time machine {month} does not fit")
 peaks_ = m[m.is_global & ~m.topic_id.isin(hidden)].sort_values("start_utc")
 write("timemachine/peaks.json", {"note": "Global moments for the timeline (>= 15 countries within 60 min of the third). name is null when it equals topic_id; is_sport 0/1; kind = index into kinds (the moment's own kind); is_wave 0/1 = the topic is a wave topic.",
-                                 "files": tm_files,
+                                 "frames": "map frames are data/export/hours/YYYY-MM.json (story/manifest.json build)",
                                  "fields": ["date_utc", "topic_id", "name", "reach", "is_sport", "kind", "is_wave"], "kinds": KINDS,
                                  "peaks": [[iso(r.start_utc), r.topic_id, r.topic_name if r.topic_name != r.topic_id else None,
                                             int(r.reach), int(bool(r.is_sport)), KINDS.index(r.kind), int(r.topic_id in WAVE)]
@@ -2887,9 +2850,10 @@ for c in W_CC:
         else:
             mem = [_it[x] | {"short_name": _short(x, e_["key"])} for x in e_["ids"]]
             lab_ = _label(e_["ids"][0], e_["key"])
+            # round 45: label = the main (most-trended) member's full name + how many related topics
             loc_items.append({"is_group": True, "topic_id": None, "group_word": lab_,
-                              "name": f"{lab_}: " + ", ".join(x_["short_name"] for x_ in mem
-                                                              if _fold(x_["short_name"].lower()) != _fold(lab_)),
+                              "name": f"{mem[0]['name']} + {len(mem) - 1} related",
+                              "main_topic_id": mem[0]["topic_id"],
                               "trends": sum(x_["trends"] for x_ in mem), "members": mem})
     shocks_j = [{"moment_id": mid, "name": x["name"], "date_utc": x["date_utc"], "event_reach": x.get("event_reach")}
                 for mid, (x, ccs) in _chart_cc.items() if c in ccs]
@@ -2952,7 +2916,7 @@ write("wrapped/index.json", {
             "uniquely_local_top5 = its one-country topics by trends, then search volume, without hidden and Wrapped-skip topics, "
             "football fixtures, teams, athletes, sport phrases, weather and weather-like topics, with 5+ trends and "
             "no near-duplicates (rounds 41-42); topics sharing a distinctive word are one entry (is_group, members, "
-            "round 44). "
+            "round 44), named '<main member> + N related' with group_word kept (round 45). "
             "shocks = which of the 60 chart shocks (shocks.json chart_top60, event reach) it joined, and how many "
             "global moments (not hidden) it joined / was among the first 3 countries in (ties with the third "
             "included; first3_share = among first 3 / joined, ranked without low_data countries; round 40). "
@@ -3110,7 +3074,22 @@ num("Time machine", "Days in days.json / days with at least one global moment / 
     f"{len(days_out)} / {int((_dn > 0).sum())} / {sum(x['gap'] for x in days_out)}", "days.json", "days")
 
 # ------------------------------------------------------------------ manifest + numbers
+BUILD = {
+    "note": "Files the site build should read (round 45). Paths are relative to data/export/. Map frames come only from "
+            "hours/; the old story/timemachine/YYYY-MM.json frames are no longer written. story/timemachine/ keeps "
+            "only peaks.json (the timeline of global moments).",
+    "map_frames": [r for r, _ in hours_files],
+    "map_frames_max_bytes": HOURS_MAX_BYTES,
+    "days": "story/days.json",
+    "timeline": "story/timemachine/peaks.json",
+    "wrapped": ["story/wrapped/index.json"] + [f"story/wrapped/{c}.json" for c in W_CC],
+    "chapters": list(dict.fromkeys(f"story/{r}" for r, _ in WRITTEN if "/" not in r and "_review" not in r)),
+    "chapter_parts": sorted({f"story/{r}" for r, _ in WRITTEN if r.startswith("appointments/")}),
+    "not_for_the_site": ["story/wrapped_review.json", "story/rituals_review.json", "story/rituals_review/",
+                         "story/waves_review.json"],
+    "deprecated_removed": ["story/timemachine/YYYY-MM.json (old map frames)"]}
 (OUT / "manifest.json").write_text(json.dumps({"generated_by": "pipeline/08_story_export.py", "max_bytes": MAX_BYTES,
+                                               "build": BUILD,
                                                "files": [{"file": r, "bytes": b} for r, b in WRITTEN],
                                                "visibility": vis,
                                                "kind_counts": {"moments": m.kind.value_counts().to_dict(),
