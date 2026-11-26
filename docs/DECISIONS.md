@@ -1691,6 +1691,27 @@ Sample 1 (`docs/shock_validation_sample.csv`, 100 moments) is now the **tuning**
   - Highest: Turkmenistan 100%, Haiti 99%, Mali 99%. Median 93%. Lowest: Norway 77%, Finland 74%, Lithuania 67%.
   - The range is narrow because global moments are mostly sport.
 
+### Step 9 round 43: spreading vs lingering in the map frames (2026-11-25)
+- **Frames** (`data/export/hours/YYYY-MM.json`): each of the hour's top 5 shared topics is now [topic, countries, kind, country indices where it is active that hour, new_3h]. The first three fields are unchanged.
+- **new_3h:** how many of those countries started it in this hour or the 2 before. It uses the country's earliest active trend of the topic, since trends stay active for up to 24 h.
+- **Example:** 2025-04-21 08 UTC.
+  - Pope Francis: active in 104 countries, 102 new.
+  - The previous evening's Real Madrid vs Athletic Bilbao: still active in 86, 0 new.
+  - On 22 Apr at 08 UTC, Pope Francis is down to 23 countries, 0 new.
+- **Across the archive:** most shared entries linger. Of the top-5 entries with 15+ countries, the median share started in the last 3 h is 1%.
+- **Sizes:** 19 files, largest 1.89 MB (2025-04), total 30.4 MB, all under 2 MB. The largest months are close to the limit: a longer list or more topics per hour would need a split per half-month.
+- **Wrapped:** the cards were already rebuilt with `appointment_share` in round 42. The four to re-check:
+
+  | Card | Rank (of 120) | appointment_share |
+  |---|---|---|
+  | MX | 68 | 92% |
+  | JP | 108 | 84% |
+  | US | 72 | 92% |
+  | BR | 77 | 91% |
+
+  - Card sizes are 10–12 kB.
+  - Japan's local top 5 still has three boat-race topics (大村 / 徳山 / 三国競艇, kyōtei, a betting sport); no rule catches them yet.
+
 ## Open issues (need a decision)
 
 _Updated 2026-11-09, after the short-string, sport, 19:00 UTC and Wrapped fixes (rerun from combine: combine, link, validation, moments, export, profile, checks)._

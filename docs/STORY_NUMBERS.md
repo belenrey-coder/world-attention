@@ -379,8 +379,9 @@ Conventions: national feeds; UTC unless a local hour is named; a moment is one t
 | number | value | file | key |
 |---|---|---|---|
 | Global moments on the timeline | 7,999 | `timemachine/peaks.json` | `peaks` |
-| hours/ frames: files / largest file (MB) / total (MB) | 19 / 1.22 / 20.4 | `../hours/YYYY-MM.json` | `(file sizes)` |
+| hours/ frames: files / largest file (MB) / total (MB) | 19 / 1.89 / 30.4 | `../hours/YYYY-MM.json` | `(file sizes)` |
 | Non-gap hours with at least one topic shared by 15+ countries | 11,548 of 12,624 | `../hours/YYYY-MM.json` | `shared` |
+| Top-5 shared entries with 15+ countries: median share of countries that started it in the last 3 h | 1% | `../hours/YYYY-MM.json` | `shared[][4]` |
 | Top-5 shared entries with 15+ countries, by kind | shock 3,251, appointment 46,047, wave 282, ritual 1,352, other 4,851 | `../hours/YYYY-MM.json` | `shared[][2]` |
 | days.json top-5 entries by reach basis (moment / appointment event / verified shock event) | 154 / 2130 / 66 | `days.json` | `days[].top5[].reach_basis` |
 | Days in days.json / days with at least one global moment / gap days | 537 / 487 / 51 | `days.json` | `days` |

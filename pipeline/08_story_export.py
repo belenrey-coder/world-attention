@@ -2476,6 +2476,15 @@ _wave_tid = {i for i, x in enumerate(_tid_uni_h) if x in _vw_topics}
 # kind of a topic in an hour: shock if any active trend is in a shock moment, else appointment, else wave (a verified
 # wave story topic), else ritual, else other
 sh["kind"] = np.select([sh.kmin.eq(0), sh.kmin.eq(1), sh.tid.isin(_wave_tid), sh.kmin.eq(2)], [0, 1, 2, 3], default=4)
+# round 43: for each top-5 shared topic, the countries where it is active in the hour, and how many of them started
+# it in the last 3 hours (new_3h: the country's earliest active trend of the topic started in this hour or the 2
+# before it)
+_sh_keys = sh[["hour", "tid"]]
+_ehs = eh.merge(_sh_keys, on=["hour", "tid"]).groupby(["hour", "tid", "cc"]).start.min().reset_index()
+_ehs["new"] = (_ehs.start // 3_600_000_000_000) >= (_ehs.hour - 2)
+_cc_lists = _ehs.groupby(["hour", "tid"]).agg(ccs=("cc", lambda x_: sorted(int(v_) for v_ in x_)),
+                                             new3=("new", "sum")).reset_index()
+sh = sh.merge(_cc_lists, on=["hour", "tid"], how="left")
 top_h["month"] = pd.to_datetime(top_h.hour * 3_600_000_000_000, utc=True).dt.strftime("%Y-%m")
 sh["month"] = pd.to_datetime(sh.hour * 3_600_000_000_000, utc=True).dt.strftime("%Y-%m")
 HOURS_DIR = EXPORT / "hours"
@@ -2505,7 +2514,8 @@ for month, g in top_h.groupby("month"):
         top.append(row_t)
         vol.append(row_v)
         s_ = shared_by.get(h_)
-        shared.append([] if s_ is None else [[pos[a_], int(n_), int(k_)] for a_, n_, k_ in zip(s_.tid, s_.n, s_.kind)])
+        shared.append([] if s_ is None else [[pos[a_], int(n_), int(k_), cl_, int(n3_)]
+                                             for a_, n_, k_, cl_, n3_ in zip(s_.tid, s_.n, s_.kind, s_.ccs, s_.new3)])
         if h_ not in _gap_hours:
             _hall += 1
             _h15 += bool(s_ is not None and s_.n.max() >= 15)
@@ -2513,7 +2523,8 @@ for month, g in top_h.groupby("month"):
            "note": "top[i][j] = index into topics of the highest-volume trend active in hour i in country j (national "
                    "feeds, hidden topics never shown); -1 = none, and every hour of a collection-gap day is -1 "
                    "(gap_hours). volume[i][j] = its search volume. shared[i] = the hour's top 5 shared topics, "
-                   "[topic index, countries with it active, kind index into kinds]; kind = shock if any of its active "
+                   "[topic index, countries with it active, kind index into kinds, country indices where it is "
+                   "active, new_3h = how many of those started it in this hour or the 2 before]; kind = shock if any of its active "
                    "trends is in a shock moment, else appointment, else wave (a verified wave story topic, "
                    "waves_chart.json), else ritual, else other.",
            "kinds": HOURS_KINDS, "gap_hours": [i for i, h_ in enumerate(hi_) if h_ in _gap_hours],
@@ -2533,6 +2544,9 @@ num("Time machine", "hours/ frames: files / largest file (MB) / total (MB)",
     "../hours/YYYY-MM.json", "(file sizes)")
 num("Time machine", "Non-gap hours with at least one topic shared by 15+ countries", f"{_h15:,} of {_hall:,}",
     "../hours/YYYY-MM.json", "shared")
+_sh15 = sh[sh.n >= 15]
+num("Time machine", "Top-5 shared entries with 15+ countries: median share of countries that started it in the last 3 h",
+    f"{float((_sh15.new3 / _sh15.n).median()):.0%}", "../hours/YYYY-MM.json", "shared[][4]")
 num("Time machine", "Top-5 shared entries with 15+ countries, by kind",
     ", ".join(f"{k} {int(_shk.get(k, 0)):,}" for k in HOURS_KINDS), "../hours/YYYY-MM.json", "shared[][2]")
 
