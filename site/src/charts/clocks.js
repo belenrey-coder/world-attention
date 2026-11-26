@@ -149,21 +149,26 @@ export function mountClocks(root, data) {
     panels[0].selectAll("circle.dot").attr("opacity", 0).transition().delay((r) => ri.get(r.iso2) * 15).duration(300).attr("opacity", 1);
   }
   let started = false;
-  scrolly(scrollyEl, (i) => {
+  scrolly(scrollyEl, (i, dir, { animate }) => {
     if (st.touched) return;
-    st.step = i;
-    if (i === 0) { st.event = "weather"; st.clock = "world"; st.split = false; draw(started ? ms(900) : 0); if (!started) fadeRows(); }
-    if (i === 1) { st.event = "weather"; st.clock = "local"; st.split = false; draw(ms(900)); }
-    if (i === 2) {
+    const step = Math.max(0, i);
+    st.step = step;
+    const d = (t) => (animate ? ms(t) : 0);
+    if (step === 0) { st.event = "weather"; st.clock = "world"; st.split = false; draw(d(900)); if (animate && !started) fadeRows(); }
+    if (step === 1) { st.event = "weather"; st.clock = "local"; st.split = false; draw(d(900)); }
+    if (step === 2) {
       st.event = "pope";
-      if (phone) { st.split = false; st.clock = "world"; draw(ms(600)); setTimeout(() => { if (st.step === 2 && !st.touched) { st.clock = "local"; draw(ms(900)); } }, reducedMotion() ? 0 : 1400); } else {
+      if (phone) {
+        st.split = false;
+        if (animate) { st.clock = "world"; draw(d(600)); setTimeout(() => { if (st.step === 2 && !st.touched) { st.clock = "local"; draw(ms(900)); } }, reducedMotion() ? 0 : 1400); }
+        else { st.clock = "local"; draw(0); }
+      } else if (animate) {
         // both panels start on the world clock, then the right one scatters to local clocks
         st.split = true;
         drawPanel(panels[0], 0, { event: "pope", clock: "world", faded: true, dur: ms(600) });
         drawPanel(panels[1], 1, { event: "pope", clock: "world", faded: true, dur: ms(600) });
         setTimeout(() => { if (st.split) draw(ms(900)); }, reducedMotion() ? 0 : 700);
-        unlock();
-      }
+      } else { st.split = true; draw(0); }
       unlock();
     }
     started = true;

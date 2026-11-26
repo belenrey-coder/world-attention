@@ -405,17 +405,21 @@ export async function mountHolidays(root, data) {
     { grown: 1, second: 1, rot: 1, m: 1, conn: 1 },
   ];
   const DUR = [800, 1200, 1200, 600];
-  function go(i) {
+  const BEFORE = { grown: 0, second: 0, rot: 0, m: 0, conn: 0 };
+  function go(i, animate) {
     const prev = st.step;
     st.step = i;
-    const target = STATES[i];
-    if (reducedMotion()) { tweenTo(target, 0); }
-    else if (i === 1 && prev < 1) {
+    const target = i < 0 ? BEFORE : STATES[i];
+    if (!animate || reducedMotion()) { tweenTo(target, 0); }
+    else if (i === 1 && prev === 0) {
       // second time draws at the first's dates, then moving ones rotate to their own
       Object.assign(st, { second: 0, rot: 0 });
       tweenTo({ second: 1 }, 500, () => tweenTo({ rot: 1 }, DUR[1]));
     } else tweenTo(target, DUR[i]);
-    if (i === 3 && !st.selected) setTimeout(() => select(hols.find((h) => h.name === "Ramadan"), true), reducedMotion() ? 0 : 700);
+    if (i === 3 && !st.selected) {
+      const ram = hols.find((h) => h.name === "Ramadan");
+      if (animate) setTimeout(() => { if (!st.selected) select(ram, true); }, 700); else select(ram, true);
+    }
     unlock(i === 3);
   }
 
@@ -503,7 +507,7 @@ export async function mountHolidays(root, data) {
 
   layout();
   draw();
-  scrolly(scrollyEl, (i) => go(i));
+  scrolly(scrollyEl, (i, dir, { animate }) => go(i, animate));
   let rt;
   new ResizeObserver(() => { clearTimeout(rt); rt = setTimeout(() => { layout(); draw(); if (st.selected) select(st.selected, true); }, 150); }).observe(wrap);
 }

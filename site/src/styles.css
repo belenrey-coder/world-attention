@@ -61,6 +61,8 @@
 }
 
 *, *::before, *::after { box-sizing: border-box; }
+/* the hidden attribute always wins over a component's display rule (e.g. the Opening scrubber's grid) */
+[hidden] { display: none !important; }
 
 html { -webkit-text-size-adjust: 100%; }
 

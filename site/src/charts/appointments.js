@@ -250,12 +250,16 @@ export function mountAppointments(root, data) {
     cells.attr("opacity", 0).interrupt("paint").transition("paint").delay((d) => (weekOf(d) / nWeeks) * 1200).duration(200)
       .attr("fill", fillOf).attr("opacity", opacityOf);
   }
-  scrolly(scrollyEl, (i) => {
-    const first = !st.filled;
-    st.step = i;
-    if (!st.touched) setMeasure(i >= 2 ? "reach" : "count");
-    if (i === 3) unlock();
-    if (first) { fillIn(); drawNotes(); drawLegend(); drawSentence(); } else paint(ms(i === 2 ? 600 : 300));
+  scrolly(scrollyEl, (i, dir, { animate }) => {
+    if (i < 0 && !st.filled) return; // before the first step: the calendar is still empty
+    st.step = Math.max(0, i);
+    if (!st.touched) setMeasure(st.step >= 2 ? "reach" : "count");
+    if (i === 3) unlock(); // the last step, or past it
+    if (!st.filled) {
+      if (animate && i === 0) { fillIn(); drawNotes(); drawLegend(); drawSentence(); return; }
+      st.filled = true;
+    }
+    paint(animate ? ms(i === 2 ? 600 : 300) : 0);
   });
 
   // ------------------------------------------------------------------ after: caveat + data

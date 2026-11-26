@@ -318,10 +318,10 @@ export function mountLocal(root, data) {
   keyButtons();
   stage = reducedMotion() ? 1 : -1;
   applyStage(0);
-  scrolly(scrollyEl, (i) => {
-    if (reducedMotion()) { stage = 1; applyStage(0); return; }
+  scrolly(scrollyEl, (i, dir, { animate }) => {
+    if (reducedMotion()) { stage = i < 0 ? -1 : 1; applyStage(0); return; }
     stage = i;
-    applyStage(1);
+    applyStage(animate ? 1 : 0);
   });
   onMotionChange((red) => { if (red) { stage = 1; applyStage(0); } replay.hidden = red || stage < 1; });
   let rt;

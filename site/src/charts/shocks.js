@@ -296,10 +296,10 @@ export function mountShocks(root, data) {
         .on("end", function () { d3.select(this).attr("stroke-dasharray", null); });
     });
   }
-  scrolly(scrollyEl, (i) => {
-    st.step = i;
-    if (i === 0) drawIn();
-    restyle(ms(300));
+  scrolly(scrollyEl, (i, dir, { animate }) => {
+    st.step = Math.max(0, i);
+    if (animate && i === 0) drawIn(); else st.drawn = true; // lines draw only when step 1 is entered by scrolling
+    restyle(animate ? ms(300) : 0);
   });
 
   // ------------------------------------------------------------------ show the data

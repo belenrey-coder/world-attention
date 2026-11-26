@@ -324,8 +324,9 @@ export async function mountOpening(root, data) {
   let rt;
   new ResizeObserver(() => { clearTimeout(rt); rt = setTimeout(render, 150); }).observe(mapWrap);
 
-  function showEnd() { stop(); k = LAST; paint(0); finish(); playBtn.textContent = "▶ Play"; }
+  function showEnd() { stop(); k = LAST; paint(0); finish(); playBtn.textContent = reducedMotion() ? "▶ Play" : "▶ Replay"; }
+  // plays once when the reader scrolls it into view; arriving any other way (load mid-page, a jump) shows the end
   if (reducedMotion()) showEnd();
-  else onEnterView(mapWrap, () => { if (!played && !reducedMotion()) play(); });
+  else onEnterView(mapWrap, (animate) => { if (played || timer) return; if (animate) play(); else showEnd(); });
   onMotionChange((red) => { if (red && !played) showEnd(); });
 }

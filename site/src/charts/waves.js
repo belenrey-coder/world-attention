@@ -99,7 +99,10 @@ export function mountIran(root, data) {
   // draws left to right when it enters view
   if (!reducedMotion()) {
     clip.attr("width", 0);
-    onEnterView(wrap, () => clip.transition().duration(1200).ease(d3.easeCubicInOut).attr("width", W));
+    onEnterView(wrap, (animate) => {
+      if (animate) clip.transition().duration(1200).ease(d3.easeCubicInOut).attr("width", W);
+      else clip.attr("width", W);
+    });
   }
   let rt;
   new ResizeObserver(() => { clearTimeout(rt); rt = setTimeout(render, 150); }).observe(wrap);
@@ -177,7 +180,8 @@ export function mountSpeed(root, data) {
   render();
   if (!reducedMotion()) {
     gL.selectAll("path").attr("opacity", 0);
-    onEnterView(wrap, () => {
+    onEnterView(wrap, (animate) => {
+      if (!animate) { gL.selectAll("path").attr("opacity", 1); return; }
       ["Syria", "Iran"].forEach((k, i) => {
         gL.selectAll("path").filter((r) => r.key === k).each(function () {
           const L = this.getTotalLength();
@@ -392,11 +396,11 @@ export function mountRidge(root, data) {
     gRows.selectAll("g.row").attr("opacity", 0).transition("fade").delay((s, i) => i * 40).duration(300).attr("opacity", 1);
   }
   let started = false;
-  scrolly(scrollyEl, (i) => {
-    if (!started) { started = true; fadeInRows(); }
-    st.step = i;
+  scrolly(scrollyEl, (i, dir, { animate }) => {
+    if (!started) { started = true; if (animate && i === 0) fadeInRows(); }
+    st.step = Math.max(0, i);
     if (i === 3 && !st.unlocked) { st.unlocked = true; gb.forEach((b) => { b.disabled = false; }); }
-    if (!st.group) restyle();
+    if (!st.group) restyle(animate ? ms(300) : 0);
   });
 
   // ------------------------------------------------------------------ after

@@ -315,7 +315,7 @@ export async function mountYourTurn(rootEl, daysData) {
   go(st.day, st.hour);
   if (!reducedMotion()) {
     svg.style("opacity", 0);
-    onEnterView(main, () => svg.transition().duration(600).style("opacity", 1), { offset: 0.95 });
+    onEnterView(main, (animate) => { if (animate) svg.transition().duration(600).style("opacity", 1); else svg.style("opacity", 1); }, { offset: 0.95 });
     setTimeout(() => svg.style("opacity", 1), 4000); // safety: never leave the map hidden
   }
   let rt;
