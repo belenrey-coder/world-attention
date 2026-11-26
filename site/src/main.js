@@ -2,6 +2,7 @@
 import "./styles.css";
 import { motionSwitch } from "./lib/a11y.js";
 import { loadData } from "./lib/data.js";
+import { titleHeader } from "./lib/header.js";
 import { mountOpening } from "./charts/opening.js";
 import { mountLocal } from "./charts/local.js";
 import { mountShocks } from "./charts/shocks.js";
@@ -12,6 +13,7 @@ import { mountClocks } from "./charts/clocks.js";
 import { mountYourTurn } from "./charts/yourturn.js";
 
 motionSwitch(document.getElementById("motion-switch"));
+titleHeader(document.getElementById("top"));
 
 const chapters = [
   ["opening.json", "opening-chart", mountOpening],

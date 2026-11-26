@@ -23,7 +23,7 @@ Topic colors are always labeled directly; color is never the only cue. Missing o
 
 **Type.** Headlines and body: Source Serif 4 (body 18–20 px, line-height 1.5). Labels, captions, controls: Libre Franklin (11–14 px). Kickers: Libre Franklin 800, uppercase, letter-spacing .06em.
 
-**Layout.** Text column 640 px; charts 1,100 px wide on desktop. Desktop only (confirmed with the professor, Nov. 26): design and test for 1280–1920 px wide screens, minimum 1024 px. The "Phones" notes in each chapter are no longer required. Below 1024 px, show the article as is with a one-line note: "Best read on a computer." Scroll steps sit in a text card on the left of a sticky chart (desktop) or over the chart (phones).
+**Layout.** Text column 640 px; charts 1,100 px wide on desktop. Desktop only (confirmed with the professor, Nov. 26): design and test for 1280–1920 px wide screens, minimum 1024 px. The "Phones" notes in each chapter are no longer required. Below 1024 px, show the article as is with a one-line note: "Best read on a computer." Scroll steps sit in a text card on the left of a sticky chart.
 
 **Motion.** One rule: motion only presents a change; the end state is always static and readable.
 
@@ -32,7 +32,7 @@ Topic colors are always labeled directly; color is never the only cue. Missing o
 - Nothing moves position between scroll steps unless the spec says so; steps change emphasis, color or axis only.
 - `prefers-reduced-motion`: no tweening. Steps cut straight to their end state; autoplay is off and replaced by a Play button.
 
-**Interaction.** Every hover has a tap equivalent; tap targets are at least 44 px. Tooltips follow the pointer on desktop and dock to the bottom of the chart on phones. Escape closes any tooltip, card or open row. Every chart has two toggles side by side: "Show the data" (a plain HTML table) and "Methodology" (how the chart was made: source, what counts, how countries and searches are counted, time rules), and an `aria-label` sentence stating its takeaway.
+**Interaction.** Everything that works on hover also works on click; click targets are at least 32 px. Tooltips follow the pointer. Escape closes any tooltip, card or open row. Every chart has two toggles side by side: "Show the data" (a plain HTML table) and "Methodology" (how the chart was made: source, what counts, how countries and searches are counted, time rules), and an `aria-label` sentence stating its takeaway.
 
 **Keyboard.** Tab moves through controls in reading order; arrow keys move through marks inside a focused chart (countries, lines, rows, days); Enter opens; Escape closes. A visible focus ring (2 px #121A26).
 
@@ -53,7 +53,7 @@ The article opens on a quiet title screen, then tells the Pope Francis morning i
 
 **Data:** `opening.json`, one row per country: ISO code, name, first-trending refresh (UTC; 07:50, 08:00 … 08:50, Later), minutes after the first refresh, local time in the reference city, reference city name, and the search as typed in that country (see the checks below).
 
-**Layout.** One sticky graphic that fits a single screen: the Equal Earth map (about 760 px wide, the size of the Your turn map) with the square chart directly under it (about 180 px tall). The step paragraphs stack in a text column above the graphic: each new paragraph appears below the previous ones, which stay visible in muted grey (#5B6675). Phones: map full width, squares under it, paragraphs in a card above.
+**Layout.** One sticky graphic that fits a single screen: the Equal Earth map (about 760 px wide, the size of the Your turn map) with the square chart directly under it (about 180 px tall). The step paragraphs stack in a text column above the graphic: each new paragraph appears below the previous ones, which stay visible in muted grey (#5B6675).
 
 | Step | Text (accumulates) | Map and squares | Timing |
 | --- | --- | --- | --- |
@@ -116,7 +116,7 @@ Pope Francis was the exception: of about 683,000 topics that trended in 18 month
 
 **States.** Before scroll: empty area with the three labels hidden. Settled: final piles. Search with no match: "Not in our sample; try another word".
 
-**Phones.** Piles stack vertically (85% first), word sample reduced to about 150 per pile. **Keyboard.** Tab to each pile; arrows step through words; Enter opens the tooltip. **Reduced motion.** No rain; the settled piles show directly, with Replay hidden.
+**Keyboard.** Tab to each pile; arrows step through words; Enter opens the tooltip. **Reduced motion.** No rain; the settled piles show directly, with Replay hidden.
 
 Not built on purpose: a share-of-slots toggle, the per-country localness ranking (it belongs to Your turn). Bridge sentence: "So when the whole world searches for the same thing, it is the exception."
 
@@ -139,7 +139,7 @@ Most shocks reach half their countries within an hour: the 60 widest shocks, eac
 
 **States.** Default: step 1. Filtered: one type in color. Selected: one line + card. Reset button appears whenever a filter, search or selection is active.
 
-**Phones.** Chart full width, labels move into a list under the chart; tap selects the nearest line. **Keyboard.** Arrow keys move through the 60 lines in order of reach; Enter opens the card; Escape closes. **Reduced motion.** No line drawing; step changes are instant.
+**Keyboard.** Arrow keys move through the 60 lines in order of reach; Enter opens the card; Escape closes. **Reduced motion.** No line drawing; step changes are instant.
 
 Not built on purpose: zoom on the time axis, free re-sorting. The Gemini twist is cut.
 
@@ -164,7 +164,7 @@ Nine in ten global moments were scheduled (7,236 of 7,999), and 98% of those wer
 
 **States.** Default: count view, Everything. Gap days hatched in every view. Comparison before guess: only the Real Madrid bar and an empty Oscars bar.
 
-**Phones.** Calendar rotates: weeks as rows, Mon–Sun as 7 columns, months down the page; filters become a 3-button segmented control. **Keyboard.** Arrows move day by day in the calendar; the guess bar takes left and right arrows (step 1 country). **Reduced motion.** No fills; steps cut to their states.
+**Keyboard.** Arrows move day by day in the calendar; the guess bar takes left and right arrows (step 1 country). **Reduced motion.** No fills; steps cut to their states.
 
 Open: the comparison chart may be replaced (board 3e option A: the 20 widest scheduled events, 15 of them Real Madrid or Barcelona). Build the guess-first version until Belen decides. The bridge to Shocks is cut.
 
@@ -189,7 +189,7 @@ What makes a wave is that it comes back, and each return can build slowly or bre
 
 **Partial months.** Hatched with a label of their days: Nov 2024 4/30, Sep 2025 21/30, Dec 2025 28/31, Jan 2026 5/31, May 2026 17/31 (the archive ends May 17). Values there are lower bounds; the note says so.
 
-**States.** Default ridgeline: step 1 (all pale). One row open at a time. **Phones.** Ridgeline rows 44 px tall, labels above each row, months every 3; the open row becomes a full-width panel. **Keyboard.** Up and down arrows move between rows; Enter opens; left and right move through months in a focused row. **Reduced motion.** No drawing or stagger; open rows appear without sliding.
+**States.** Default ridgeline: step 1 (all pale). One row open at a time. **Keyboard.** Up and down arrows move between rows; Enter opens; left and right move through months in a focused row. **Reduced motion.** No drawing or stagger; open rows appear without sliding.
 
 ## Chapter 5 · Rituals
 
@@ -212,7 +212,7 @@ Some shared moments are habits: on a usual day weather starts trending in about 
 | Tap a holiday | Click or tap | Small map of countries where it trended both years + sentence (e.g. Ramadan, 77 countries both years) | 300 ms |
 | Filter | All · Fixed dates · Moving dates | Fades the other set to 15% | 300 ms |
 
-**States.** Map default 12:00 UTC. Holidays default after steps: unrolled with connectors, Ramadan selected. **Phones.** Map full width; the circle at 340 px; unrolled timelines scroll vertically as two rows with months every 2. **Keyboard.** Play is a button; arrows scrub hours; Tab through holidays, Enter opens the map. **Reduced motion.** No play loop (Play steps one hour per press), no rotation or morph: steps swap states.
+**States.** Map default 12:00 UTC. Holidays default after steps: unrolled with connectors, Ramadan selected. **Keyboard.** Play is a button; arrows scrub hours; Tab through holidays, Enter opens the map. **Reduced motion.** No play loop (Play steps one hour per press), no rotation or morph: steps swap states.
 
 "Is it down?" is cut; the board's note says so.
 
@@ -234,7 +234,7 @@ Shocks line up on the world's clock; rituals line up on each country's own: on l
 
 **Closing text.** After the chart: the four kinds in one paragraph, then the admission that our own rule (15 countries within an hour) caught the weather only once (a May morning, 13 European countries), then the hand-off line: "So what did your country share with the world, and what did it keep to itself?"
 
-**States.** Default: weather, world time. **Phones.** Rows at 4 px, labels for 6 reference countries only; toggle sticky at the top of the chart. **Keyboard.** Toggle with Space; arrows move country by country; picker is a select. **Reduced motion.** Dots jump between clocks without sliding.
+**States.** Default: weather, world time. **Keyboard.** Toggle with Space; arrows move country by country; picker is a select. **Reduced motion.** Dots jump between clocks without sliding.
 
 No contrasting color here: both events stay in the GnBu family; the clocks are told apart by position.
 
@@ -257,7 +257,7 @@ The reader explores alone: every hour of the 18 months on a map where countries 
 | Country Wrapped | Select a country (dropdown, defaults to the reader's locale if known, else Mexico) | Card: what it kept to itself (share, rank, 5 local searches) · what it shared (global moments joined, biggest shocks joined, first to search\*, waves ridden, scheduled share vs typical, weather hour and phrasing, holidays both years) · search twins · biggest day. Footnote on feed frequency | 300 ms |
 | Compare | Below the card | Short lines for Japan, United States, Brazil (or the reader's picks) | Static |
 
-**States.** Loading frames: grey map with "Loading April 2025…". Empty card fields: "Almost everything it searched, it shared." **Phones.** Map full width; legend below; slider and day strip stacked, 44 px handles; card full width. **Keyboard.** Left and right arrows change the hour, Page Up and Page Down the day; Tab to the jump buttons and the country select. **Reduced motion.** Play steps one hour per press; no cross-fades.
+**States.** Loading frames: grey map with "Loading April 2025…". Empty card fields: "Almost everything it searched, it shared." **Keyboard.** Left and right arrows change the hour, Page Up and Page Down the day; Tab to the jump buttons and the country select. **Reduced motion.** Play steps one hour per press; no cross-fades.
 
 Pipeline fix still open: grouped local topics use the shared word as a label ("juarez: becas benito"); use the main member's full name.
 
@@ -295,7 +295,7 @@ scripts/export_site_data.py   builds public/data from the pipeline outputs
 6. Rituals.
 7. Closing.
 8. Your turn (frames loading last).
-9. QA: 375 px phone, keyboard only, screen reader labels, `prefers-reduced-motion`, Lighthouse accessibility ≥ 95, no console errors; deploy.
+9. QA: 1280 and 1920 px desktop, keyboard only, screen reader labels, `prefers-reduced-motion`, Lighthouse accessibility ≥ 95, no console errors; deploy.
 
 **Open decisions before or during the build.**
 

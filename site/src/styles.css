@@ -405,29 +405,28 @@ table.data th[aria-sort="descending"] button::after { content: " ▼"; font-size
 .methodology p { margin: 0 0 8px; }
 .methodology p:last-child { margin-bottom: 0; }
 
-/* ---------------------------------------------------------------- title screen (Chapter 0): one viewport, only the
-   title, the subtitle and the data line pinned to its bottom */
-.title-screen {
-  position: relative; box-sizing: border-box; height: 100vh; height: 100svh; margin: 0; padding: 0 var(--gutter);
-  display: flex; align-items: center; justify-content: center; text-align: center; background: var(--paper); overflow: hidden;
-}
-.ts-center { max-width: 640px; }
+/* ---------------------------------------------------------------- title screen → header (Chapter 0)
+   The section is exactly one viewport. The title block is positioned by lib/header.js from the scroll position:
+   centered at the top of the page, then moved and shrunk into the header; the byline fades in and the data line
+   moves up under it. At the end the block sits at the bottom of the section, so the Opening starts right under it. */
+.title-screen { position: relative; box-sizing: border-box; height: 100vh; height: 100svh; margin: 0; background: var(--paper); z-index: 2; }
+.ts-head { position: absolute; top: 0; left: 0; right: 0; will-change: transform; }
+.ts-col { position: relative; width: min(var(--text-col), 100% - 2 * var(--gutter)); margin: 0 auto; text-align: center; }
 .ts-title { font-family: var(--serif); font-weight: 700; font-size: 64px; line-height: 1.05; letter-spacing: -.02em; color: var(--ink); margin: 0; }
-.ts-sub { font-family: var(--serif); font-weight: 400; font-size: 22px; line-height: 1.4; color: var(--ink); max-width: 640px; margin: 16px auto 0; }
-.ts-data {
-  position: absolute; left: var(--gutter); right: var(--gutter); bottom: 20px; margin: 0;
-  font-family: var(--sans); font-size: 12px; line-height: 1.5; color: var(--muted); text-align: center;
-}
+.ts-sub { font-family: var(--serif); font-weight: 400; font-size: 22px; line-height: 1.4; color: var(--ink); margin: 16px 0 0; }
+.ts-byline { font-family: var(--sans); font-size: 13px; line-height: 1.5; color: var(--ink); margin: 18px 0 0; opacity: 0; }
+.ts-byline b { font-weight: 700; }
+.ts-data { font-family: var(--sans); font-size: 12px; line-height: 1.5; color: var(--muted); margin: 6px 0 0; }
 .ts-data a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+/* the reduced-motion switch rides with the byline, outside the centered column so the header text stays as specified */
+.ts-motion { position: absolute; left: 100%; top: 0; margin-left: 24px; white-space: nowrap; opacity: 0; }
+.ts-motion button { font-size: 12px; min-height: 32px; padding: 0 10px; }
+.ts-motion[data-off="true"] { visibility: hidden; }
 /* desktop-only article (1280–1920 px, minimum 1024 px): narrower screens get one line saying so */
 .ts-note { display: none; }
 @media (max-width: 1023px) {
   .ts-note { display: block; position: absolute; top: 16px; left: var(--gutter); right: var(--gutter); margin: 0;
     font-family: var(--sans); font-size: 13px; color: var(--muted); text-align: center; }
-}
-@media (max-width: 699px) {
-  .ts-title { font-size: 40px; }
-  .ts-sub { font-size: 18px; }
 }
 
 /* ---------------------------------------------------------------- Opening v2: one sticky screen */

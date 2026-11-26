@@ -19,17 +19,17 @@
     <!-- ============================================================ title screen: exactly one viewport, nothing else on it -->
     <section class="title-screen" id="top" aria-label="All at Once">
       <p class="ts-note">Best read on a computer.</p>
-      <div class="ts-center">
-        <h1 class="ts-title">All at Once</h1>
-        <p class="ts-sub">The world rarely searches for the same thing, and when it does, it happens in four ways.</p>
-      </div>
-      <p class="ts-data">Data: Google Trends via <a href="https://huggingface.co/datasets/aurman/GoogleTrendArchive" target="_blank" rel="noopener">GoogleTrendArchive</a> · 18 months, Nov. 27, 2024 – May 17, 2026 · 125 countries</p>
+      <!-- the title block: centered on the title screen, then moved into the article header by scrolling (lib/header.js) -->
+      <header class="ts-head">
+        <div class="ts-col">
+          <h1 class="ts-title">All at Once</h1>
+          <p class="ts-sub">The world rarely searches for the same thing, and when it does, it happens in four ways.</p>
+          <p class="ts-byline">By <b>Belen Reyes</b> · Dec. 10, 2026</p>
+          <p class="ts-data">Data: Google Trends via <a href="https://huggingface.co/datasets/aurman/GoogleTrendArchive" target="_blank" rel="noopener">GoogleTrendArchive</a> · 18 months, Nov. 27, 2024 – May 17, 2026 · 125 countries</p>
+          <span class="ts-motion" id="motion-switch"></span>
+        </div>
+      </header>
     </section>
-
-    <!-- byline (below the title screen for now; the header/byline animation comes in a later step) -->
-    <header class="top col">
-      <div class="byline"><span>By <b>Belen Reyes</b></span><span>Dec. 10, 2026</span><span id="motion-switch"></span></div>
-    </header>
 
     <!-- ============================================================ Chapter 0 · Opening -->
     <section class="chapter op-chapter" id="opening" aria-labelledby="opening-h">
