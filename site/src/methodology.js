@@ -2,7 +2,7 @@
 // order. Each covers: source and collection, what counts, how countries and searches are counted, time rules.
 // The Opening text follows the spec; the others are drafts from the spec, the boards and the data notes (for review).
 
-const SOURCE = "Source: Google Trends “Trending Now” national feeds for 125 countries, archived every 10 minutes from Nov. 27, 2024, to May 17, 2026 (GoogleTrendArchive on Hugging Face). English topic names and translations were generated with Claude, an AI model, and spot-checked by hand.";
+const SOURCE = "Source: Google Trends “Trending Now” national feeds for 125 countries, archived every 10 minutes from Nov. 27, 2024, to May 17, 2026 (GoogleTrendArchive on Hugging Face). This analysis uses the GoogleTrendArchive snapshot from Nov. 27, 2024, to May 17, 2026 (revision 29ffe37172a0c9b73297493141789d9732eca09b); the archive has since been extended to Nov. 13, 2026. English topic names and translations were generated with Claude, an AI model, and spot-checked by hand.";
 const FEEDS = "Every count uses the 125 national feeds. Only for the weather hour in the United States, Canada and Russia, which span many time zones, do we use their regional feeds, each region in its own zone.";
 const GAPS = "Google’s collection has gaps on a few days; those days are hatched and their counts are lower bounds.";
 

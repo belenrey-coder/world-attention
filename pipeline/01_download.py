@@ -14,7 +14,10 @@ import pandas as pd
 import yaml  # installed with huggingface_hub
 from huggingface_hub import HfApi, hf_hub_download
 
-REPO = "aurman/GoogleTrendArchive"
+sys.path.insert(0, str(Path(__file__).parent))
+from common import DATASET_REPO, DATASET_REVISION  # noqa: E402  (pinned snapshot, see common.py)
+
+REPO = DATASET_REPO
 ROOT = Path(__file__).resolve().parents[1]
 RAW = ROOT / "data" / "raw"
 RAW.mkdir(parents=True, exist_ok=True)
@@ -22,7 +25,7 @@ RAW.mkdir(parents=True, exist_ok=True)
 
 def config_files():
     """Read the dataset card's `configs` to find which file each config uses."""
-    readme = hf_hub_download(REPO, "README.md", repo_type="dataset", local_dir=RAW)
+    readme = hf_hub_download(REPO, "README.md", repo_type="dataset", revision=DATASET_REVISION, local_dir=RAW)
     text = Path(readme).read_text()
     meta = yaml.safe_load(text.split("---")[1])
     return {c["config_name"]: c["data_files"] for c in meta["configs"]}
@@ -31,7 +34,7 @@ def config_files():
 def main():
     files = config_files()
     wanted = {k: files[k] for k in ("trending_queries", "locations")}
-    info = HfApi().dataset_info(REPO, files_metadata=True)
+    info = HfApi().dataset_info(REPO, revision=DATASET_REVISION, files_metadata=True)
     sizes = {s.rfilename: s.size or 0 for s in info.siblings}
     need = sum(sizes[f] for f in wanted.values())
     free = shutil.disk_usage(RAW).free
@@ -43,7 +46,7 @@ def main():
     paths = {}
     for cfg, fname in wanted.items():
         print(f"Downloading {cfg}: {fname}")
-        paths[cfg] = Path(hf_hub_download(REPO, fname, repo_type="dataset", local_dir=RAW))
+        paths[cfg] = Path(hf_hub_download(REPO, fname, repo_type="dataset", revision=DATASET_REVISION, local_dir=RAW))
 
     locs = pd.read_csv(paths["locations"], dtype=str, keep_default_na=False)
     print(f"\n[locations] rows={len(locs):,} columns={list(locs.columns)}")

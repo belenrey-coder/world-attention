@@ -11,6 +11,14 @@ DOCS = ROOT / "docs"
 for p in (WORK, CACHE / "wikidata", CACHE / "claude", CACHE / "embeddings", DOCS):
     p.mkdir(parents=True, exist_ok=True)
 
+# ---- data version (pinned, Nov. 26, 2026): the snapshot every result in the repo was built from ----
+DATASET_REPO = "aurman/GoogleTrendArchive"
+DATASET_REVISION = "29ffe37172a0c9b73297493141789d9732eca09b"   # Hugging Face commit, downloaded 2026-11-04
+DATASET_FILE = "googletrendarchive_preprocessed_170526.csv"     # trending_queries config at that revision
+SNAPSHOT_FIRST_DAY = "2024-11-27"   # first UTC day (first trend 2024-11-27 23:00 UTC = 2024-11-28 00:00 Berlin)
+SNAPSHOT_LAST_DAY = "2026-05-17"    # last UTC day (last trend 2026-05-17 10:20 UTC)
+# The archive has since been extended (to 2026-11-13); we keep this snapshot and do not re-download.
+
 # ---- thresholds (all logged in docs/DECISIONS.md) ----
 WINDOW_DAYS = 2            # "3-day window": strings whose trend days are <= 2 days apart (days d, d+1, d+2)
 TYPO_RATIO = 92            # rapidfuzz fuzz.ratio >= 92 (normalized Indel similarity >= 0.92)

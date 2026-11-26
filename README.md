@@ -4,6 +4,8 @@ The data foundation for a time machine of the world's attention: it cleans the d
 
 Source: *Google Trend Archive* (`aurman/GoogleTrendArchive` on Hugging Face). These are the "Trending Now" searches for every available country and region, Nov 2024 – May 2026.
 
+**Data version.** Everything here is built from one snapshot of the archive: Hugging Face revision `29ffe37172a0c9b73297493141789d9732eca09b` (file `googletrendarchive_preprocessed_170526.csv`, downloaded 2026-11-04), covering **2024-11-27 to 2026-05-17** (UTC days; the raw timestamps are Berlin wall-clock time, 2024-11-28 00:00 to 2026-05-17 12:20). The archive has since been extended to 2026-11-13; we keep this snapshot. Step 1 downloads that exact revision (`DATASET_REVISION` in `pipeline/common.py`).
+
 ## Setup
 
 ```bash

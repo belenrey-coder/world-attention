@@ -2,7 +2,6 @@
 import "./styles.css";
 import { motionSwitch } from "./lib/a11y.js";
 import { loadData } from "./lib/data.js";
-import { titleHeader } from "./lib/header.js";
 import { mountOpening } from "./charts/opening.js";
 import { mountLocal } from "./charts/local.js";
 import { mountShocks } from "./charts/shocks.js";
@@ -13,7 +12,6 @@ import { mountClocks } from "./charts/clocks.js";
 import { mountYourTurn } from "./charts/yourturn.js";
 
 motionSwitch(document.getElementById("motion-switch"));
-titleHeader(document.getElementById("top"));
 
 const chapters = [
   ["opening.json", "opening-chart", mountOpening],
@@ -36,3 +34,7 @@ for (const [file, id, mount] of chapters) {
     .then((data) => mount(document.getElementById(id), data))
     .catch((err) => console.error(`${id}:`, err));
 }
+
+// a refresh always starts on the title screen (also when the browser restores a page from its back/forward cache)
+window.addEventListener("load", () => window.scrollTo(0, 0));
+window.addEventListener("pageshow", (e) => { if (e.persisted) window.scrollTo(0, 0); });

@@ -23,7 +23,7 @@ Topic colors are always labeled directly; color is never the only cue. Missing o
 
 **Type.** Headlines and body: Source Serif 4 (body 18–20 px, line-height 1.5). Labels, captions, controls: Libre Franklin (11–14 px). Kickers: Libre Franklin 800, uppercase, letter-spacing .06em.
 
-**Layout.** Text column 640 px; charts 1,100 px wide on desktop. Below 700 px: one column, 16 px side gutters, charts at full width, no horizontal scroll. Scroll steps sit in a text card on the left of a sticky chart (desktop) or over the chart (phones).
+**Layout.** Text column 640 px; charts 1,100 px wide on desktop. Desktop only (confirmed with the professor, Nov. 26): design and test for 1280–1920 px wide screens, minimum 1024 px. The "Phones" notes in each chapter are no longer required. Below 1024 px, show the article as is with a one-line note: "Best read on a computer." Scroll steps sit in a text card on the left of a sticky chart (desktop) or over the chart (phones).
 
 **Motion.** One rule: motion only presents a change; the end state is always static and readable.
 
