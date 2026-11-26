@@ -2570,7 +2570,7 @@ _tcw = t.groupby(["topic_id", "country_code"]).agg(vol=("vol", "sum"), n=("vol",
 # "A v B", "A : B" or "A x B" name, or Claude type / category sports_match or team, or an athlete), no weather
 # topics (they are under rituals), and at least LOCAL_MIN_TRENDS trends
 LOCAL_MIN_TRENDS = 5
-FIXTURE_RE = r"\bvs?\.?\s|\s:\s|\s[x×]\s"
+FIXTURE_RE = r"\bvs?\.?\s|\svs?\.?$|\s:\s|\s[x×]\s|بمقابلہ"
 _lname = name.reindex(_tcw.topic_id).fillna("").str.lower().values
 _lid = _tcw.topic_id.str.lower().values
 _fixture = pd.Series(_lname).str.contains(FIXTURE_RE, regex=True).values | \
@@ -2589,11 +2589,15 @@ SPORT_PHRASE_RE = (r"game today|games today|match today|matches today|partido de
                    r"cricket|ipl|fc|cf)\b.*\blive\b|\bnba\b|\bnfl\b|\bnhl\b|\bmlb\b|\bipl\b|"
                    # clubs and leagues by name (round 42): fc / afc / cf / cd, liga / league / lig, sports channels
                    r"\b(a?fc|cf|cd)\b|f[uú]tbol|futebol|\bfootball\b|soccer|\bliga\b|league|\blig\b|"
-                   r"lalig|لاليغا|الدوري|ลีก|\bsports?\b|\bnb ?[i12]\b|\bmpbl\b|\bpba\b|\bkbo\b|\bnpb\b")
+                   r"lalig|لاليغا|الدوري|ลีก|\bsports?\b|\bnb ?[i12]\b|\bmpbl\b|\bpba\b|\bkbo\b|\bnpb\b|"
+                   # round 44: other codes and leagues, Korean / Vietnamese / Arabic football words
+                   r"\bafl\b|\bgaa\b|\bnrl\b|\brugby\b|\bcricket\b|스포츠|스포티비|spotv|b[oó]ng đ[aá]|ngo[aạ]i h[aạ]ng|"
+                   r"thi đ[aấ]u|كرة القدم")
 WEATHER_LIKE_RE = (r"forecast|pron[oó]stico|previs[aã]o|pr[ée]visions? m[ée]t[ée]o|\bm[ée]t[ée]o\b|\bmeteo|wetter|"
                    r"weather|\bclima\b|tiempo en\b|el tiempo\b.*(ma[ñn]ana|hoy)|погода|прогноз погоды|hava durumu|"
                    r"cuaca|th[oờ]i ti[eế]t|天気|天氣|天气|날씨|طقس|الطقس|pogoda|po[cč]as[ií]|id[őo]j[áa]r[áa]s|vremea|"
                    r"vrijeme|vreme\b|\bilm\b|\bsää\b|v[äa]der|vejret|været|καιρός|מזג האוויר|\borai\b|"
+                   r"^(el )?tiempo\b|prognoz|metservice|inumet|الجوية|الأرصاد|الارصاد|"
                    r"meteorolog|met office|met [ée]ireann|aemet|\binmet\b|\bbmkg\b|pagasa|\bdhmz\b|\bknmi\b|\bdwd\b|"
                    r"\bsmhi\b|\bdmi\b|ilmatieteen|\bimd\b|\bjma\b|\bkma\b|\bsenamhi\b|\bsmn\b|\bimn\b|accuweather")
 _sport_phr = pd.Series(_lname).str.contains(SPORT_PHRASE_RE, regex=True).values | \
@@ -2629,10 +2633,72 @@ def _words(tid):
     return {w_ for w_ in re.findall(r"\w+", txt) if len(w_) >= 3 and not w_.isdigit() and w_ not in DUP_GENERIC}
 
 
-LOCAL_DUPES = []
-_loc_top = {}
+# groups (round 44): topics of a card that share a distinctive word ("大村競艇", "徳山競艇", "三国競艇" -> 競艇) make one
+# entry and take one slot. Distinctive word = a name token of 3+ characters (Latin accent-free; not generic, not a
+# country or capital name) or, for Chinese / Japanese / Korean names, a shared prefix or suffix of 2+ characters
+# shorter than the name; and it appears in the candidate topics of at most GROUP_KEY_MAX_COUNTRIES countries.
+_CJK = re.compile(r"[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]")
+GROUP_STOP = DUP_GENERIC | set("""with from for los las les une der die das que como the del della dos das mas more
+best new top official watch hari ini mail paolo ali mohamed mohammed muhammad ahmed ahmad maria jose juan john
+david michael carlos luis ana mario marco giuseppe francesco antonio directo vivo envivo soir noche night morning dia día jour""".split()) | {w_ for v_ in cname.values() for w_ in re.findall(r"\w+", str(v_).lower())} \
+    | set("""uae emirates dubai الامارات العراق العراقي الاردن الأردن الكويت السعودية عمان ليبيا الجزائر الجزاير مصر قطر
+البحرين لبنان سوريا فلسطين المغرب تونس اليمن algerie tunisie maroc qazaqstan κυπρου κύπρου узбекистана украины
+россии santiago tehran sarajevo galway irish bangla""".split())
+LOCAL_GROUP_MAX = 6
+
+
+def _fold(x):
+    import unicodedata
+    return "".join(ch for ch in unicodedata.normalize("NFKD", x) if not unicodedata.combining(ch))
+
+
+def _gkeys(tid):
+    nm_ = re.sub(r"\s*\([^)]*\)", "", str(name.get(tid) or tid)).strip()
+    toks = [(_fold(w_) if re.fullmatch(r"[a-zà-ÿ0-9_]+", w_) else w_)
+            for w_ in re.split(r"[\s\-:·,./()'\"!?|]+", nm_.lower()) if w_]
+    keys = {w_ for w_ in toks if len(w_) >= 3 and not w_.isdigit() and w_ not in GROUP_STOP and not _CJK.search(w_)}
+    for run in re.findall(r"[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]{3,}", nm_):
+        keys |= {run[:k] for k in range(2, len(run))} | {run[-k:] for k in range(2, len(run))}
+    return keys
+
+
+def _span(nm_, key):
+    """(start, end) of the group word in a name, found in its accent-free form (same length for Latin letters)."""
+    pat = re.escape(key) if _CJK.search(key) else rf"(?<!\w){re.escape(key)}(?!\w)"
+    m_ = re.search(pat, nm_, flags=re.I)
+    if m_ is None and len(_fold(nm_)) == len(nm_):
+        m_ = re.search(pat, _fold(nm_), flags=re.I)
+    return m_.span() if m_ else None
+
+
+def _short(tid, key):
+    """Member name without the shared word ("大村競艇" -> "大村", "resumo dona de mim" -> "dona de mim")."""
+    nm_ = re.sub(r"\s*\([^)]*\)", "", str(name.get(tid) or tid)).strip()
+    sp = _span(nm_, key)
+    out = nm_ if sp is None else nm_[:sp[0]] + nm_[sp[1]:]
+    out = re.sub(r"\s+", " ", out).strip(" -:·,")
+    return out or nm_
+
+
+def _label(tid, key):
+    """The group word as written in the first member's name (accents kept)."""
+    nm_ = re.sub(r"\s*\([^)]*\)", "", str(name.get(tid) or tid)).strip()
+    sp = _span(nm_, key)
+    return nm_[sp[0]:sp[1]].lower() if sp else key
+
+
+# a group word must be distinctive: it appears in the candidate topics of at most 2 countries ("en vivo", "radio",
+# "новости" appear in many and do not group)
+_key_cc = {}
 for c, g in _cand.groupby("country_code"):
-    kept, kw = [], []
+    for k_ in set().union(*[_gkeys(x) for x in g.topic_id]):
+        _key_cc.setdefault(k_, set()).add(c)
+GROUP_KEY_MAX_COUNTRIES = 2
+_common_keys = {k_ for k_, v_ in _key_cc.items() if len(v_) > GROUP_KEY_MAX_COUNTRIES}
+LOCAL_DUPES, LOCAL_GROUPS = [], []
+_loc_top, LOCAL_ENTRIES = {}, {}
+for c, g in _cand.groupby("country_code"):
+    kept, kw, entries = [], [], []          # entries: {"ids": [...], "key": shared word or None, "keys": set}
     for r in g.itertuples():
         w_ = _words(r.topic_id)
         dup = next((k_ for k_, kw_ in zip(kept, kw) if len(w_ & kw_) >= 2 and
@@ -2640,11 +2706,30 @@ for c, g in _cand.groupby("country_code"):
         if dup is not None:
             LOCAL_DUPES.append({"country": c, "kept": name.get(dup) or dup, "skipped": name.get(r.topic_id) or r.topic_id})
             continue
+        gk = _gkeys(r.topic_id) - _common_keys
+        hit = None
+        for e_ in entries:
+            common = (gk & {e_["key"]}) if e_["key"] else (gk & e_["keys"])
+            if common and len(e_["ids"]) < LOCAL_GROUP_MAX:
+                hit = (e_, max(common, key=len))
+                break
+        if hit:
+            e_, key = hit
+            e_["ids"].append(r.topic_id)
+            e_["key"] = e_["key"] or key
+        elif len(entries) < 5:
+            entries.append({"ids": [r.topic_id], "key": None, "keys": gk})
+        else:
+            continue
         kept.append(r.topic_id)
         kw.append(w_)
-        if len(kept) == 5:
-            break
-    _loc_top[c] = g[g.topic_id.isin(kept)].set_index("topic_id").loc[kept].reset_index()
+    LOCAL_ENTRIES[c] = entries
+    for e_ in entries:
+        if len(e_["ids"]) > 1:
+            LOCAL_GROUPS.append({"country": c, "key": e_["key"], "members": [name.get(x) or x for x in e_["ids"]]})
+    flat = [x for e_ in entries for x in e_["ids"]]
+    _loc_top[c] = g[g.topic_id.isin(flat)].set_index("topic_id").loc[flat].reset_index()
+print(f"  wrapped: local groups {len(LOCAL_GROUPS)} in {len({x['country'] for x in LOCAL_GROUPS})} cards", flush=True)
 print(f"  wrapped: near-duplicates skipped in the local top 5s: {len(LOCAL_DUPES)}", flush=True)
 _loc_top_r40 = {c: g.head(5) for c, g in _tcw_r40.groupby("country_code")}     # round 40 rule, for the comparison
 _lt_changed = [c for c in W_CC if list(_loc_top.get(c, pd.DataFrame(columns=["topic_id"])).topic_id) !=
@@ -2792,9 +2877,20 @@ index = []
 WRAPPED_CARDS = {}
 for c in W_CC:
     lt_ = _loc_top.get(c, pd.DataFrame(columns=["topic_id", "vol", "n"]))
-    loc_items = [{"topic_id": r.topic_id, "name": name.get(r.topic_id), "type": meta["type"].get(r.topic_id),
-                  "trends": int(r.n), "volume_sum": int(r.vol),
-                  "top_phrasings": top_phrasings(_rows_by_tid[r.topic_id], 3)} for r in lt_.itertuples()]
+    _it = {r.topic_id: {"topic_id": r.topic_id, "name": name.get(r.topic_id), "type": meta["type"].get(r.topic_id),
+                        "trends": int(r.n), "volume_sum": int(r.vol),
+                        "top_phrasings": top_phrasings(_rows_by_tid[r.topic_id], 3)} for r in lt_.itertuples()}
+    loc_items = []
+    for e_ in LOCAL_ENTRIES.get(c, []):
+        if len(e_["ids"]) == 1:
+            loc_items.append(_it[e_["ids"][0]] | {"is_group": False})
+        else:
+            mem = [_it[x] | {"short_name": _short(x, e_["key"])} for x in e_["ids"]]
+            lab_ = _label(e_["ids"][0], e_["key"])
+            loc_items.append({"is_group": True, "topic_id": None, "group_word": lab_,
+                              "name": f"{lab_}: " + ", ".join(x_["short_name"] for x_ in mem
+                                                              if _fold(x_["short_name"].lower()) != _fold(lab_)),
+                              "trends": sum(x_["trends"] for x_ in mem), "members": mem})
     shocks_j = [{"moment_id": mid, "name": x["name"], "date_utc": x["date_utc"], "event_reach": x.get("event_reach")}
                 for mid, (x, ccs) in _chart_cc.items() if c in ccs]
     ap_all = [eid for eid in _ap_order if eid in _ap_cc and c in _ap_cc[eid][1]]
@@ -2855,7 +2951,8 @@ write("wrapped/index.json", {
             "national feed (local.json), rank 1 = most local, also ranked without low_data countries. "
             "uniquely_local_top5 = its one-country topics by trends, then search volume, without hidden and Wrapped-skip topics, "
             "football fixtures, teams, athletes, sport phrases, weather and weather-like topics, with 5+ trends and "
-            "no near-duplicates (rounds 41-42). "
+            "no near-duplicates (rounds 41-42); topics sharing a distinctive word are one entry (is_group, members, "
+            "round 44). "
             "shocks = which of the 60 chart shocks (shocks.json chart_top60, event reach) it joined, and how many "
             "global moments (not hidden) it joined / was among the first 3 countries in (ties with the third "
             "included; first3_share = among first 3 / joined, ranked without low_data countries; round 40). "
@@ -2922,6 +3019,9 @@ num("Wrapped", "appointment_share (appointments / global moments joined; not low
     ", ".join(f"{cname.get(c)} {v:.0%}" for c, v in _aps.head(3).items()) + f" / {_aps.median():.0%} / " +
     ", ".join(f"{cname.get(c)} {v:.0%}" for c, v in _aps.tail(3).items()), "wrapped/<CC>.json",
     "appointments.appointment_share")
+num("Wrapped", "Local top 5: groups of topics sharing a distinctive word / cards with a group",
+    f"{len(LOCAL_GROUPS)} / {len({x['country'] for x in LOCAL_GROUPS})}", "wrapped/<CC>.json",
+    "uniquely_local_top5[].is_group")
 num("Wrapped", "Local top 5: near-duplicates skipped (a later topic repeating a higher one's words)", len(LOCAL_DUPES),
     "wrapped_review.json", "local_rule_r41.near_duplicates")
 num("Wrapped", "Highest first3_share (among first 3 / global moments joined; not low_data), top 3",
@@ -2947,6 +3047,9 @@ write("wrapped_review.json", {"note": "Input for 09_validate_shocks.py wrapped-r
                               "top5_changed": _lt_changed,
                               "top5_r40": {c: [name.get(x) or x for x in g.topic_id] for c, g in _loc_top_r40.items()},
                               "top5_r41": {c: [name.get(x) or x for x in g.topic_id] for c, g in _loc_top.items()},
+                              "top5_entries": {c: [x["name"] for x in WRAPPED_CARDS[c]["uniquely_local_top5"]]
+                                               for c in W_CC},
+                              "groups": LOCAL_GROUPS,
                               "cards": {c: {k: v for k, v in WRAPPED_CARDS[c].items()
                                             if k in ("country_name", "low_data", "uniquely_local_top5", "attention_twin",
                                                      "attention_twin_without_sport")} for c in W_CC}})

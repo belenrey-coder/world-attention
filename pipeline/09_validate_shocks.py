@@ -1600,7 +1600,7 @@ def wrapped_review():
     pick = sorted(rng.sample([c for c in ccs if cards[c]["uniquely_local_top5"]], WRAPPED_SAMPLE_N))
     sample = []
     for c in pick:
-        x = rng.choice(cards[c]["uniquely_local_top5"])
+        x = rng.choice([y for e in cards[c]["uniquely_local_top5"] for y in (e.get("members") or [e])])
         sample.append({"country": c, "country_name": cards[c]["country_name"], "topic_id": x["topic_id"],
                        "topic": x["name"], "type": x["type"], "trends": x["trends"],
                        "phrasings": " | ".join(x["top_phrasings"]), "label": "", "notes": ""})

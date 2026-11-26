@@ -1712,6 +1712,31 @@ Sample 1 (`docs/shock_validation_sample.csv`, 100 moments) is now the **tuning**
   - Card sizes are 10–12 kB.
   - Japan's local top 5 still has three boat-race topics (大村 / 徳山 / 三国競艇, kyōtei, a betting sport); no rule catches them yet.
 
+### Step 9 round 44: grouped local topics (2026-11-25)
+- **Rule** (`08_story_export.py`, section 8): going down a card's local candidates (trends order, after the round 41–42 exclusions and the near-duplicate skip), a topic that shares a distinctive word with an entry already in the card joins it. The group takes one slot, and the freed slots go to the next topics. Groups have up to 6 members, and members found after the 5 slots are full still join.
+- **Card entry:** `is_group: true`, `group_word`, `members` (each with `short_name` = its name without the word), summed `trends`, and `name` such as "競艇: 大村, 徳山, 三国, 鳴門, 下関, 桐生". A member that is just the word itself is left out of the label but kept in `members`.
+- **Distinctive word:**
+  - A name token of 3+ characters (Latin letters folded to match accents; the label keeps them). For Chinese / Japanese / Korean names, a shared prefix or suffix of 2+ characters shorter than the name.
+  - Not a generic word (today, live, price, en vivo, directo, soir, noche, día ...), a country or capital name (also in Arabic and a few other scripts), or a common first name (paolo, ali, mohamed ...).
+  - It must appear in the local candidates of at most 2 countries: "vivo", "radio" and "новости" appear in many and don't group.
+  - There is no English gloss: the label is the word as written (競艇, not "boat racing").
+- **Also added, found while checking groups:**
+  - Sport: AFL, GAA, NRL, rugby, cricket, 스포츠 / 스포티비 / SPOTV, Vietnamese football words (bóng đá, ngoại hạng, thi đấu), كرة القدم (football), Urdu بمقابلہ ("vs"), and a trailing "vs".
+  - Weather-like: "tiempo <city>", prognoz-, MetService, INUMET, الجوية / الأرصاد (weather / meteorology).
+- **Tuning:** the first version made 132 groups in 78 cards, including groups on "vivo", "hora", "radio", "copa", country names in local script, first names, and broken Bengali / Thai labels (the tokenizer split at vowel signs). The final version has **80 groups in 56 cards**.
+- **Result:** **59 of 125 cards** change from round 42. Examples:
+  - JP: 大村競艇, 徳山競艇, 三国競艇 → "競艇: 大村, 徳山, 三国, 鳴門, 下関, 桐生"; the freed slots go to ゆうちゃみ and ヒコロヒー.
+  - FR: "horoscope: christine haas, catherine viguié, du double expresso"; "télé: programme ce soir, loisirs".
+  - GB: "traffic: m25, m6, m5".
+  - CH: "aktie: ubs, novartis, roche".
+  - AR: "quiniela: de tucuman, de mendoza, plus".
+  - IN: "zee: marathi, tv", "tv9: kannada, marathi", "abp: ananda, majha".
+- **Still imperfect:**
+  - "sydney: Trains, Airport" (AU, a city); "shah" and "tiémoko" (PK, CI; different people); "max: Lotto jackpot, Lotto" (CA; "lotto" is too common to group); "mouloudia" (DZ, a football club not caught by the sport words).
+  - 33 near-duplicates are now counted across the whole candidate list (the scan no longer stops at 5).
+  - Six cards have no local topic at all (BJ, CM, HT, MK, MM, ZM), as before this round.
+- `09_validate_shocks.py wrapped-review` draws its sample from group members too (the labelled sheet is not redrawn).
+
 ## Open issues (need a decision)
 
 _Updated 2026-11-09, after the short-string, sport, 19:00 UTC and Wrapped fixes (rerun from combine: combine, link, validation, moments, export, profile, checks)._

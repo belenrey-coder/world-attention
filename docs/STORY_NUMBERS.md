@@ -404,10 +404,11 @@ Conventions: national feeds; UTC unless a local hour is named; a moment is one t
 | Surprising twin differs from the twin without sport / from the twin on all topics (countries) | 78 / 103 of 125 | `wrapped/<CC>.json` | `surprising_twin` |
 | first3_share with ties at the third country's 10-minute step shared, top 3 (not low_data) | Brazil 50%, Indonesia 24%, United Kingdom 24% | `wrapped/<CC>.json` | `shocks.first3_share_ties_shared` |
 | Feed update frequency: median minutes between consecutive trend starts, Brazil / median country / fastest (not low_data) | 10 / 30 / AR 10 | `wrapped/<CC>.json` | `shocks.feed_median_minutes_between_starts` |
-| Top 5 uniquely local topics: cards that differ from the plain list (no fixtures, teams, athletes, sport phrases, weather or weather-like topics, near-duplicates; 5+ trends) | 83 of 125 | `wrapped/<CC>.json` | `uniquely_local_top5` |
+| Top 5 uniquely local topics: cards that differ from the plain list (no fixtures, teams, athletes, sport phrases, weather or weather-like topics, near-duplicates; 5+ trends) | 110 of 125 | `wrapped/<CC>.json` | `uniquely_local_top5` |
 | Hand labels (40 uniquely local topics): truly local (95% CI) / merge failures removed by the round-41 rule | 34 of 40 (85%, 71%-93%) / 4 of 6 | `work/wrapped_validation.json` | `precision` |
 | appointment_share (appointments / global moments joined; not low_data): highest 3 / median / lowest 3 | Turkmenistan 100%, Haiti 99%, Mali 99% / 93% / Norway 77%, Finland 74%, Lithuania 67% | `wrapped/<CC>.json` | `appointments.appointment_share` |
-| Local top 5: near-duplicates skipped (a later topic repeating a higher one's words) | 5 | `wrapped_review.json` | `local_rule_r41.near_duplicates` |
+| Local top 5: groups of topics sharing a distinctive word / cards with a group | 80 / 56 | `wrapped/<CC>.json` | `uniquely_local_top5[].is_group` |
+| Local top 5: near-duplicates skipped (a later topic repeating a higher one's words) | 33 | `wrapped_review.json` | `local_rule_r41.near_duplicates` |
 | Highest first3_share (among first 3 / global moments joined; not low_data), top 3 | Brazil 70% (3351 of 4816), United Kingdom 46% (2658 of 5750), United States 46% (2662 of 5768) | `wrapped/<CC>.json` | `shocks.first3_share` |
 | Verified waves joined per country: median / countries in all 18 | 12 / 25 | `wrapped/<CC>.json` | `waves.joined` |
 | Cards with a weather 'today' hour / of which 6:00 | 120 / 98 | `wrapped/<CC>.json` | `rituals.weather_today_hour` |
