@@ -4,7 +4,7 @@
   moments_global.json      global moments with spread timelines (split by month if > 2 MB)
   topics_index.json        searchable topics: months, countries, reach (sharded if > 2 MB)
   wrapped/<CC>.json        Country Wrapped card data, plus wrapped/index.json
-  hours/YYYY-MM.json       per UTC hour and country, the top active trend (map frames for the time machine)
+  (hours/YYYY-MM.json map frames: step 8, since Step 9 round 41)
   similarity.json          125 x 125 Jaccard similarity of topic sets (all topics, and without football)
   routine.json             trends by local hour x category, per country and worldwide
   coverage.json            trends per UTC day and country, with collection-gap flags
@@ -347,54 +347,6 @@ def export_wrapped(t, meta, m, exclude=frozenset()):
     return len(ccs), jac, ccs, X, tc, ti
 
 
-def export_hours(t, meta):
-    """Each trend counts as active in every UTC hour from its start to its end (max 24 h)."""
-    dur = pd.to_timedelta(t.duration_minutes.fillna(0).clip(upper=24 * 60), unit="m")
-    end = t.end_time_utc.fillna(t.start_time_utc + dur)
-    end = end.where(end > t.start_time_utc, t.start_time_utc + pd.Timedelta(minutes=1))
-    h0 = t.start_time_utc.dt.floor("h").astype("int64") // 3_600_000_000_000
-    h1 = (end - pd.Timedelta(microseconds=1)).dt.floor("h").astype("int64") // 3_600_000_000_000
-    n = np.clip(h1 - h0 + 1, 1, 25).values
-    tid_codes, tid_uni = pd.factorize(t.topic_id)
-    cc_codes, cc_uni = pd.factorize(t.country_code, sort=True)
-    idx = np.repeat(np.arange(len(t)), n)
-    offs = np.arange(len(idx)) - np.repeat(np.cumsum(n) - n, n)
-    e = pd.DataFrame({"hour": h0.values[idx] + offs, "cc": cc_codes[idx], "tid": tid_codes[idx],
-                      "vol": t.vol.values[idx], "start": t.start_time_utc.astype("int64").values[idx]})
-    e = e.sort_values(["hour", "cc", "vol", "start"], ascending=[True, True, False, False])
-    e = e.drop_duplicates(["hour", "cc"])
-    e["ts"] = pd.to_datetime(e.hour * 3_600_000_000_000, utc=True)
-    e["month"] = e.ts.dt.strftime("%Y-%m")
-    countries = list(cc_uni)
-    n_files = 0
-    for month, g in e.groupby("month"):
-        start = pd.Timestamp(month + "-01", tz="UTC")
-        all_hours = pd.date_range(start, start + pd.offsets.MonthBegin(1), freq="h", inclusive="left")
-        key = g.set_index(["hour", "cc"])
-
-        def build(hrs, key=key, month=month):
-            hrs_i = [int(h.value // 3_600_000_000_000) for h in hrs]
-            sub = key[key.index.get_level_values(0).isin(hrs_i)]
-            tids = list(dict.fromkeys(sub.tid))
-            pos = {x: i for i, x in enumerate(tids)}
-            top, vol = [], []
-            for hi in hrs_i:
-                row_t, row_v = [-1] * len(countries), [0] * len(countries)
-                if hi in sub.index.get_level_values(0):
-                    s = sub.loc[hi]
-                    for c, a, v in zip(s.index, s.tid, s.vol):
-                        row_t[c], row_v[c] = pos[a], int(v)
-                top.append(row_t)
-                vol.append(row_v)
-            return {"month": month, "countries": countries,
-                    "hours": [h.strftime("%Y-%m-%dT%H") for h in hrs],
-                    "note": "top[i][j] = index into topics of the highest-volume trend active in hour i in country j; -1 = none",
-                    "topics": [[tid_uni[x], meta.topic_name.get(tid_uni[x]), meta.category.get(tid_uni[x])] for x in tids],
-                    "top": top, "volume": vol}
-        n_files += len(write_parts(f"hours/{month}", list(all_hours), build))
-    return n_files
-
-
 def export_similarity(jac, ccs, X, tc, ti, meta, countries_df):
     from scipy.cluster.hierarchy import leaves_list, linkage
     from scipy.spatial.distance import squareform
@@ -489,7 +441,7 @@ def main():
     export_routine(t, meta)
     print("routine: done")
     print("coverage gaps:", export_coverage(t))
-    print(f"hours: {export_hours(tv, meta)} files")
+    # hours/ map frames: written by step 8 since Step 9 round 41 (they need moment kinds and the verified waves)
     total = sum(f["bytes"] for f in MANIFEST)
     biggest = max(MANIFEST, key=lambda f: f["bytes"])
     (EXPORT / "manifest.json").write_text(json.dumps(

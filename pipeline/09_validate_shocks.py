@@ -19,6 +19,7 @@
     python pipeline/09_validate_shocks.py rituals-sample # after make story: 60 holiday topics -> docs/rituals_review.csv
     python pipeline/09_validate_shocks.py rituals-score  # hand labels -> precision per holiday (work/rituals_validation.json)
     python pipeline/09_validate_shocks.py wrapped-review # after make story: twins report + 40 local topics (local files)
+    python pipeline/09_validate_shocks.py wrapped-score  # hand labels -> work/wrapped_validation.json (run make story after)
 
 Candidates: every non-sport global moment (is_global, is_sport false, topic not hidden). "Current shocks" are the
 moments in data/export/story/shocks.json as last exported (built with the old 20-country rule).
@@ -1607,12 +1608,50 @@ def wrapped_review():
     print(f"wrote {WRAPPED_REVIEW_CSV} ({len(sample)} topics). label = {' / '.join(WRAPPED_LABEL_CHOICES)}")
 
 
+
+def wrapped_score():
+    """Score docs/wrapped_review.csv (40 uniquely local topics drawn from the round 39 top 5s): share truly local, and
+    what the round 41 local rule (step 8: no fixtures / teams / athletes / weather, 5+ trends) does with each topic.
+    Writes WORK/wrapped_validation.json, read by step 8 (run make story again afterwards)."""
+    d = pd.read_csv(WRAPPED_REVIEW_CSV, dtype=str, keep_default_na=False)
+    d["label"] = d.label.str.strip()
+    d["lab"] = np.where(d.label.eq("truly local"), "truly local",
+                        np.where(d.label.str.startswith("merge failure"), "merge failure",
+                                 np.where(d.label.eq("should be hidden"), "should be hidden", "")))
+    bad = d[d.lab.eq("")]
+    if len(bad):
+        sys.exit(f"{len(bad)} rows without a valid label ({' / '.join(WRAPPED_LABEL_CHOICES)})")
+    j = load_json(EXPORT / "story" / "wrapped_review.json")
+    dropped = j["local_rule_r41"]["dropped_from_r40_top5"]
+    new_top = {c: set(v) for c, v in j["top5_r41"].items()}
+    d["rule_r41"] = [dropped.get(tid, "kept") for tid in d.topic_id]
+    d["in_new_top5"] = [tp in new_top.get(c, set()) for c, tp in zip(d.country, d.topic)]
+    k = int(d.lab.eq("truly local").sum())
+    mf = d[d.lab.eq("merge failure")]
+    tl = d[d.lab.eq("truly local")]
+    res = {"n": len(d), "truly_local": k, "precision": round(k / len(d), 3), "ci95": _wilson(k, len(d)),
+           "merge_failures": len(mf), "should_be_hidden": int(d.lab.eq("should be hidden").sum()),
+           "merge_removed": int(mf.rule_r41.ne("kept").sum()),
+           "truly_local_removed": int(tl.rule_r41.ne("kept").sum()),
+           "merge_failure_topics": mf[["country", "topic", "trends", "rule_r41", "notes"]].to_dict("records"),
+           "truly_local_removed_topics": tl[tl.rule_r41.ne("kept")][["country", "topic", "trends", "rule_r41"]]
+           .to_dict("records"),
+           "note": "Sample: one topic from the round 39 top 5 for 40 random countries. rule_r41 = what the round 41 "
+                   "rule does (kept, or the reason it is dropped)."}
+    (WORK / "wrapped_validation.json").write_text(json.dumps(res, ensure_ascii=False, indent=1))
+    print(f"truly local {k} of {len(d)} ({res['precision']:.0%}, 95% {res['ci95']}); merge failures removed by the "
+          f"round 41 rule {res['merge_removed']} of {len(mf)}; truly local topics removed {res['truly_local_removed']}")
+    for r in res["merge_failure_topics"] + res["truly_local_removed_topics"]:
+        print("  ", {k_: r[k_] for k_ in ("country", "topic", "trends", "rule_r41")})
+
+
 if __name__ == "__main__":
     stage = sys.argv[1] if len(sys.argv) > 1 else ""
     if stage in ("waves-sample", "waves-score", "waves-verify-sheet", "rituals-sample", "rituals-score",
-                 "wrapped-review"):
+                 "wrapped-review", "wrapped-score"):
         {"waves-sample": waves_sample, "waves-score": waves_score, "waves-verify-sheet": waves_verify_sheet,
-         "rituals-sample": rituals_sample, "rituals-score": rituals_score, "wrapped-review": wrapped_review}[stage]()
+         "rituals-sample": rituals_sample, "rituals-score": rituals_score, "wrapped-review": wrapped_review,
+         "wrapped-score": wrapped_score}[stage]()
         sys.exit()
     if stage == "waves-label":
         import importlib.util

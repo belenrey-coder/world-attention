@@ -1636,6 +1636,36 @@ Sample 1 (`docs/shock_validation_sample.csv`, 100 moments) is now the **tuning**
   - Entries are ranked by `countries`, with one entry per event per day.
   - Top-5 entries: 2,130 from appointment events, 66 from verified shock events, 154 moments. Pope Francis on 2025-04-21 now shows 120, the same as the shock chart.
 
+### Step 9 round 41: hours/ frames with shared topics; Wrapped local rule from hand labels; Brazil's first 3 (2026-11-25)
+**A. Map frames.** `data/export/hours/YYYY-MM.json` moves from step 5 to step 8 (section 7b), because the kinds need the moment kinds and the verified waves. Step 5 no longer writes them, and step 7's hours check no longer sees them; step 8 checks their shape itself.
+- **Same rules:** national feeds; the highest-volume trend active in each UTC hour per country (at most 24 h, ties to the latest start); hidden topics never shown; -1 = none. Every hour of a collection-gap day is now -1 and listed in `gap_hours`.
+- **New per hour:** `shared` = the top 5 topics by countries with the topic active that hour, as [topic, countries, kind].
+- **Kind:** shock if any active trend is in a shock moment, else appointment, else wave (a verified wave story topic, `waves_chart.json`), else ritual, else other.
+- **Files:** 19, one per month; largest 1.22 MB, total 20.4 MB, all under 2 MB.
+- **Hours with a topic shared by 15+ countries:** 11,548 of 12,624 non-gap hours. The count is high because a trend counts as active for up to 24 h. Of the top-5 entries with 15+ countries: appointment 46,047, other 4,851, shock 3,251, ritual 1,352, wave 282.
+
+**B. Wrapped local topics.**
+- **Hand labels** (`docs/wrapped_review.csv`, scored by `09_validate_shocks.py wrapped-score` → `work/wrapped_validation.json`): 34 of 40 truly local (85%, 95% CI 71–93%), 6 merge failures. None should be hidden.
+- **New rule for `uniquely_local_top5`:** no football fixtures (a name with "vs", "v", " : " or " x ", or Claude type / category sports_match or team, or an athlete), no weather-category topics, at least 5 trends.
+- **What the rule does with the sample:**
+  - It removes 4 of the 6 merge failures: three football fixtures and Danish "Weather".
+  - Two stay: "خرید بیت کوین" ("buy Bitcoin", IR) and "break fast today" (SG, iftar).
+  - It also removes 6 truly local topics, as the rule intends: Panathinaikos basketball (a team), four city or national weather topics, and Wicknell Chivayo (4 trends).
+- **Cards:** the top 5 changes on 61 of 125 cards. Dropped from the old top 5s: 65 with fewer than 5 trends, 47 weather topics, 22 fixtures, teams or athletes.
+- **Examples (before → after):**
+  - FR: drops "meteo toulon", adds "TV programme tonight (France)". This is a duplicate of "programme télé ce soir", a merge failure.
+  - US: drops "Atlanta weather" and "dc weather", adds "lsu baseball" and "padres game today". Baseball games that aren't fixture-named or sports_match still pass.
+  - BR: drops "previsão do tempo são paulo", adds "garota do momento".
+  - DK: drops "Weather", adds "novo aktier". "Danish Meteorological Institute" stays (not weather category).
+  - AR: drops four "clima ..." topics; now "quini 6", "quiniela de tucuman", "la joaqui", "pronostico cordoba", "river id". "pronostico cordoba" is a weather forecast outside the weather category.
+- **Most distinctive appointment** (`appointments.most_distinctive`): among the appointment events the country joined with a total reach of 15+, the one with the smallest total reach. Total reach = every country in the event window; `event_reach_total` for multi-day events. All 125 cards have one. The most common are Formula 1 standings (15 cards), Chelsea FC (11) and Paris Saint-Germain vs Monaco (10).
+
+**C. Brazil's first3_share.**
+- **Feed update frequency** (median minutes between consecutive distinct trend starts): Brazil 10 min, median country 30 min. 25 of the 120 countries that aren't low_data are at 10 min.
+- **Feed speed explains much of the pattern:** Spearman −0.67 between the step and first3_share (ties shared). Median first3_share with ties shared is 9.9% at 10 min against 2.0% at 30 min.
+- **Ties shared** (`first3_share_ties_shared`: countries tied at the third country's 10-minute step share the remaining places): Brazil 50%, Indonesia 24%, UK 24%, US 22%. Brazil was 70% before.
+- **Brazil's lead holds**, also among the 10-minute feeds, where the next is 24%. Its first-3 count shrinks a lot when ties are shared, but no other fast feed comes close. The data can't separate "Brazil searches first" from "Brazil's feed is collected first within each 10-minute step".
+
 ## Open issues (need a decision)
 
 _Updated 2026-11-09, after the short-string, sport, 19:00 UTC and Wrapped fixes (rerun from combine: combine, link, validation, moments, export, profile, checks)._

@@ -379,6 +379,9 @@ Conventions: national feeds; UTC unless a local hour is named; a moment is one t
 | number | value | file | key |
 |---|---|---|---|
 | Global moments on the timeline | 7,999 | `timemachine/peaks.json` | `peaks` |
+| hours/ frames: files / largest file (MB) / total (MB) | 19 / 1.22 / 20.4 | `../hours/YYYY-MM.json` | `(file sizes)` |
+| Non-gap hours with at least one topic shared by 15+ countries | 11,548 of 12,624 | `../hours/YYYY-MM.json` | `shared` |
+| Top-5 shared entries with 15+ countries, by kind | shock 3,251, appointment 46,047, wave 282, ritual 1,352, other 4,851 | `../hours/YYYY-MM.json` | `shared[][2]` |
 | days.json top-5 entries by reach basis (moment / appointment event / verified shock event) | 154 / 2130 / 66 | `days.json` | `days[].top5[].reach_basis` |
 | Days in days.json / days with at least one global moment / gap days | 537 / 487 / 51 | `days.json` | `days` |
 
@@ -398,6 +401,11 @@ Conventions: national feeds; UTC unless a local hour is named; a moment is one t
 | Chart shocks joined per country: median / min / max (of 60) | 49 / 4 / 60 | `wrapped/<CC>.json` | `shocks.chart_shocks_joined` |
 | Most often among the first 3 countries of a global moment (top 3) | Brazil 3351, United States 2662, United Kingdom 2658 | `wrapped/<CC>.json` | `shocks.global_moments_among_first_3` |
 | Surprising twin differs from the twin without sport / from the twin on all topics (countries) | 78 / 103 of 125 | `wrapped/<CC>.json` | `surprising_twin` |
+| first3_share with ties at the third country's 10-minute step shared, top 3 (not low_data) | Brazil 50%, Indonesia 24%, United Kingdom 24% | `wrapped/<CC>.json` | `shocks.first3_share_ties_shared` |
+| Feed update frequency: median minutes between consecutive trend starts, Brazil / median country / fastest (not low_data) | 10 / 30 / AR 10 | `wrapped/<CC>.json` | `shocks.feed_median_minutes_between_starts` |
+| Top 5 uniquely local topics: cards that change with the round-41 rule (no fixtures, teams, athletes, weather; 5+ trends) | 61 of 125 | `wrapped/<CC>.json` | `uniquely_local_top5` |
+| Hand labels (40 uniquely local topics): truly local (95% CI) / merge failures removed by the round-41 rule | 34 of 40 (85%, 71%-93%) / 4 of 6 | `work/wrapped_validation.json` | `precision` |
+| Most distinctive appointment: cards with one / most common events | 125 / Formula 1 standings 15, Chelsea FC 11, Paris Saint-Germain vs Monaco 10 | `wrapped/<CC>.json` | `appointments.most_distinctive` |
 | Highest first3_share (among first 3 / global moments joined; not low_data), top 3 | Brazil 70% (3351 of 4816), United Kingdom 46% (2658 of 5750), United States 46% (2662 of 5768) | `wrapped/<CC>.json` | `shocks.first3_share` |
 | Verified waves joined per country: median / countries in all 18 | 12 / 25 | `wrapped/<CC>.json` | `waves.joined` |
 | Cards with a weather 'today' hour / of which 6:00 | 120 / 98 | `wrapped/<CC>.json` | `rituals.weather_today_hour` |
