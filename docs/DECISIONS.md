@@ -1549,6 +1549,45 @@ Sample 1 (`docs/shock_validation_sample.csv`, 100 moments) is now the **tuning**
   - 'Tomorrow': peak at 20:00 local, mean 8.5 countries (median 6). Next is 21:00 with 2.9. Almost no 'tomorrow' trends start at other hours.
 - **Not checked:** whether the 19:00 UTC collection bump (CHECKS C4) adds to the 20:00 'tomorrow' peak for countries at UTC+1.
 
+### Step 9 round 37: weather and the global-moment rule (2026-11-25; report only, no pipeline change)
+- **Global weather moments:** 1 of 36,128 weather-category moments, on 1 day. It is topic "Weather", moment 920899, starting 2025-05-20 22:10 UTC, with reach 18 and 15 countries within 60 min of the third. Every phrasing is plain "weather", so it is 'today'. No 'tomorrow' moment passes. The next-best weather moments reach 12 and 11.
+- **Countries:**
+  - 15 of 18 are at UTC+0 to +3: 13 European countries (FI, HR, RS, AT, SE, AL, NL, BE, DK, MK, CZ, HU, NO) plus CI and GH.
+  - The other three are JP, NP and TT.
+  - Each country starts between 06:20 and 07:10 local. JP is first at 22:10 UTC, NP follows at 00:50, Europe at 04:10–05:10, West Africa at 06:40–07:00, and TT at 10:30.
+  - So the moment is the European morning: about 13 countries at UTC+1/+2 reach 6–7 a.m. within the same hour. It is not one shared instant.
+- **Kind:** shock. Claude's shock label calls it unscheduled, so `is_shock` wins over ritual. It is in `shocks.json` → `moments` (sub-kind other, not verified), but not in `chart_top60` or `other_top40`. It is not in `appointments.json`. It is a false shock.
+- **Why so rare:** each language is its own topic ("hava durumu", "天気", ...), and 6 a.m. moves one hour per time zone. Only the European band of UTC+1/+2 countries can put 15 countries into one hour.
+- **The rule's anchor:** the rule counts from the third country of a moment. Weather moments are long sessions, so a burst later in a session is not counted. A sliding 60-minute window finds 6 topic-days with 15+ countries:
+  - "Weather", 2025-04-07 03:50 UTC: 18 countries, all at 6–7 a.m. local.
+  - "Weather forecast" on 2025-12-23, 2026-01-01, 2026-02-19 and 2026-03-15, each at 18:50–19:40 UTC: 15–19 countries, almost all "weather tomorrow" at 20:00 local in UTC+1. These sit on the 19:00 UTC collection bump (CHECKS C4).
+  - "Weather today", 2026-04-14 11:10 UTC: 20 countries at mixed local hours, which looks like a collection artefact.
+  - All of these moments are ritual. None is flagged global.
+- **Against the usual day** (`weather_day.json`, 472 full-coverage days): 9,322 country-days have a 'today' weather trend starting at 6 a.m. local (19.75 a day). Only 18 country-trends are in a global weather moment, about 0.2%. On 2025-05-21 itself, 23 countries started 'today' weather at 6 a.m. local, the same as an ordinary day. Weather is a ritual of the local clock, and the global-moment rule, which measures one shared UTC hour, almost never sees it.
+- **Possible fix, not made:** set weather moments to ritual even when Claude labels them shocks. This is your decision. You approved it in round 38.
+
+### Step 9 round 38: weather takes precedence over shock; 'tomorrow' robustness (2026-11-25)
+- **Rule** (`04_moments.py` `add_shock`): weather-category moments are never shocks. Both `is_shock` and the rule-alone `is_shock_rule` are False for them, so their kind is ritual even when Claude calls them unscheduled. The `moment_kinds` docstring is updated.
+- **Rerun:** `make after-topics`, `make shocks-estimate` and `make story`. No Claude calls.
+- **What moved:**
+  - One moment changes kind: "Weather", 2025-05-20, from shock to ritual. No other weather moment was a shock.
+  - Shock moments: 598 → 597. Rule alone: 610 → 609.
+  - Sport-free global shocks in `shocks.json`: 590 → 589; of kind other, 401 → 400; sub-kind other, 79 → 78. The top 40 and the chart's top 60 are unchanged.
+  - Estimate: flagged 602 → 601; true shocks 475 [400, 548] → 474 [399, 546].
+  - Speed baseline (30+ countries in 72 h): shocks 324 → 323; everything else 2,885 → 2,886, median 15.67 → 15.59 h to half.
+  - CHECKS, PROFILE, waves and the ritual topic counts are unchanged.
+- **'Tomorrow' robustness** (`weather_day.json` → `tomorrow_robustness`, over the 472 full-coverage days). The table shows mean countries per day at each local hour:
+
+  | Version | Trends | 19:00 | 20:00 | 21:00 | Peak |
+  |---|---|---|---|---|---|
+  | All | 9,580 | 0.06 | 8.53 | 2.91 | 20:00 |
+  | (a) without starts at 19:00–19:59 UTC | 8,655 | 0.06 | 7.25 | 2.47 | 20:00 |
+  | (b) without UTC+1 countries | 8,666 | 0.05 | 7.25 | 2.47 | 20:00 |
+
+  - At 20:00 local, (a) and (b) remove the same trends: for a UTC+1 country, 20:00 local is 19:00 UTC.
+  - Removing them takes the peak from 8.5 to 7.25 countries, about 15%. The peak stays at 20:00 in both versions and stays far above every other hour.
+  - So the collection bump does not make the 8 p.m. peak. It may add about 1 country a day to it, through the UTC+1 countries, but this check cannot separate that from those countries' real 8 p.m. habit.
+
 ## Open issues (need a decision)
 
 _Updated 2026-11-09, after the short-string, sport, 19:00 UTC and Wrapped fixes (rerun from combine: combine, link, validation, moments, export, profile, checks)._

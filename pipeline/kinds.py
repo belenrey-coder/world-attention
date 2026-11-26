@@ -129,7 +129,8 @@ def moment_kinds(m, ritual_topics, outage_topic_ids=()):
       appointment  sport moment, a scheduled-event name (APPOINT_RE), or Claude says scheduled
       ritual       the topic is a ritual (topic_ritual)
       other        outage topics ("is it down", outage_topics): outage-driven with no cycle, other unless a shock
-      shock        is_shock (validated in step 9; wins even over ritual: a storm on a weather topic)
+      shock        is_shock (validated in step 9; wins over ritual, except weather-category moments, which
+                   step 4 never makes shocks: round 38)
     Reach is not a kind: "local" (< 15 countries) is a property of the moment's reach, not of what happened."""
     rit = m.topic_id.isin(ritual_topics)
     tn = m.drop_duplicates("topic_id").set_index("topic_id").topic_name.astype(str).str.lower()

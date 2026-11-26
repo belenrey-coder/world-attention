@@ -2064,11 +2064,15 @@ write("rituals.json", rituals)
 # weather clock: national feeds in one zone, US/CA/RU regional feeds in each region's zone)
 _wdn = tv[tv.topic_id.isin(weather_ids) & ~tv.country_code.isin(REG)]
 _wdn = pd.DataFrame({"country_code": _wdn.country_code.values, "ld": _wdn.local_time.dt.strftime("%Y-%m-%d").values,
-                     "lh": _wdn.local_time.dt.hour.values, "query_raw": _wdn.query_raw.values})
+                     "lh": _wdn.local_time.dt.hour.values, "query_raw": _wdn.query_raw.values,
+                     "uh": _wdn.start_time_utc.dt.hour.values})
 rg["ld"] = ""
 for z, idx in zone.groupby(zone).groups.items():
     rg.loc[idx, "ld"] = rg.loc[idx, "start_time_utc"].dt.tz_convert(z).dt.strftime("%Y-%m-%d").values
-_wd = pd.concat([_wdn, rg[["country_code", "ld", "lh", "query_raw"]]], ignore_index=True)
+rg["uh"] = rg.start_time_utc.dt.hour
+_wd = pd.concat([_wdn, rg[["country_code", "ld", "lh", "query_raw", "uh"]]], ignore_index=True)
+# UTC offset of the trend's start, in hours (local hour - UTC hour, wrapped); UTC+1 = offset 1
+_wd["off"] = ((_wd.lh - _wd.uh + 12) % 24) - 12
 _wd["tomorrow"] = _wd.query_raw.str.lower().str.contains(TOMORROW_RE, regex=True, na=False)
 _wd_days = pd.date_range(pd.Timestamp(all_days[0]) - pd.Timedelta(days=1), pd.Timestamp(all_days[-1]) + pd.Timedelta(days=1),
                          freq="D").strftime("%Y-%m-%d")
@@ -2100,6 +2104,25 @@ for k_, g_ in _wdg.items():
                   "peak_hour": int(av.idxmax()), "peak_mean_countries": round(float(av.max()), 2),
                   "peak_median_countries": float(md[av.idxmax()]),
                   "median_peak_hour": int(md.idxmax()), "median_peak_countries": float(md.max())}
+# robustness (round 38): the 'tomorrow' usual day (a) without trends starting 19:00-19:59 UTC (the collection bump,
+# CHECKS C4) and (b) without trends from countries at UTC+1 that day
+_wtm = _wd[_wd.tomorrow]
+
+
+def _usual_of(d):
+    f_ = _wd_grid(d).loc[_wd_full]
+    av, md = f_.mean(), f_.median()
+    return {"mean_countries_by_local_hour": [round(float(x), 2) for x in av],
+            "peak_hour": int(av.idxmax()), "peak_mean_countries": round(float(av.max()), 2),
+            "peak_median_countries": float(md[av.idxmax()]), "hour_20_mean_countries": round(float(av[20]), 2),
+            "hour_20_median_countries": float(md[20]), "trends": int(len(d))}
+
+
+_tm_rob = {"all": _usual_of(_wtm), "without_19utc": _usual_of(_wtm[_wtm.uh != 19]),
+           "without_utc_plus_1": _usual_of(_wtm[_wtm.off != 1]),
+           "without_both": _usual_of(_wtm[(_wtm.uh != 19) & (_wtm.off != 1)]),
+           "note": "'tomorrow' usual day over the full-coverage days: all trends; without trends starting 19:00-19:59 "
+                   "UTC; without trends at UTC+1 (offset of that trend's start); without both."}
 weather_day = {
     "note": "Weather category, 'today' / 'tomorrow' split as rituals.json (tomorrow = phrasings with a tomorrow word). "
             "Each trend sits on the local day and local hour of its start: national feeds in one zone per country "
@@ -2111,9 +2134,13 @@ weather_day = {
             "null = full coverage. usual_day = mean and median over the full-coverage days.",
     "full_coverage_days": len(_wd_full), "days": len(_wd_days),
     "flag_counts": pd.Series([v for v in _day_flag.values() if v]).value_counts().to_dict(),
-    "usual_day": _usual,
+    "usual_day": _usual, "tomorrow_robustness": _tm_rob,
     "by_day": [[d_, _day_flag[d_], _wdg["today"].loc[d_].tolist(), _wdg["tomorrow"].loc[d_].tolist()] for d_ in _wd_days]}
 write("weather_day.json", weather_day)
+num("Rituals", "Weather usual day 'tomorrow', robustness: 20:00 mean countries all / without 19:00 UTC starts / "
+               "without UTC+1 / without both (peak hour of each)",
+    " / ".join(f"{v['hour_20_mean_countries']} ({v['peak_hour']}:00)" for k, v in _tm_rob.items() if k != "note"),
+    "weather_day.json", "tomorrow_robustness")
 for k_, u_ in _usual.items():
     num("Rituals", f"Weather usual day ('{k_}'): peak local hour / mean countries starting a trend then (median) / "
                    f"full-coverage days", f"{u_['peak_hour']}:00 / {u_['peak_mean_countries']} "

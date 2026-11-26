@@ -39,13 +39,13 @@ Conventions: national feeds; UTC unless a local hour is named; a moment is one t
 | 'Is it down': widest day (countries) / top 10 days with a matching outage shock | 2025-11-18 (99) / 10 of 10 | `shocks.json` | `is_it_down.top10_days` |
 | Chart set: 60 shocks (by event reach once event groups are reviewed), of which hand-verified | 60 of 60 | `shocks.json` | `chart_top60` |
 | Shocks verified by hand label (all) | 133 | `shocks.json` | `moments[].verified` |
-| Estimated true number of shocks (flagged x precision / recall, 95% bootstrap interval) | 475 [400, 548] | `shocks.json` | `estimate_true_shocks` |
-| Sport-free global shock moments | 590 | `shocks.json` | `moments` |
-| ... of kind other | 401 | `shocks.json` | `moments[].kind` |
+| Estimated true number of shocks (flagged x precision / recall, 95% bootstrap interval) | 474 [399, 546] | `shocks.json` | `estimate_true_shocks` |
+| Sport-free global shock moments | 589 | `shocks.json` | `moments` |
+| ... of kind other | 400 | `shocks.json` | `moments[].kind` |
 | ... of kind death | 115 | `shocks.json` | `moments[].kind` |
 | ... of kind outage | 74 | `shocks.json` | `moments[].kind` |
 | ... 'other' shocks of sub-kind viral or celebrity (all / in the top 40) | 144 / 7 | `shocks.json` | `moments[].sub_kind, other_top40` |
-| ... 'other' shocks of sub-kind other (all / in the top 40) | 79 / 9 | `shocks.json` | `moments[].sub_kind, other_top40` |
+| ... 'other' shocks of sub-kind other (all / in the top 40) | 78 / 9 | `shocks.json` | `moments[].sub_kind, other_top40` |
 | ... 'other' shocks of sub-kind politics or conflict (all / in the top 40) | 74 / 15 | `shocks.json` | `moments[].sub_kind, other_top40` |
 | ... 'other' shocks of sub-kind launch (all / in the top 40) | 61 / 5 | `shocks.json` | `moments[].sub_kind, other_top40` |
 | ... 'other' shocks of sub-kind disaster or accident (all / in the top 40) | 36 / 3 | `shocks.json` | `moments[].sub_kind, other_top40` |
@@ -175,10 +175,10 @@ Conventions: national feeds; UTC unless a local hour is named; a moment is one t
 | Speed baseline 50+ countries in 72 h, wave returns: moments / median share within 1 h / median hours to half | 14 / 8% / 3.67 | `waves_speed.json` | `baseline.50_plus.wave_returns` |
 | Speed baseline 50+ countries in 72 h, everything else: moments / median share within 1 h / median hours to half | 688 / 6% / 17.67 | `waves_speed.json` | `baseline.50_plus.everything_else` |
 | Speed baseline 30+ countries in 72 h, all: moments / median share within 1 h / median hours to half | 3,316 / 11% / 11.67 | `waves_speed.json` | `baseline.30_plus.all` |
-| Speed baseline 30+ countries in 72 h, shocks: moments / median share within 1 h / median hours to half | 324 / 62% / 0.67 | `waves_speed.json` | `baseline.30_plus.shocks` |
+| Speed baseline 30+ countries in 72 h, shocks: moments / median share within 1 h / median hours to half | 323 / 62% / 0.67 | `waves_speed.json` | `baseline.30_plus.shocks` |
 | Speed baseline 30+ countries in 72 h, appointments: moments / median share within 1 h / median hours to half | 87 / 41% / 1.5 | `waves_speed.json` | `baseline.30_plus.appointments` |
 | Speed baseline 30+ countries in 72 h, wave returns: moments / median share within 1 h / median hours to half | 34 / 17% / 3.83 | `waves_speed.json` | `baseline.30_plus.wave_returns` |
-| Speed baseline 30+ countries in 72 h, everything else: moments / median share within 1 h / median hours to half | 2,885 / 10% / 15.67 | `waves_speed.json` | `baseline.30_plus.everything_else` |
+| Speed baseline 30+ countries in 72 h, everything else: moments / median share within 1 h / median hours to half | 2,886 / 10% / 15.59 | `waves_speed.json` | `baseline.30_plus.everything_else` |
 | 72-h curve, Iran (2025-06): already trending / 1 h / 24 h / 72 h / hours to half | 27 / 3 / 69 / 73 / 5.67 | `waves_speed.json` | `biggest_returns` |
 | 72-h curve, Iran (US strikes, 22 Jun 2025) (2025-06): already trending / 1 h / 24 h / 72 h / hours to half | 1 / 50 / 68 / 70 / 0.5 | `waves_speed.json` | `biggest_returns` |
 | 72-h curve, Dua Lipa (2026-05): already trending / 1 h / 24 h / 72 h / hours to half | 0 / 3 / 16 / 25 / 15.33 | `waves_speed.json` | `biggest_returns` |
@@ -319,6 +319,7 @@ Conventions: national feeds; UTC unless a local hour is named; a moment is one t
 | (a) Full-coverage days on which the topic 'Weather' (22 topics named so) trended in 10+ countries | 409 | `rituals.json` | `weather_days.topic_weather_days_10plus` |
 | (a') ... the single topic with id 'Weather' only | 294 | `rituals.json` | `weather_days.topic_weather_plain_id_days_10plus` |
 | (b) Full-coverage days on which any weather topic (6,212 topics) trended in 10+ countries | 486 | `rituals.json` | `weather_days.any_weather_topic_days_10plus` |
+| Weather usual day 'tomorrow', robustness: 20:00 mean countries all / without 19:00 UTC starts / without UTC+1 / without both (peak hour of each) | 8.53 (20:00) / 7.25 (20:00) / 7.25 (20:00) / 7.25 (20:00) | `weather_day.json` | `tomorrow_robustness` |
 | Weather usual day ('today'): peak local hour / mean countries starting a trend then (median) / full-coverage days | 6:00 / 19.75 (19) / 472 | `weather_day.json` | `usual_day.today` |
 | Weather usual day ('tomorrow'): peak local hour / mean countries starting a trend then (median) / full-coverage days | 20:00 / 8.53 (6) / 472 | `weather_day.json` | `usual_day.tomorrow` |
 | Ritual topics (not hidden) / proposed cycle daily / weekly / yearly / unclear / too few trends | 13,568 / 49 / 140 / 1,269 / 1,897 / 10,213 | `rituals_review.json` | `ritual_topics` |

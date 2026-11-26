@@ -226,6 +226,13 @@ def add_shock(m: pd.DataFrame) -> pd.DataFrame:
     m.loc[hit, "is_shock"] = m.loc[hit, "hand_scheduled"].eq("unscheduled") & ~m.loc[hit, "is_sport"]
     m.loc[hit, "scheduled_final"] = m.loc[hit, "hand_scheduled"]
     m["is_shock"] = m.is_shock.astype(bool)
+    # weather takes precedence over shock (Step 9 round 38): weather-category moments are ritual, even when Claude
+    # calls them unscheduled (the one global weather moment is the European 6-7 a.m. morning, not a shock)
+    wx = m.category.eq("weather")
+    print(f"weather-category moments taken out of shocks: {int((wx & m.is_shock).sum())} "
+          f"(rule alone {int((wx & m.is_shock_rule).sum())})")
+    m.loc[wx, "is_shock"] = False
+    m.loc[wx, "is_shock_rule"] = False
     print(f"hand-labelled moments: {int(hl.notna().sum())}, of which global {int(hit.sum())} (of {len(hand)} hand labels); shock moments: "
           f"{int(m.is_shock.sum()):,} (rule alone {int(m.is_shock_rule.sum()):,}); global non-sport moments without "
           f"a Claude label: {int((m.is_global & ~m.is_sport & ~m.shock_labelled & ~hit).sum()):,}")
