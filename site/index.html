@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>All at Once</title>
+  <meta name="description" content="Most of the time, every country is searching for something different. Every so often, the whole world types the same thing within minutes. What makes that happen?">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&family=Libre+Franklin:wght@400;500;600;700;800&display=swap">
+</head>
+<body>
+  <main id="article">
+    <!-- ============================================================ headline block (static, no motion) -->
+    <header class="top col">
+      <p class="kicker">Google Trends · 125 countries · 18 months</p>
+      <h1>All at Once</h1>
+      <p class="dek">Most of the time, every country is searching for something different. Every so often, the whole world types the same thing within minutes. What makes that happen?</p>
+      <div class="byline"><span>By <b>Belen Reyes</b></span><span>Dec. 10, 2026</span><span id="motion-switch"></span></div>
+    </header>
+
+    <!-- ============================================================ Chapter 0 · Opening -->
+    <section class="chapter" id="opening" aria-labelledby="opening-h">
+      <div class="col prose">
+        <h2 id="opening-h" class="sr-only">The day the world searched for one man</h2>
+        <p>At 7:50 a.m. Greenwich time on April 21, 2025, the Vatican announced that Pope Francis had died. When Google next refreshed its lists of what was trending, he was already on them in 20 countries, from Hong Kong to Peru.</p>
+        <p>Ten minutes later it was 63. Within the hour, 109. People who did not share a language, a time zone or, in many cases, a religion were asking the same question in the same few minutes.</p>
+      </div>
+      <div class="wide chart" id="opening-chart" data-chart="opening"><p class="placeholder">Milestone 2: the map and the squares (the engine check at the bottom of the page uses this data).</p></div>
+      <div class="col prose">
+        <p>Moments like this are rare, and they are not all alike. Reading 18 months of trending searches, we found that the world looks up together in four ways: shocks nobody saw coming, appointments everybody had in the calendar, waves that keep coming back, and small rituals repeated every day.</p>
+      </div>
+    </section>
+
+    <!-- ============================================================ Chapter 1 · Most searches never leave home -->
+    <section class="chapter" id="local" aria-labelledby="local-h">
+      <div class="col prose">
+        <p class="kicker">First, the usual</p>
+        <h2 id="local-h">Most searches never leave home</h2>
+        <p>Pope Francis was unusual. Over 18 months, about 683,000 different topics trended somewhere in the 125 countries of the archive. Almost all of them stayed where they started.</p>
+      </div>
+      <div class="col" id="local-guess"></div>
+      <div class="scrolly wide" id="local-scrolly">
+        <div class="steps">
+          <div class="step" data-step="0"><div class="n">1</div>Real searches start to fall: a sample of the topics that trended somewhere in those 18 months.</div>
+          <div class="step" data-step="1"><div class="n">2</div>They pile up by how far they traveled. <b>Most never left home.</b> Pope Francis was one of the 1.6%.</div>
+        </div>
+        <div class="graphic"><div class="chart" id="local-chart"></div></div>
+      </div>
+      <div class="wide" id="local-after"></div>
+      <div class="col prose">
+        <p>So when the whole world searches for the same thing, it is the exception.</p>
+      </div>
+    </section>
+
+    <!-- ============================================================ Chapter 2 · Shocks -->
+    <section class="chapter" id="shocks" aria-labelledby="shocks-h">
+      <div class="col prose">
+        <p class="kicker">1 · Shocks</p>
+        <h2 id="shocks-h">Shocks</h2>
+        <p>Some moments nobody saw coming: a death, an outage, a war. When the news is big enough, it crosses borders in minutes. We looked at the 60 widest of these shocks, each checked by hand.</p>
+      </div>
+      <div class="scrolly wide" id="shocks-scrolly">
+        <div class="steps">
+          <div class="step" data-step="0"><div class="n">1 · Four stories</div>Four shocks stand out: <b>ChatGPT down</b>, the widest of all; <b>Pope Francis</b>, half his countries in ten minutes; <b>Diogo Jota</b>, 122 countries in a day; and <b>Venezuela</b>, which kept spreading for hours.</div>
+          <div class="step" data-step="1"><div class="n">2 · What they were</div>Half of the news that stopped the world was a death. A quarter was the internet breaking: <b>30 deaths, 15 outages</b>, 8 moments of politics or conflict and 7 others. Tap a type to see it alone.</div>
+        </div>
+        <div class="graphic"><div class="chart" id="shocks-chart"></div></div>
+      </div>
+      <div class="wide" id="shocks-after"><p class="source">Source: GoogleTrendArchive, national Trending Now feeds collected every 10 minutes. A shock is a global moment (15 or more countries within an hour of the third) of an unscheduled event; types from hand labels and a keyword rule. Each line merges the topics about the same event, from 2 hours before to 24 hours after. As of 2026-05-17.</p></div>
+    </section>
+
+    <!-- ============================================================ Chapter 3 · Appointments -->
+    <section class="chapter" id="appointments" aria-labelledby="appointments-h">
+      <div class="col prose">
+        <p class="kicker">2 · Appointments</p>
+        <h2 id="appointments-h">The world keeps a fixture list</h2>
+        <p>Shocks are rare. Most of the time, when the world searches for the same thing, it is because it agreed to in advance. Nine in ten global moments were scheduled, 7,236 of 7,999, and 98 percent of those were sport.</p>
+      </div>
+      <div class="scrolly stacked wide" id="appt-scrolly">
+        <div class="steps">
+          <div class="step" data-step="0"><div class="n">1 · The calendar</div>On 481 of 486 days, at least one scheduled event trended in 15 or more countries. On a typical day there were 13.</div>
+          <div class="step" data-step="1"><div class="n">2 · Weekends</div>They pile up on weekends: 24 on an average Saturday, 7 on a Monday.</div>
+          <div class="step" data-step="2"><div class="n">3 · The whole world</div>On 204 days, one of them reached 100 countries or more. 199 of those were football matches. The news did that 15 times in 18 months.</div>
+          <div class="step" data-step="3"><div class="n">4 · The exceptions</div>The scheduled events you might expect, the Oscars, an inauguration, the conclave, are the exceptions on this calendar. Now take football away yourself.</div>
+        </div>
+        <div class="graphic"><div class="chart" id="appt-chart"></div></div>
+      </div>
+      <div class="wide" id="appt-after"></div>
+      <div class="col prose" style="margin-top:40px">
+        <p class="kicker">The comparison</p>
+        <h3 class="h3">A regular Spanish league match reached more countries than the Oscars</h3>
+      </div>
+      <div class="col chart" id="appt-compare"></div>
+    </section>
+
+    <!-- ============================================================ Chapter 4 · Waves -->
+    <section class="chapter" id="waves" aria-labelledby="waves-h">
+      <div class="col prose">
+        <p class="kicker">3 · Waves</p>
+        <h2 id="waves-h">The stories that kept coming back</h2>
+        <p>Some stories never quite leave. Over 18 months, the world returned again and again to a few wars, a handful of stars and the companies behind its phones and chatbots. Each return could be slow, as a story unfolded over days, or sudden, as news broke all at once.</p>
+      </div>
+      <div class="wide chart" id="waves-iran"></div>
+      <div class="col chart" id="waves-speed" style="margin-top:40px"></div>
+      <div class="col prose" style="margin-top:28px">
+        <p id="waves-sentence">Moments like the strikes are the exception. Of the 851 moments that reached 50 or more countries, only about one in seven was a shock. Counted from the first countries to search, the typical one took 12 hours to reach half of them.</p>
+      </div>
+      <div class="col prose" style="margin-top:28px">
+        <h3 class="h3">Eighteen stories the world returned to</h3>
+        <p class="chart-sub">Countries where each story trended at least once each month. Every row shares the same months, so stories that came back together line up.</p>
+      </div>
+      <div class="scrolly tall wide" id="waves-scrolly">
+        <div class="steps">
+          <div class="step" data-step="0"><div class="n">1</div>Eighteen stories the world kept returning to. Each row is one story; each peak, a month when it reached more countries.</div>
+          <div class="step" data-step="1"><div class="n">2 · Crises</div>The widest returns were wars and crises: the Israel–Iran war, the fall of Assad, the US operation in Venezuela. Most of them came back with news nobody scheduled.</div>
+          <div class="step" data-step="2"><div class="n">3 · Stars</div>Stars came back together, in awards season. In early 2025 the Golden Globes, the Grammys and the Oscars lit up the same months; a year later, the same season brought several of them back.</div>
+          <div class="step" data-step="3"><div class="n">4 · Tech</div>Tech had its own season. In January 2025, DeepSeek shook Nvidia, Samsung launched the S25 and Nintendo revealed the Switch 2, all in the same month. Now open any story.</div>
+        </div>
+        <div class="graphic"><div class="chart" id="waves-ridge"></div></div>
+      </div>
+      <div class="wide" id="waves-after"></div>
+    </section>
+
+    <!-- ============================================================ Chapter 5 · Rituals -->
+    <section class="chapter" id="rituals" aria-labelledby="rituals-h">
+      <div class="col prose">
+        <p class="kicker">4 · Rituals</p>
+        <h2 id="rituals-h">The searches the world repeats</h2>
+        <p>Some shared moments are not news at all. Every morning, the world checks the weather. Each country does it at its own hour, so the habit circles the planet once a day. And every year the world comes back to the same holidays, even when their dates move.</p>
+      </div>
+      <div class="wide chart" id="rit-map"></div>
+      <div class="wide chart" id="rit-day" style="margin-top:48px"></div>
+      <div class="col prose" style="margin-top:48px">
+        <h3 class="h3">The year has a shape, and part of it moves</h3>
+        <p class="chart-sub">Each spike is a day, longer when more countries searched for a holiday.</p>
+      </div>
+      <div class="scrolly wide" id="rit-scrolly">
+        <div class="steps">
+          <div class="step" data-step="0"><div class="n">1</div>Each holiday the first time it appears in the archive: a winter cluster from Christmas to Valentine’s Day, a spring of moving holidays, and a quiet summer.</div>
+          <div class="step" data-step="1"><div class="n">2</div>The second time, over the first (now grey). Fixed dates land on their ghosts; moving dates rotate: Ramadan, Eid and Easter came earlier, Lunar New Year later.</div>
+          <div class="step" data-step="2"><div class="n">3</div>The circle opens at January 1 and the two times separate, first time above, second below.</div>
+          <div class="step" data-step="3"><div class="n">4</div>Each holiday’s two peaks are joined: straight down for the same date, slanted when the date moved. Tap a holiday to see where it was searched both years.</div>
+        </div>
+        <div class="graphic"><div class="chart" id="rit-hol"></div></div>
+      </div>
+      <div class="wide" id="rit-after"></div>
+    </section>
+
+    <!-- ============================================================ Closing -->
+    <section class="chapter" id="closing" aria-labelledby="closing-h">
+      <div class="col prose">
+        <p class="kicker">Closing</p>
+        <h2 id="closing-h">Two ways to be together</h2>
+        <p>When Pope Francis died, the world searched for him in the same hour: 2:20 a.m. in Mexico, 5 p.m. in Japan, nearly 8 p.m. in New Zealand. That is one way to share a moment. The weather is the other.</p>
+      </div>
+      <div class="scrolly wide" id="clk-scrolly">
+        <div class="steps">
+          <div class="step" data-step="0"><div class="n">1</div>Each dot is a country, at the hour its “weather” searches usually peak, from east (top) to west. On the world’s clock, the dots climb: the morning moves west, one time zone at a time.</div>
+          <div class="step" data-step="1"><div class="n">2</div>Switch to each country’s own clock and the staircase collapses: 116 of 120 countries search the weather at 6 a.m. their time.</div>
+          <div class="step" data-step="2"><div class="n">3</div>Pope Francis does the opposite. On the world’s clock, 110 of 120 countries started searching within the same hour; on local clocks they scatter from the middle of the night to the evening.</div>
+        </div>
+        <div class="graphic"><div class="chart" id="clk-chart"></div></div>
+      </div>
+      <div class="wide" id="clk-after"></div>
+      <div class="col prose" style="margin-top:32px">
+        <p>Shocks line up on the world’s clock. So do appointments: a final kicks off at one moment for everyone, even where it is 3 a.m. Rituals line up on each country’s own clock: the weather at 6 a.m., the countdown at midnight. Waves do a little of both, coming back for months, sometimes slowly, sometimes all at once.</p>
+        <p>The rule we used to find the moments the world shared was built for the world’s clock: 15 countries within an hour. In 18 months it caught the weather only once, on a May morning when 13 European countries woke up in the same hour. On a usual day, about 20 countries search the weather at 6 a.m. their time. The most repeated search in the archive was almost invisible to it.</p>
+        <p><b>So what did your country share with the world, and what did it keep to itself?</b></p>
+      </div>
+    </section>
+
+    <!-- ============================================================ Your turn -->
+    <section class="chapter" id="yourturn" aria-labelledby="yourturn-h">
+      <div class="col prose">
+        <p class="kicker">Your turn</p>
+        <h2 id="yourturn-h">Pick any hour, then your country</h2>
+        <p>Every hour of the 18 months is here. Pick a day, slide through its hours, and see what each country was searching. Countries searching the same thing share a color. Or start from your own country.</p>
+      </div>
+      <div class="wide yt-grid" id="yourturn-root">
+        <div class="yt-main chart" id="yt-main"></div>
+        <aside class="yt-card" id="yt-card" aria-label="Country Wrapped"></aside>
+      </div>
+      <div class="wide" id="yt-compare"></div>
+    </section>
+
+    <footer class="col source" style="padding:48px 0 96px">
+      Source: GoogleTrendArchive, national Trending Now feeds for 125 countries, collected every 10 minutes, Nov. 27, 2024 to May 17, 2026.
+    </footer>
+  </main>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

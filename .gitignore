@@ -37,3 +37,14 @@ docs/WRAPPED_VALIDATION.md
 
 # R session history
 docs/.Rhistory
+
+# ---- site (All at Once) ----
+# build output and dependencies
+site/node_modules/
+site/dist/
+# never publish raw or private data from the site folder
+site/**/*.csv
+site/**/*.parquet
+site/**/shocks.json
+# private validation reports (local only)
+docs/SHOCK_VALIDATION*.md
